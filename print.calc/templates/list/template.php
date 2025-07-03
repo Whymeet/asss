@@ -63,8 +63,14 @@ CJSCore::Init(['ajax', 'window']);
 
         <!-- Скругление углов -->
         <div style="margin: 15px 0;">
-            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Количество углов (0-4):</label>
-            <input name="cornerRadius" type="number" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;" min="0" max="4" value="0">
+            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Количество углов:</label>
+            <select name="cornerRadius" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                <option value="0">Без скругления</option>
+                <option value="1">1 угол</option>
+                <option value="2">2 угла</option>
+                <option value="3">3 угла</option>
+                <option value="4">4 угла</option>
+            </select>
         </div>
 
         <input type="hidden" name="calcType" value="list">
@@ -73,6 +79,12 @@ CJSCore::Init(['ajax', 'window']);
         <button id="calcBtn" type="button" style="padding: 12px 24px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px;">Рассчитать</button>
         
         <div id="calcResult" style="margin-top: 20px;"></div>
+        
+        <!-- Секция ламинации (показывается после расчета) -->
+        <div id="laminationSection" style="display: none; margin-top: 20px; padding: 15px; border: 2px solid #eee; border-radius: 8px; background: #f8f9fa;">
+            <h3>Дополнительная ламинация</h3>
+            <div id="laminationControls"></div>
+        </div>
     </form>
 </div>
 
@@ -261,6 +273,107 @@ function displayResult(result, resultDiv) {
     html += '</div>';
     
     resultDiv.innerHTML = html;
+    
+    // Показываем секцию ламинации если доступна
+    if (result.laminationAvailable || result.printingType) {
+        showLaminationSection(result);
+    }
+}
+
+// Функция показа секции ламинации
+function showLaminationSection(result) {
+    const laminationSection = document.getElementById('laminationSection');
+    const controlsDiv = document.getElementById('laminationControls');
+    
+    if (!laminationSection || !controlsDiv) return;
+    
+    let html = '<p style="margin-bottom: 15px;">Добавить ламинацию к заказу:</p>';
+    
+    if (result.printingType === 'Офсетная') {
+        html += '<div style="margin: 10px 0;">';
+        html += '<label style="display: block; margin: 5px 0;"><input type="radio" name="laminationType" value="1+0"> 1+0 (7 руб/лист)</label>';
+        html += '<label style="display: block; margin: 5px 0;"><input type="radio" name="laminationType" value="1+1"> 1+1 (14 руб/лист)</label>';
+        html += '</div>';
+    } else {
+        html += '<div style="margin: 10px 0;">';
+        html += '<label style="display: block; margin-bottom: 10px;">Толщина: ';
+        html += '<select name="laminationThickness" style="padding: 5px; margin-left: 10px;">';
+        html += '<option value="32">32 мкм</option>';
+        html += '<option value="75">75 мкм</option>';
+        html += '<option value="125">125 мкм</option>';
+        html += '<option value="250">250 мкм</option>';
+        html += '</select></label>';
+        html += '<label style="display: block; margin: 5px 0;"><input type="radio" name="laminationType" value="1+0"> 1+0 (x1)</label>';
+        html += '<label style="display: block; margin: 5px 0;"><input type="radio" name="laminationType" value="1+1"> 1+1 (x2)</label>';
+        html += '</div>';
+    }
+    
+    html += '<button type="button" id="laminationBtn" style="padding: 8px 16px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; margin-top: 10px;">Пересчитать с ламинацией</button>';
+    html += '<div id="laminationResult" style="margin-top: 15px;"></div>';
+    
+    controlsDiv.innerHTML = html;
+    laminationSection.style.display = 'block';
+    
+    // Обработчик для кнопки ламинации
+    const laminationBtn = document.getElementById('laminationBtn');
+    if (laminationBtn) {
+        laminationBtn.addEventListener('click', function() {
+            calculateLamination(result);
+        });
+    }
+}
+
+// Функция расчета с ламинацией
+function calculateLamination(originalResult) {
+    const laminationType = document.querySelector('input[name="laminationType"]:checked');
+    const laminationThickness = document.querySelector('select[name="laminationThickness"]');
+    const laminationResult = document.getElementById('laminationResult');
+    
+    if (!laminationType) {
+        laminationResult.innerHTML = '<div style="color: red; padding: 10px;">Выберите тип ламинации</div>';
+        return;
+    }
+    
+    const form = document.getElementById('listCalcForm');
+    const quantity = parseInt(form.querySelector('input[name="quantity"]').value);
+    
+    let laminationCost = 0;
+    let laminationDescription = '';
+    
+    if (originalResult.printingType === 'Офсетная') {
+        // Офсетная печать: простые тарифы
+        if (laminationType.value === '1+0') {
+            laminationCost = quantity * 7; // 7 руб/лист
+            laminationDescription = '1+0 (7 руб/лист)';
+        } else {
+            laminationCost = quantity * 14; // 14 руб/лист
+            laminationDescription = '1+1 (14 руб/лист)';
+        }
+    } else {
+        // Цифровая печать: зависит от толщины
+        const thickness = laminationThickness ? laminationThickness.value : '32';
+        const rates = {
+            '32': { '1+0': 40, '1+1': 80 },
+            '75': { '1+0': 60, '1+1': 120 },
+            '125': { '1+0': 80, '1+1': 160 },
+            '250': { '1+0': 90, '1+1': 180 }
+        };
+        
+        laminationCost = quantity * rates[thickness][laminationType.value];
+        laminationDescription = `${laminationType.value} ${thickness} мкм (${rates[thickness][laminationType.value]} руб/лист)`;
+    }
+    
+    const newTotal = Math.round((originalResult.totalPrice + laminationCost) * 10) / 10;
+    const roundedLaminationCost = Math.round(laminationCost * 10) / 10;
+    
+    let html = '<div style="padding: 15px; background: #fff3cd; border-radius: 8px; border: 1px solid #ffc107;">';
+    html += '<h4 style="margin-top: 0; color: #856404;">�� Расчет с ламинацией</h4>';
+    html += '<p><strong>Ламинация:</strong> ' + laminationDescription + '</p>';
+    html += '<p><strong>Стоимость ламинации:</strong> ' + roundedLaminationCost + ' ₽</p>';
+    html += '<p style="font-size: 18px; font-weight: bold; color: #856404;"><strong>Итоговая стоимость:</strong> ' + newTotal + ' ₽</p>';
+    html += '</div>';
+    
+    laminationResult.innerHTML = html;
 }
 
 // Запуск инициализации

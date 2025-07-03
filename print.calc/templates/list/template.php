@@ -13,8 +13,6 @@ CJSCore::Init(['ajax', 'window']);
 ?>
 
 <div class="calc-container" style="max-width: 800px; font-family: Arial, sans-serif;">
-    <h2>Калькулятор печати листовок</h2>
-    
     <form id="listCalcForm" style="background: #f9f9f9; padding: 20px; border-radius: 8px;">
         
         <!-- Тип бумаги -->
@@ -226,13 +224,20 @@ function handleResponse(response, resultDiv) {
     }
 }
 
-// Отображение результата
+// Отображение результата с округлением до десятых
 function displayResult(result, resultDiv) {
     console.log('📊 Отображаем результат:', result);
     
+    // Округляем все цены до десятых
+    const totalPrice = Math.round((result.totalPrice || 0) * 10) / 10;
+    const printingCost = Math.round((result.printingCost || 0) * 10) / 10;
+    const paperCost = Math.round((result.paperCost || 0) * 10) / 10;
+    const plateCost = result.plateCost ? Math.round(result.plateCost * 10) / 10 : 0;
+    const additionalCosts = result.additionalCosts ? Math.round(result.additionalCosts * 10) / 10 : 0;
+    
     let html = '<div style="padding: 20px; background: #e8f5e8; border-radius: 8px; border: 1px solid #4caf50;">';
     html += '<h3 style="margin-top: 0; color: #2e7d32;">✅ Результат расчета</h3>';
-    html += '<div style="font-size: 24px; font-weight: bold; color: #1b5e20; margin: 15px 0;">💰 Стоимость: ' + (result.totalPrice || 0) + ' ₽</div>';
+    html += '<div style="font-size: 24px; font-weight: bold; color: #1b5e20; margin: 15px 0;">💰 Стоимость: ' + totalPrice + ' ₽</div>';
     
     if (result.printingType) {
         html += '<p><strong>🖨️ Тип печати:</strong> ' + result.printingType + '</p>';
@@ -242,13 +247,13 @@ function displayResult(result, resultDiv) {
     html += '<div style="margin-top: 10px; padding: 10px; background: white; border-radius: 4px;">';
     html += '<ul style="margin: 0; padding-left: 20px;">';
     html += '<li>📄 Листов A3: ' + (result.baseA3Sheets || 0) + '</li>';
-    html += '<li>🖨️ Стоимость печати: ' + (result.printingCost || 0) + ' ₽</li>';
-    html += '<li>📰 Стоимость бумаги: ' + (result.paperCost || 0) + ' ₽</li>';
-    if (result.plateCost) {
-        html += '<li>🔧 Стоимость пластин: ' + result.plateCost + ' ₽</li>';
+    html += '<li>🖨️ Стоимость печати: ' + printingCost + ' ₽</li>';
+    html += '<li>📰 Стоимость бумаги: ' + paperCost + ' ₽</li>';
+    if (plateCost > 0) {
+        html += '<li>🔧 Стоимость пластин: ' + plateCost + ' ₽</li>';
     }
-    if (result.additionalCosts) {
-        html += '<li>⭐ Дополнительные услуги: ' + result.additionalCosts + ' ₽</li>';
+    if (additionalCosts > 0) {
+        html += '<li>⭐ Дополнительные услуги: ' + additionalCosts + ' ₽</li>';
     }
     html += '</ul>';
     html += '</div>';

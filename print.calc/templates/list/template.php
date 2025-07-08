@@ -97,7 +97,7 @@ window.addEventListener('error', function(e) {
         e.message.includes('mail.ru') ||
         e.message.includes('top-fwz1')
     )) {
-        console.log('🚫 Заблокирована внешняя ошибка:', e.message);
+        console.log('Заблокирована внешняя ошибка:', e.message);
         e.preventDefault();
         return true;
     }
@@ -105,7 +105,7 @@ window.addEventListener('error', function(e) {
 
 window.addEventListener('unhandledrejection', function(e) {
     if (e.reason === null || (e.reason && e.reason.toString().includes('recaptcha'))) {
-        console.log('🚫 Заблокирована ошибка Promise');
+        console.log('Заблокирована ошибка Promise');
         e.preventDefault();
         return true;
     }
@@ -117,12 +117,12 @@ function waitForBX(callback, fallbackCallback, timeout = 3000) {
     
     function checkBX() {
         if (typeof BX !== 'undefined' && BX.ajax) {
-            console.log('✅ BX найден через', Date.now() - startTime, 'мс');
+            console.log('BX найден через', Date.now() - startTime, 'мс');
             callback();
         } else if (Date.now() - startTime < timeout) {
             setTimeout(checkBX, 50);
         } else {
-            console.warn('⚠️ BX не загрузился за', timeout, 'мс. Используем запасной вариант');
+            console.warn('BX не загрузился за', timeout, 'мс. Используем запасной вариант');
             fallbackCallback();
         }
     }
@@ -132,31 +132,31 @@ function waitForBX(callback, fallbackCallback, timeout = 3000) {
 
 // Основная инициализация с BX
 function initWithBX() {
-    console.log('🚀 Инициализация с BX.ajax');
+    console.log('Инициализация с BX.ajax');
     
     const form = document.getElementById('listCalcForm');
     const resultDiv = document.getElementById('calcResult');
     const calcBtn = document.getElementById('calcBtn');
     
     if (!form || !resultDiv || !calcBtn) {
-        console.error('❌ Элементы формы не найдены');
+        console.error('Элементы формы не найдены');
         return;
     }
 
     calcBtn.addEventListener('click', function() {
-        console.log('📤 Отправка через BX.ajax');
+        console.log('Отправка через BX.ajax');
         
         const data = collectFormData(form);
-        resultDiv.innerHTML = '<div style="padding: 10px; color: #666;">⏳ Расчет...</div>';
+        resultDiv.innerHTML = '<div style="padding: 10px; color: #666;">Расчет...</div>';
 
         BX.ajax.runComponentAction('my:print.calc', 'calc', {
             mode: 'class',
             data: data
         }).then(function(response) {
-            console.log('📥 Ответ BX:', response);
+            console.log('Получен ответ:', response);
             handleResponse(response, resultDiv);
         }).catch(function(error) {
-            console.error('❌ Ошибка BX:', error);
+            console.error('Ошибка BX:', error);
             resultDiv.innerHTML = '<div style="color: red; padding: 10px; background: #ffebee; border-radius: 4px;">Ошибка соединения: ' + 
                 (error.message || 'Неизвестная ошибка') + '</div>';
         });
@@ -165,22 +165,22 @@ function initWithBX() {
 
 // Запасной вариант без BX
 function initWithoutBX() {
-    console.log('🔄 Инициализация без BX (fetch)');
+    console.log('Инициализация без BX (fetch)');
     
     const form = document.getElementById('listCalcForm');
     const resultDiv = document.getElementById('calcResult');
     const calcBtn = document.getElementById('calcBtn');
     
     if (!form || !resultDiv || !calcBtn) {
-        console.error('❌ Элементы формы не найдены');
+        console.error('Элементы формы не найдены');
         return;
     }
 
     calcBtn.addEventListener('click', function() {
-        console.log('📤 Отправка через fetch');
+        console.log('Отправка через fetch');
         
         const data = collectFormData(form);
-        resultDiv.innerHTML = '<div style="padding: 10px; color: #666;">⏳ Расчет...</div>';
+        resultDiv.innerHTML = '<div style="padding: 10px; color: #666;">Расчет...</div>';
 
         fetch('/bitrix/services/main/ajax.php?c=my:print.calc&action=calc&mode=class', {
             method: 'POST',
@@ -191,11 +191,11 @@ function initWithoutBX() {
         })
         .then(response => response.json())
         .then(response => {
-            console.log('📥 Ответ fetch:', response);
+            console.log('Получен ответ fetch:', response);
             handleResponse(response, resultDiv);
         })
         .catch(error => {
-            console.error('❌ Ошибка fetch:', error);
+            console.error('Ошибка fetch:', error);
             resultDiv.innerHTML = '<div style="color: red; padding: 10px; background: #ffebee; border-radius: 4px;">Ошибка соединения: ' + 
                 error.message + '</div>';
         });
@@ -217,7 +217,7 @@ function collectFormData(form) {
     data.drill = form.querySelector('input[name="drill"]').checked;
     data.numbering = form.querySelector('input[name="numbering"]').checked;
 
-    console.log('📋 Собранные данные:', data);
+    console.log('Собранные данные:', data);
     return data;
 }
 
@@ -225,20 +225,20 @@ function collectFormData(form) {
 function handleResponse(response, resultDiv) {
     if (response.data) {
         if (response.data.error) {
-            resultDiv.innerHTML = '<div style="color: red; padding: 10px; background: #ffebee; border-radius: 4px;">❌ ' + 
+            resultDiv.innerHTML = '<div style="color: red; padding: 10px; background: #ffebee; border-radius: 4px;">Ошибка: ' + 
                 response.data.error + '</div>';
         } else {
             displayResult(response.data, resultDiv);
         }
     } else {
-        resultDiv.innerHTML = '<div style="color: red; padding: 10px; background: #ffebee; border-radius: 4px;">❌ Некорректный ответ сервера</div>';
+        resultDiv.innerHTML = '<div style="color: red; padding: 10px; background: #ffebee; border-radius: 4px;">Некорректный ответ сервера</div>';
         console.error('Неожиданная структура ответа:', response);
     }
 }
 
 // Отображение результата с округлением до десятых
 function displayResult(result, resultDiv) {
-    console.log('📊 Отображаем результат:', result);
+    console.log('Отображение результата:', result);
     
     // Округляем все цены до десятых
     const totalPrice = Math.round((result.totalPrice || 0) * 10) / 10;
@@ -248,24 +248,24 @@ function displayResult(result, resultDiv) {
     const additionalCosts = result.additionalCosts ? Math.round(result.additionalCosts * 10) / 10 : 0;
     
     let html = '<div style="padding: 20px; background: #e8f5e8; border-radius: 8px; border: 1px solid #4caf50;">';
-    html += '<h3 style="margin-top: 0; color: #2e7d32;">✅ Результат расчета</h3>';
-    html += '<div style="font-size: 24px; font-weight: bold; color: #1b5e20; margin: 15px 0;">💰 Стоимость: ' + totalPrice + ' ₽</div>';
+    html += '<h3 style="margin-top: 0; color: #2e7d32;">Результат расчета</h3>';
+    html += '<div style="font-size: 24px; font-weight: bold; color: #1b5e20; margin: 15px 0;">Стоимость: ' + totalPrice + ' ₽</div>';
     
     if (result.printingType) {
-        html += '<p><strong>🖨️ Тип печати:</strong> ' + result.printingType + '</p>';
+        html += '<p><strong>Тип печати:</strong> ' + result.printingType + '</p>';
     }
     
-    html += '<details style="margin-top: 15px;"><summary style="cursor: pointer; font-weight: bold;">📋 Подробности расчета</summary>';
+    html += '<details style="margin-top: 15px;"><summary style="cursor: pointer; font-weight: bold;">Подробности расчета</summary>';
     html += '<div style="margin-top: 10px; padding: 10px; background: white; border-radius: 4px;">';
     html += '<ul style="margin: 0; padding-left: 20px;">';
-    html += '<li>📄 Листов A3: ' + (result.baseA3Sheets || 0) + '</li>';
-    html += '<li>🖨️ Стоимость печати: ' + printingCost + ' ₽</li>';
-    html += '<li>📰 Стоимость бумаги: ' + paperCost + ' ₽</li>';
+    html += '<li>Листов A3: ' + (result.baseA3Sheets || 0) + '</li>';
+    html += '<li>Стоимость печати: ' + printingCost + ' ₽</li>';
+    html += '<li>Стоимость бумаги: ' + paperCost + ' ₽</li>';
     if (plateCost > 0) {
-        html += '<li>🔧 Стоимость пластин: ' + plateCost + ' ₽</li>';
+        html += '<li>Стоимость пластин: ' + plateCost + ' ₽</li>';
     }
     if (additionalCosts > 0) {
-        html += '<li>⭐ Дополнительные услуги: ' + additionalCosts + ' ₽</li>';
+        html += '<li>Дополнительные услуги: ' + additionalCosts + ' ₽</li>';
     }
     html += '</ul>';
     html += '</div>';
@@ -367,7 +367,7 @@ function calculateLamination(originalResult) {
     const roundedLaminationCost = Math.round(laminationCost * 10) / 10;
     
     let html = '<div style="padding: 15px; background: #fff3cd; border-radius: 8px; border: 1px solid #ffc107;">';
-    html += '<h4 style="margin-top: 0; color: #856404;">�� Расчет с ламинацией</h4>';
+    html += '<h4 style="margin-top: 0; color: #856404;">Расчет с ламинацией</h4>';
     html += '<p><strong>Ламинация:</strong> ' + laminationDescription + '</p>';
     html += '<p><strong>Стоимость ламинации:</strong> ' + roundedLaminationCost + ' ₽</p>';
     html += '<p style="font-size: 18px; font-weight: bold; color: #856404;"><strong>Итоговая стоимость:</strong> ' + newTotal + ' ₽</p>';
@@ -377,11 +377,11 @@ function calculateLamination(originalResult) {
 }
 
 // Запуск инициализации
-console.log('🚀 === КАЛЬКУЛЯТОР ЛИСТОВОК ===');
-console.log('⏰ Время запуска:', new Date().toLocaleTimeString());
+console.log('Калькулятор листовок');
+console.log('Время запуска:', new Date().toLocaleTimeString());
 
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('📄 DOM загружен, ждем BX...');
+    console.log('DOM загружен, ждем BX...');
     waitForBX(initWithBX, initWithoutBX, 3000);
 });
 </script>

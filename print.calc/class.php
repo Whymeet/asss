@@ -9,6 +9,7 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
 {
     private $calculatorFile;
     private $debugFile;
+    private $configCache = [];
 
     public function __construct($component = null)
     {
@@ -44,15 +45,11 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
             return false;
         }
 
-        // Подключаем файл в глобальном контексте
         global $priceConfig;
         require_once $this->calculatorFile;
         
-        // Проверяем, что конфигурация загружена
         if (!isset($priceConfig) || !is_array($priceConfig)) {
             $this->debug('Конфигурация $priceConfig не найдена после подключения');
-            
-            // Принудительно устанавливаем глобальную переменную
             $GLOBALS['priceConfig'] = $priceConfig ?? null;
             
             if (!isset($GLOBALS['priceConfig']) || !is_array($GLOBALS['priceConfig'])) {
@@ -61,13 +58,80 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
             }
         }
         
-        $this->debug('Calculator.php успешно загружен', [
-            'priceConfig_isset' => isset($priceConfig),
-            'priceConfig_global_isset' => isset($GLOBALS['priceConfig']),
-            'functions_count' => count(get_defined_functions()['user'] ?? [])
-        ]);
-        
+        $this->debug('Calculator.php успешно загружен');
         return true;
+    }
+
+    /**
+     * Загружает конфигурацию для конкретного типа калькулятора
+     */
+    private function loadCalcConfig($calcType)
+    {
+        $this->debug("Попытка загрузить конфигурацию для: {$calcType}");
+        
+        // Проверяем кэш
+        if (isset($this->configCache[$calcType])) {
+            $this->debug("Конфигурация {$calcType} найдена в кэше");
+            return $this->configCache[$calcType];
+        }
+
+        // Ищем в папке config (не configs!)
+        $configFile = dirname(__FILE__) . "/config/{$calcType}.php";
+        $this->debug("Ищем конфигурацию в: {$configFile}");
+        
+        if (!file_exists($configFile)) {
+            $this->debug("Файл конфигурации не найден: {$configFile}");
+            
+            // Для совместимости: если это list, пробуем существующий list.php
+            if ($calcType === 'list') {
+                $oldConfigFile = dirname(__FILE__) . "/list.php";
+                $this->debug("Пробуем старый формат: {$oldConfigFile}");
+                
+                if (file_exists($oldConfigFile)) {
+                    $config = include $oldConfigFile;
+                    $this->debug("Старая конфигурация загружена", $config);
+                    
+                    // Преобразуем в новый формат
+                    $newConfig = [
+                        'sizes' => $config['sizes'] ?? [],
+                        'papers' => $config['papers'] ?? [],
+                        'description' => 'Калькулятор печати листовок',
+                        'default_quantity' => 1000,
+                        'features' => [
+                            'bigovka' => true,
+                            'perforation' => true,
+                            'drill' => true,
+                            'numbering' => true,
+                            'corner_radius' => true,
+                            'lamination' => true
+                        ]
+                    ];
+                    
+                    // Кэшируем
+                    $this->configCache[$calcType] = $newConfig;
+                    $this->debug("Конфигурация {$calcType} преобразована и закэширована", $newConfig);
+                    
+                    return $newConfig;
+                }
+            }
+            
+            $this->debug("Конфигурация для {$calcType} не найдена");
+            return null;
+        }
+
+        $config = include $configFile;
+        
+        if (!is_array($config)) {
+            $this->debug("Некорректная конфигурация в файле: {$configFile}");
+            return null;
+        }
+        
+        // Кэшируем конфигурацию
+        $this->configCache[$calcType] = $config;
+        
+        $this->debug("Конфигурация {$calcType} загружена", $config);
+        
+        return $config;
     }
 
     public function executeComponent()
@@ -82,65 +146,49 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
         
         // Определяем тип калькулятора из параметров
         $calcType = $this->arParams['CALC_TYPE'] ?? 'list';
+        $this->debug("Тип калькулятора: {$calcType}");
+        
+        // Загружаем конфигурацию для конкретного типа
+        $calcConfig = $this->loadCalcConfig($calcType);
+        
+        if (!$calcConfig) {
+            $this->debug("Не удалось загрузить конфигурацию для {$calcType}");
+            ShowError("Конфигурация для калькулятора '{$calcType}' не найдена");
+            return;
+        }
         
         // Подготавливаем данные в зависимости от типа калькулятора
-        switch ($calcType) {
-            case 'list':
-                $this->prepareListData($priceConfig);
-                break;
-            case 'booklet':
-                $this->prepareBookletData($priceConfig);
-                break;
-            case 'vizit':
-                $this->prepareVizitData($priceConfig);
-                break;
-            default:
-                $this->prepareDefaultData($priceConfig);
-        }
+        $this->prepareData($priceConfig, $calcConfig, $calcType);
         
         $this->arResult['CALC_TYPE'] = $calcType;
         $this->arResult['CONFIG_LOADED'] = true;
+        $this->arResult['DESCRIPTION'] = $calcConfig['description'] ?? 'Калькулятор печати';
+        $this->arResult['FEATURES'] = $calcConfig['features'] ?? [];
+        
+        $this->debug("Данные подготовлены для шаблона", [
+            'CALC_TYPE' => $calcType,
+            'PAPER_TYPES_COUNT' => count($this->arResult['PAPER_TYPES'] ?? []),
+            'FORMATS_COUNT' => count($this->arResult['FORMATS'] ?? [])
+        ]);
         
         $this->includeComponentTemplate();
     }
 
-    private function prepareListData($priceConfig)
+    /**
+     * Универсальная подготовка данных на основе конфигурации
+     */
+    private function prepareData($priceConfig, $calcConfig, $calcType)
     {
-        $availableSizes = ["A7", "A6", "Евро", "A5", "A4", "A3"];
+        // Получаем доступные размеры из конфигурации
+        $availableSizes = $calcConfig['sizes'] ?? [];
         
-        // Форматируем типы бумаги
-        $paperTypes = [];
-        foreach ($priceConfig['paper'] as $type => $price) {
-            $paperTypes[] = [
-                'ID' => $type,
-                'NAME' => is_numeric($type) ? $type . ' г/м²' : $type,
-                'PRICE' => $price
-            ];
-        }
+        // Получаем доступные типы бумаги из конфигурации
+        $availablePapers = $calcConfig['papers'] ?? [];
         
-        // Форматируем размеры (только доступные)
-        $formats = [];
-        foreach ($priceConfig['size_coefficients'] as $size => $coef) {
-            if (in_array($size, $availableSizes)) {
-                $formats[] = [
-                    'ID' => $size,
-                    'NAME' => $size,
-                    'COEFFICIENT' => $coef
-                ];
-            }
-        }
-        
-        $this->arResult = [
-            'PAPER_TYPES' => $paperTypes,
-            'FORMATS' => $formats,
-            'AVAILABLE_SIZES' => $availableSizes
-        ];
-    }
-
-    private function prepareBookletData($priceConfig)
-    {
-        $availableSizes = ["A4", "A3"];
-        $availablePapers = [80.0, 120.0, 90.0, 105.0, 115.0, 130.0, 150.0, 170.0, 200.0, 250.0, 270.0, 300.0, "Самоклейка", "Картон Одн", "Картон Двух"];
+        $this->debug("Подготовка данных", [
+            'availableSizes' => $availableSizes,
+            'availablePapers' => $availablePapers
+        ]);
         
         // Форматируем типы бумаги (только доступные)
         $paperTypes = [];
@@ -166,48 +214,51 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
             }
         }
         
+        // Базовый результат
         $this->arResult = [
             'PAPER_TYPES' => $paperTypes,
             'FORMATS' => $formats,
             'AVAILABLE_SIZES' => $availableSizes,
-            'AVAILABLE_PAPERS' => $availablePapers
+            'AVAILABLE_PAPERS' => $availablePapers,
+            'DEFAULT_QUANTITY' => $calcConfig['default_quantity'] ?? 1000,
+            'MIN_QUANTITY' => $calcConfig['min_quantity'] ?? 1,
+            'MAX_QUANTITY' => $calcConfig['max_quantity'] ?? null
         ];
-    }
-
-    private function prepareVizitData($priceConfig)
-    {
-        // Данные для визиток
-        $this->arResult = [
-            'DIGITAL_PRICES' => $priceConfig['digital_vizit_prices'],
-            'OFFSET_PRICES' => $priceConfig['offset_vizit_prices']
-        ];
-    }
-
-    private function prepareDefaultData($priceConfig)
-    {
-        // Базовые данные для всех типов
-        $paperTypes = [];
-        foreach ($priceConfig['paper'] as $type => $price) {
-            $paperTypes[] = [
-                'ID' => $type,
-                'NAME' => is_numeric($type) ? $type . ' г/м²' : $type,
-                'PRICE' => $price
-            ];
+        
+        // Добавляем специфичные для типа калькулятора данные
+        switch ($calcType) {
+            case 'vizit':
+                $this->arResult['DIGITAL_PRICES'] = $priceConfig['digital_vizit_prices'];
+                $this->arResult['OFFSET_PRICES'] = $priceConfig['offset_vizit_prices'];
+                break;
+                
+            case 'booklet':
+                $this->arResult['MAX_FOLDING'] = $calcConfig['max_folding'] ?? 2;
+                break;
+                
+            case 'catalog':
+                $this->arResult['CATALOG_CONFIG'] = $priceConfig['catalog'];
+                $this->arResult['AVAILABLE_PAGES'] = $calcConfig['additional']['available_pages'] ?? [];
+                break;
+                
+            case 'note':
+                $this->arResult['NOTE_CONFIG'] = $priceConfig['note'];
+                break;
+                
+            case 'canvas':
+                $this->arResult['CANVAS_CONFIG'] = $calcConfig['additional'] ?? [];
+                break;
         }
         
-        $formats = [];
-        foreach ($priceConfig['size_coefficients'] as $size => $coef) {
-            $formats[] = [
-                'ID' => $size,
-                'NAME' => $size,
-                'COEFFICIENT' => $coef
-            ];
+        // Добавляем дополнительные параметры из конфигурации
+        if (isset($calcConfig['additional'])) {
+            $this->arResult = array_merge($this->arResult, $calcConfig['additional']);
         }
         
-        $this->arResult = [
-            'PAPER_TYPES' => $paperTypes,
-            'FORMATS' => $formats
-        ];
+        $this->debug("Данные подготовлены", [
+            'paperTypes_count' => count($paperTypes),
+            'formats_count' => count($formats)
+        ]);
     }
 
     // AJAX-методы для разных типов калькуляторов
@@ -236,12 +287,33 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
                 'calcType' => $calcType
             ]);
 
+            // Валидация на основе конфигурации
+            $calcConfig = $this->loadCalcConfig($calcType);
+            if ($calcConfig && !$this->validateInput($calcConfig, $paperType, $size)) {
+                return ['error' => 'Недопустимые параметры для данного типа калькулятора'];
+            }
+
             switch ($calcType) {
                 case 'list':
                     return $this->calculateList($paperType, $size, $quantity, $printType, $bigovka, $cornerRadius, $perforation, $drill, $numbering);
+                    
                 case 'booklet':
-                    $foldingCount = (int)$_POST['foldingCount'] ?? 0;
+                    $foldingCount = (int)($_POST['foldingCount'] ?? 0);
                     return $this->calculateBooklet($paperType, $size, $quantity, $printType, $foldingCount, $bigovka, $cornerRadius, $perforation, $drill, $numbering);
+                    
+                case 'rizo':
+                    return $this->calculateRizo($paperType, $size, $quantity, $printType, $bigovka, $cornerRadius, $perforation, $drill, $numbering);
+                    
+                case 'vizit':
+                    $sideType = $_POST['sideType'] ?? 'single';
+                    return $this->calculateVizit($printType, $quantity, $sideType);
+                    
+                case 'canvas':
+                    $width = (float)($_POST['width'] ?? 0);
+                    $height = (float)($_POST['height'] ?? 0);
+                    $includePodramnik = filter_var($_POST['includePodramnik'] ?? false, FILTER_VALIDATE_BOOLEAN);
+                    return $this->calculateCanvas($width, $height, $includePodramnik);
+                    
                 default:
                     return $this->calculateList($paperType, $size, $quantity, $printType, $bigovka, $cornerRadius, $perforation, $drill, $numbering);
             }
@@ -249,6 +321,27 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
             $this->debug("Ошибка в calcAction", $e->getMessage());
             return ['error' => 'Ошибка расчета: ' . $e->getMessage()];
         }
+    }
+
+    /**
+     * Валидация входных данных на основе конфигурации
+     */
+    private function validateInput($calcConfig, $paperType, $size)
+    {
+        $availableSizes = $calcConfig['sizes'] ?? [];
+        $availablePapers = $calcConfig['papers'] ?? [];
+        
+        if (!empty($availableSizes) && !in_array($size, $availableSizes)) {
+            $this->debug("Недопустимый размер: {$size}. Доступные: " . implode(', ', $availableSizes));
+            return false;
+        }
+        
+        if (!empty($availablePapers) && !in_array($paperType, $availablePapers)) {
+            $this->debug("Недопустимый тип бумаги: {$paperType}. Доступные: " . implode(', ', $availablePapers));
+            return false;
+        }
+        
+        return true;
     }
 
     private function calculateList($paperType, $size, $quantity, $printType, $bigovka, $cornerRadius, $perforation, $drill, $numbering)
@@ -297,6 +390,33 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
     private function calculateBooklet($paperType, $size, $quantity, $printType, $foldingCount, $bigovka, $cornerRadius, $perforation, $drill, $numbering)
     {
         return calculatePrice($paperType, $size, $quantity, $printType, $foldingCount, $bigovka, $cornerRadius, $perforation, $drill, $numbering);
+    }
+
+    private function calculateRizo($paperType, $size, $quantity, $printType, $bigovka, $cornerRadius, $perforation, $drill, $numbering)
+    {
+        if (!function_exists('calculateRizoPrice')) {
+            return ['error' => 'Функция calculateRizoPrice не найдена'];
+        }
+        
+        return calculateRizoPrice($paperType, $size, $quantity, $printType, $bigovka, $cornerRadius, $perforation, $drill, $numbering);
+    }
+
+    private function calculateVizit($printType, $quantity, $sideType)
+    {
+        if (!function_exists('calculateVizitPrice')) {
+            return ['error' => 'Функция calculateVizitPrice не найдена'];
+        }
+        
+        return calculateVizitPrice($printType, $quantity, $sideType);
+    }
+
+    private function calculateCanvas($width, $height, $includePodramnik)
+    {
+        if (!function_exists('calculateCanvasPrice')) {
+            return ['error' => 'Функция calculateCanvasPrice не найдена'];
+        }
+        
+        return calculateCanvasPrice($width, $height, $includePodramnik);
     }
 
     private function addLogMessage($message) {

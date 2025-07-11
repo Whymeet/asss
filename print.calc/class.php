@@ -114,7 +114,8 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
                 'CALC_TYPE' => $calcType,
                 'CONFIG_LOADED' => true,
                 'PAPER_TYPES' => $this->preparePaperTypes($config['papers'] ?? []),
-                'FORMATS' => $this->prepareFormats($config['sizes'] ?? [])
+                'FORMATS' => $this->prepareFormats($config['sizes'] ?? []),
+                'FEATURES' => $config['features'] ?? []
             ]);
 
             $this->includeComponentTemplate();

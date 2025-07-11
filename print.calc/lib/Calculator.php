@@ -1,4 +1,5 @@
 <?php
+namespace Bitrix\PrintCalc;
 
 class Calculator {
     private $priceConfig;
@@ -23,15 +24,6 @@ class Calculator {
                 "Самоклейка" => 17.5,
                 "Картон Одн" => 12.0,
                 "Картон Двух" => 10.0
-            ],
-            // Настройки каталогов
-            "catalog" => [
-                "sheet_conversion" => [
-                    "A4" => [8=>2,12=>3,16=>4,20=>5,24=>6,28=>7,32=>8,36=>9,40=>10,44=>11,48=>12,52=>13,56=>14,60=>15,64=>16],
-                    "A5" => [8=>1,12=>2,16=>2,20=>3,24=>3,28=>4,32=>4,36=>5,40=>5,44=>6,48=>6,52=>7,56=>7,60=>8,64=>8],
-                    "A6" => [8=>1,12=>1,16=>1,20=>2,24=>2,28=>2,32=>2,36=>3,40=>3,44=>3,48=>3,52=>3,56=>4,60=>4,64=>4]
-                ],
-                "collation_price" => 0.1
             ],
             // Цены на ламинацию
             "lamination" => [
@@ -71,18 +63,7 @@ class Calculator {
                 ["min" => 901, "max" => 1000, "4+0" => 3070, "4+4" => 5990, "custom" => 4600],
                 ["min" => 1001, "max" => 1500, "4+0" => 3460, "4+4" => 6900, "custom" => 5170],
                 ["min" => 1501, "max" => 2000, "4+0" => 3840, "4+4" => 7700, "custom" => 5760],
-                ["min" => 2001, "max" => 2500, "4+0" => 4400, "4+4" => 8800, "custom" => 6600],
-                ["min" => 2501, "max" => 3000, "4+0" => 4800, "4+4" => 9580, "custom" => 7200],
-                ["min" => 3001, "max" => 3500, "4+0" => 4990, "4+4" => 9970, "custom" => 7480],
-                ["min" => 3501, "max" => 4000, "4+0" => 5760, "4+4" => 10340, "custom" => 8630],
-                ["min" => 4001, "max" => 4500, "4+0" => 6140, "4+4" => 11120, "custom" => 9200],
-                ["min" => 4501, "max" => 5000, "4+0" => 6530, "4+4" => 12590, "custom" => 9780],
-                ["min" => 5001, "max" => 6000, "4+0" => 7370, "4+4" => 14440, "custom" => 11044],
-                ["min" => 6001, "max" => 7000, "4+0" => 8210, "4+4" => 16290, "custom" => 12308],
-                ["min" => 7001, "max" => 8000, "4+0" => 9050, "4+4" => 18140, "custom" => 13572],
-                ["min" => 8001, "max" => 9000, "4+0" => 9890, "4+4" => 19990, "custom" => 14836],
-                ["min" => 9001, "max" => 10000, "4+0" => 10740, "4+4" => 21840, "custom" => 16100],
-                ["min" => 10001, "max" => 40000, "4+0" => 10740, "4+4" => 21840, "custom" => 16100]
+                ["min" => 2001, "max" => 2500, "4+0" => 4400, "4+4" => 8800, "custom" => 6600]
             ],
             "digital_prices" => [
                 20 => ["4+0" => 50, "4+4" => 60],
@@ -105,28 +86,11 @@ class Calculator {
         ];
     }
 
-    public function calculatePrice($calcType, $paperType, $size, $quantity, $printType, $options = [])
-    {
-        // Проверяем обязательные параметры
-        if (empty($paperType) || empty($size) || $quantity <= 0) {
-            return ['error' => 'Не заполнены обязательные поля'];
+    public function calculatePrice($calcType, $paperType, $size, $quantity, $printType, $options = []) {
+        // Проверка корректности данных
+        if ($quantity <= 0 || !isset($this->priceConfig['size_coefficients'][$size])) {
+            return ['error' => 'Некорректные данные'];
         }
-
-        // Проверяем корректность размера
-        if (!isset($this->priceConfig['size_coefficients'][$size])) {
-            return ['error' => 'Неподдерживаемый формат'];
-        }
-
-        // Извлекаем опции
-        $bigovka = !empty($options['bigovka']);
-        $cornerRadius = (int)($options['cornerRadius'] ?? 0);
-        $perforation = !empty($options['perforation']);
-        $drill = !empty($options['drill']);
-        $numbering = !empty($options['numbering']);
-        $folding = (int)($options['folding'] ?? 0);
-        $withLamination = !empty($options['withLamination']);
-        $laminationType = $options['laminationType'] ?? '';
-        $laminationSide = $options['laminationSide'] ?? '';
 
         // Расчёт базовых значений
         $sizeCoefficient = $this->priceConfig['size_coefficients'][$size];
@@ -135,19 +99,11 @@ class Calculator {
         
         // Определение типа печати
         $printingType = $baseA3Sheets > $this->priceConfig['offset_threshold'] ? 'Офсетная' : 'Цифровая';
-        
-        // Расчет стоимости печати
+        $adjustment = 0;
         $printingCost = 0;
         $plateCost = 0;
         $paperCost = 0;
-        $additionalCosts = 0;
-        $laminationCost = 0;
-        $foldingCost = 0;
-
-        // Расчет стоимости бумаги
-        if (isset($this->priceConfig['paper'][$paperType])) {
-            $paperCost = $totalA3Sheets * $this->priceConfig['paper'][$paperType];
-        }
+        $totalPrice = 0;
 
         if ($printingType === 'Офсетная') {
             // Определение колонки для стоимости
@@ -161,67 +117,124 @@ class Calculator {
                 }
             }
 
-            // Стоимость пластин
-            $plateCost = $this->priceConfig['plate_prices'][$size === 'A3' ? 'A3_double' : 'default'];
-        } else {
-            // Цифровая печать
-            $priceKey = min(array_keys($this->priceConfig['digital_prices']));
-            foreach ($this->priceConfig['digital_prices'] as $threshold => $prices) {
-                if ($totalA3Sheets <= $threshold) {
+            // Стоимость пластины
+            $plateCost = ($size === 'A3' && $printType === 'double') 
+                ? $this->priceConfig['plate_prices']['A3_double'] 
+                : $this->priceConfig['plate_prices']['default'];
+            
+            // Расчёт приладочных листов
+            foreach ($this->priceConfig['adjustment_sheets'] as $range) {
+                if ($baseA3Sheets >= $range['min'] && $baseA3Sheets <= $range['max']) {
+                    $adjustment = $range['sheets'];
                     break;
                 }
-                $priceKey = $threshold;
             }
-            $printingCost = $totalA3Sheets * $this->priceConfig['digital_prices'][$priceKey][$printType === 'double' ? '4+4' : '4+0'];
-        }
+            $totalA3Sheets += $adjustment;
 
-        // Расчет дополнительных услуг
-        if ($bigovka) {
-            $additionalCosts += $quantity * $this->priceConfig['bigovka'];
-        }
-        if ($cornerRadius > 0) {
-            $additionalCosts += $quantity * $cornerRadius * $this->priceConfig['corner_radius'];
-        }
-        if ($perforation) {
-            $additionalCosts += $quantity * $this->priceConfig['perforation'];
-        }
-        if ($drill) {
-            $additionalCosts += $quantity * $this->priceConfig['drill'];
-        }
-        if ($numbering) {
-            $numberingPrice = $quantity > 1000 ? $this->priceConfig['numbering_large'] : $this->priceConfig['numbering_small'];
-            $additionalCosts += $quantity * $numberingPrice;
-        }
+            // Стоимость бумаги
+            $paperCost = $totalA3Sheets * $this->priceConfig['paper'][$paperType];
+            $totalPrice = $paperCost + $printingCost + $plateCost;
 
-        // Расчет стоимости сложения для буклетов
-        if ($calcType === 'booklet' && $folding > 0) {
-            $foldingCost = $quantity * $folding * 0.5; // 0.5 руб. за одно сложение
-        }
+        } else { // Цифровая печать
+            // Определение колонки стоимости
+            $priceColumn = ($printType === 'double') ? '4+4' : '4+0';
+            $digitalPrice = 0;
 
-        // Расчет стоимости ламинации
-        if ($withLamination && !empty($laminationType) && !empty($laminationSide)) {
-            if ($printingType === 'Офсетная') {
-                $laminationCost = $quantity * $this->priceConfig['lamination']['offset'][$laminationSide];
-            } else {
-                $thickness = '32'; // По умолчанию используем 32 мкм
-                $laminationCost = $quantity * $this->priceConfig['lamination']['digital'][$thickness][$laminationSide];
+            // Поиск цены в таблице цифровой печати
+            foreach ($this->priceConfig['digital_prices'] as $max => $prices) {
+                if ($baseA3Sheets <= $max) {
+                    $digitalPrice = $prices[$priceColumn];
+                    break;
+                }
             }
+
+            // Если количество больше максимального в таблице
+            if ($digitalPrice === 0) {
+                $lastRange = end($this->priceConfig['digital_prices']);
+                $digitalPrice = $lastRange[$priceColumn];
+            }
+
+            $printingCost = $baseA3Sheets * $digitalPrice;
+            $paperCost = $baseA3Sheets * $this->priceConfig['paper'][$paperType];
+            $totalPrice = $paperCost + $printingCost;
         }
 
-        // Общая стоимость
-        $totalPrice = $printingCost + $plateCost + $paperCost + $additionalCosts + $laminationCost + $foldingCost;
+        // Добавляем дополнительные услуги
+        $additionalCosts = $this->calculateAdditionalCosts(
+            $options['bigovka'] ?? false,
+            $options['corner_radius'] ?? 0,
+            $options['perforation'] ?? false,
+            $options['drill'] ?? false,
+            $options['numbering'] ?? false,
+            $quantity
+        );
+        $totalPrice += $additionalCosts;
+
+        // Добавляем ламинацию если она запрошена
+        if (!empty($options['lamination'])) {
+            $laminationCost = $this->calculateLaminationCost(
+                $printingType,
+                $options['lamination_thickness'],
+                $options['lamination_type'],
+                $quantity
+            );
+            $totalPrice += $laminationCost;
+        }
 
         return [
             'printingType' => $printingType,
+            'baseA3Sheets' => $baseA3Sheets,
+            'adjustment' => $adjustment,
+            'totalA3Sheets' => $totalA3Sheets,
             'printingCost' => $printingCost,
             'plateCost' => $plateCost,
             'paperCost' => $paperCost,
-            'additionalCosts' => $additionalCosts,
-            'laminationCost' => $laminationCost,
-            'foldingCost' => $foldingCost,
             'totalPrice' => $totalPrice,
-            'baseA3Sheets' => $baseA3Sheets
+            'additionalCosts' => $additionalCosts
         ];
+    }
+
+    private function calculateAdditionalCosts($bigovka, $cornerRadius, $perforation, $drill, $numbering, $quantity) {
+        $cost = 0;
+
+        // Биговка
+        if ($bigovka) {
+            $cost += $quantity * $this->priceConfig['bigovka'];
+        }
+
+        // Скругление углов
+        if ($cornerRadius > 0) {
+            $cost += $cornerRadius * $this->priceConfig['corner_radius'] * $quantity;
+        }
+
+        // Перфорация
+        if ($perforation) {
+            $cost += $quantity * $this->priceConfig['perforation'];
+        }
+
+        // Сверление
+        if ($drill) {
+            $cost += $quantity * $this->priceConfig['drill'];
+        }
+
+        // Нумерация
+        if ($numbering) {
+            if ($quantity <= 1000) {
+                $cost += $quantity * $this->priceConfig['numbering_small'];
+            } else {
+                $cost += $quantity * $this->priceConfig['numbering_large'];
+            }
+        }
+
+        return $cost;
+    }
+
+    public function calculateLaminationCost($printingType, $thickness, $type, $quantity) {
+        if ($printingType === 'Офсетная') {
+            return $quantity * $this->priceConfig['lamination']['offset'][$type];
+        } else {
+            return $quantity * $this->priceConfig['lamination']['digital'][$thickness][$type];
+        }
     }
 }
 

@@ -52,11 +52,11 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
 
             require_once($this->calculatorFile);
             
-            if (!class_exists('Calculator')) {
+            if (!class_exists('Bitrix\\PrintCalc\\Calculator')) {
                 throw new \Exception("Класс Calculator не найден в файле " . $this->calculatorFile);
             }
 
-            $this->calculator = new \Calculator();
+            $this->calculator = new \Bitrix\PrintCalc\Calculator();
             return true;
 
         } catch (\Exception $e) {
@@ -169,7 +169,7 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
     }
 
     // AJAX-методы для разных типов калькуляторов
-    public function calcAction($paperType = '', $size = '', $quantity = 0, $printType = 'single', $bigovka = false, $cornerRadius = 0, $perforation = false, $drill = false, $numbering = false, $calcType = 'list', $withLamination = false, $laminationType = '', $laminationThickness = '', $folding = 0)
+    public function calcAction($paperType = '', $size = '', $quantity = 0, $printType = 'single', $bigovka = false, $cornerRadius = 0, $perforation = false, $drill = false, $numbering = false, $calcType = 'list', $withLamination = false, $laminationType = '', $laminationThickness = '')
     {
         $this->debug("calcAction вызван с параметрами", func_get_args());
         
@@ -184,88 +184,38 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
             $drill = filter_var($drill, FILTER_VALIDATE_BOOLEAN);
             $numbering = filter_var($numbering, FILTER_VALIDATE_BOOLEAN);
             $withLamination = filter_var($withLamination, FILTER_VALIDATE_BOOLEAN);
-            
-            // Преобразуем числовые значения
-            $quantity = (int)$quantity;
-            $cornerRadius = (int)$cornerRadius;
-            $folding = (int)$folding;
-            $laminationThickness = (int)$laminationThickness;
-            
-            // Проверяем обязательные параметры
-            if (empty($paperType) || empty($size) || $quantity <= 0) {
-                return ['error' => 'Не заполнены обязательные поля'];
+
+            // Подготавливаем опции для калькулятора
+            $options = [
+                'bigovka' => $bigovka,
+                'corner_radius' => (int)$cornerRadius,
+                'perforation' => $perforation,
+                'drill' => $drill,
+                'numbering' => $numbering
+            ];
+
+            // Добавляем параметры ламинации если она запрошена
+            if ($withLamination && $laminationType && $laminationThickness) {
+                $options['lamination'] = true;
+                $options['lamination_type'] = $laminationType;
+                $options['lamination_thickness'] = $laminationThickness;
             }
 
-            // Загружаем конфигурацию для типа калькулятора
-            $config = $this->loadConfig($calcType);
-            if (!$config) {
-                return ['error' => 'Не удалось загрузить конфигурацию'];
-            }
-
-            // Проверяем ограничения
-            if (isset($config['min_quantity']) && $quantity < $config['min_quantity']) {
-                return ['error' => "Минимальный тираж: {$config['min_quantity']} шт."];
-            }
-            if (isset($config['max_quantity']) && $quantity > $config['max_quantity']) {
-                return ['error' => "Максимальный тираж: {$config['max_quantity']} шт."];
-            }
-
-            // Проверяем поддержку ламинации
-            if ($withLamination) {
-                if (empty($config['features']['lamination'])) {
-                    return ['error' => 'Ламинация не поддерживается для данного типа продукции'];
-                }
-                if (empty($laminationType) || empty($laminationThickness)) {
-                    return ['error' => 'Не указаны параметры ламинации'];
-                }
-                if (!in_array($laminationType, ['1+0', '1+1'])) {
-                    return ['error' => 'Неверный тип ламинации'];
-                }
-                if (!in_array($laminationThickness, [32, 75, 125, 250])) {
-                    return ['error' => 'Неверная толщина ламинации'];
-                }
-            }
-
-            // Проверяем поддержку сложения для буклетов
-            if ($calcType === 'booklet' && $folding > 0) {
-                if (empty($config['features']['folding'])) {
-                    return ['error' => 'Сложение не поддерживается'];
-                }
-                if ($folding > ($config['max_folding'] ?? 2)) {
-                    return ['error' => "Максимальное количество сложений: {$config['max_folding']}"];
-                }
-            }
-
-            // Вызываем метод расчета
+            // Вызываем калькулятор
             $result = $this->calculator->calculatePrice(
                 $calcType,
                 $paperType,
                 $size,
-                $quantity,
+                (int)$quantity,
                 $printType,
-                [
-                    'bigovka' => $bigovka,
-                    'cornerRadius' => $cornerRadius,
-                    'perforation' => $perforation,
-                    'drill' => $drill,
-                    'numbering' => $numbering,
-                    'folding' => $folding,
-                    'withLamination' => $withLamination,
-                    'laminationType' => $laminationType,
-                    'laminationThickness' => $laminationThickness
-                ]
+                $options
             );
 
-            $this->debug("Результат расчета", $result);
             return $result;
 
-        } catch (\Exception $e) {
-            $this->debug("Ошибка при расчете", [
-                'message' => $e->getMessage(),
-                'file' => $e->getFile(),
-                'line' => $e->getLine()
-            ]);
-            return ['error' => 'Ошибка при расчете: ' . $e->getMessage()];
+        } catch (Exception $e) {
+            $this->debug("Ошибка в calcAction", $e->getMessage());
+            return ['error' => $e->getMessage()];
         }
     }
 

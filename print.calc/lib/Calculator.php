@@ -8,12 +8,43 @@ class Calculator {
         $this->priceConfig = require_once(__DIR__ . '/../config/price_config.php');
     }
 
+    // Добавляем метод для логирования
+    private function logData($method, $data, $message = '') {
+        $logData = [
+            'timestamp' => date('Y-m-d H:i:s'),
+            'method' => $method,
+            'data' => $data,
+            'message' => $message
+        ];
+        error_log(print_r($logData, true));
+    }
+
     // Функция для вычисления стоимости
     // Базовая функция для печати. На основе этой функции считаются следующие функции 
     function calculatePrice($paperType, $size, $quantity, $printType, $foldingCount = 0, $bigovka = false, $cornerRadius = 0, $perforation = false, $drill = false, $numbering = false) {
+        // Логируем входные данные
+        $this->logData(__METHOD__, [
+            'paperType' => $paperType,
+            'size' => $size,
+            'quantity' => $quantity,
+            'printType' => $printType,
+            'foldingCount' => $foldingCount,
+            'bigovka' => $bigovka,
+            'cornerRadius' => $cornerRadius,
+            'perforation' => $perforation,
+            'drill' => $drill,
+            'numbering' => $numbering
+        ], 'Start calculation');
+
         // Проверка корректности данных
-        if ($quantity <= 0 || !isset($this->priceConfig['size_coefficients'][$size])) {
-            return ['error' => 'Некорректные данные'];
+        if ($quantity <= 0) {
+            $this->logData(__METHOD__, ['quantity' => $quantity], 'Error: Invalid quantity');
+            return ['error' => 'Некорректные данные: количество должно быть больше 0'];
+        }
+
+        if (!isset($this->priceConfig['size_coefficients'][$size])) {
+            $this->logData(__METHOD__, ['size' => $size], 'Error: Invalid size');
+            return ['error' => 'Некорректные данные: неверный формат'];
         }
 
         // Расчёт базовых значений
@@ -92,7 +123,7 @@ class Calculator {
         $additionalCosts = $this->calculateAdditionalCosts($bigovka, $cornerRadius, $perforation, $drill, $numbering, $quantity);
         $totalPrice += $additionalCosts;
 
-        return [
+        $result = [
             'printingType' => $printingType,
             'baseA3Sheets' => $baseA3Sheets,
             'adjustment' => $adjustment,
@@ -105,13 +136,36 @@ class Calculator {
             'printingType' => $printingType,
             'laminationAvailable' => true
         ];
+
+        // Логируем результат перед возвратом
+        $this->logData(__METHOD__, $result, 'Calculation completed');
+        return $result;
     }
 
     // Функция для вычисления стоимости ризографической и офсетной печати
     function calculateRizoPrice($paperType, $size, $quantity, $printType, $bigovka = false, $cornerRadius = 0, $perforation = false, $drill = false, $numbering = false) {
+        // Логируем входные данные
+        $this->logData(__METHOD__, [
+            'paperType' => $paperType,
+            'size' => $size,
+            'quantity' => $quantity,
+            'printType' => $printType,
+            'bigovka' => $bigovka,
+            'cornerRadius' => $cornerRadius,
+            'perforation' => $perforation,
+            'drill' => $drill,
+            'numbering' => $numbering
+        ], 'Start Rizo calculation');
+
         // Проверка корректности данных
-        if ($quantity <= 0 || !isset($this->priceConfig['size_coefficients'][$size])) {
-            return ['error' => 'Некорректные данные'];
+        if ($quantity <= 0) {
+            $this->logData(__METHOD__, ['quantity' => $quantity], 'Error: Invalid quantity');
+            return ['error' => 'Некорректные данные: количество должно быть больше 0'];
+        }
+
+        if (!isset($this->priceConfig['size_coefficients'][$size])) {
+            $this->logData(__METHOD__, ['size' => $size], 'Error: Invalid size');
+            return ['error' => 'Некорректные данные: неверный формат'];
         }
 
         // Расчёт базовых значений
@@ -169,7 +223,7 @@ class Calculator {
         $additionalCosts = $this->calculateAdditionalCosts($bigovka, $cornerRadius, $perforation, $drill, $numbering, $quantity);
         $totalPrice += $additionalCosts;
 
-        return [
+        $result = [
             'printingType' => $printingType,
             'baseA3Sheets' => $baseA3Sheets,
             'adjustment' => $adjustment,
@@ -180,18 +234,31 @@ class Calculator {
             'totalPrice' => $totalPrice,
             'additionalCosts' => $additionalCosts // Возвращаем дополнительные услуги
         ];
+
+        // Логируем результат перед возвратом
+        $this->logData(__METHOD__, $result, 'Rizo calculation completed');
+        return $result;
     }
 
     // Функция для вычисления стоимости визиток
     function calculateVizitPrice($printType, $quantity, $sideType = 'single') {
-        // Валидация данных
+        // Логируем входные данные
+        $this->logData(__METHOD__, [
+            'printType' => $printType,
+            'quantity' => $quantity,
+            'sideType' => $sideType
+        ], 'Start Vizit calculation');
+
+        // Валидация данных с логированием
         $errors = [];
         if ($printType === 'offset') {
             if ($quantity < 1000 || $quantity > 12000 || $quantity % 1000 !== 0) {
+                $this->logData(__METHOD__, ['quantity' => $quantity], 'Error: Invalid quantity for offset');
                 $errors[] = "Для офсетной печати выберите тираж из списка";
             }
         } else {
             if ($quantity < 100 || $quantity > 999) {
+                $this->logData(__METHOD__, ['quantity' => $quantity], 'Error: Invalid quantity for digital');
                 $errors[] = "Для цифровой печати введите тираж от 100 до 999";
             }
         }
@@ -220,11 +287,15 @@ class Calculator {
             }
         }
 
-        return [
+        $result = [
             'printType' => $printType === 'offset' ? 'Офсетная' : 'Цифровая',
             'quantity' => $quantity,
             'totalPrice' => $totalPrice
         ];
+
+        // Логируем результат перед возвратом
+        $this->logData(__METHOD__, $result, 'Vizit calculation completed');
+        return $result;
     }
 
     // Функция для округления значения до ближайшего разрешенного размера
@@ -254,8 +325,16 @@ class Calculator {
 
     // Функция для вычисления стоимости холста
     function calculateCanvasPrice($width, $height, $includePodramnik) {
+        // Логируем входные данные
+        $this->logData(__METHOD__, [
+            'width' => $width,
+            'height' => $height,
+            'includePodramnik' => $includePodramnik
+        ], 'Start Canvas calculation');
+
         // Проверка на корректность входных данных: ширина и высота должны быть больше нуля
         if ($width <= 0 || $height <= 0) {
+            $this->logData(__METHOD__, ['width' => $width, 'height' => $height], 'Error: Invalid dimensions');
             return ['error' => 'Ширина и высота должны быть больше нуля.'];
         }
 
@@ -281,6 +360,7 @@ class Calculator {
         } else {
             // Проверяем, существует ли цена для заданных округленных размеров
             if (!isset($this->priceConfig['canvas_prices'][$roundedHeight][$roundedWidth])) {
+                $this->logData(__METHOD__, ['roundedWidth' => $roundedWidth, 'roundedHeight' => $roundedHeight], 'Error: Invalid canvas size');
                 return ['error' => 'Неверный размер холста.']; // Возвращаем ошибку, если размер неверный
             }
             // Получаем стоимость холста из конфигурации
@@ -289,6 +369,7 @@ class Calculator {
             // Если подрамник включен, проверяем его стоимость
             if ($includePodramnik) {
                 if (!isset($this->priceConfig['podramnik_prices'][$roundedHeight][$roundedWidth])) {
+                    $this->logData(__METHOD__, ['roundedWidth' => $roundedWidth, 'roundedHeight' => $roundedHeight], 'Error: Invalid podramnik size');
                     return ['error' => 'Неверный размер подрамника.']; // Возвращаем ошибку, если размер подрамника неверный
                 }
                 // Получаем стоимость подрамника из конфигурации
@@ -300,7 +381,7 @@ class Calculator {
         $totalPrice = $canvasPrice + $podramnikPrice;
 
         // Возвращаем массив с деталями расчета
-        return [
+        $result = [
             'canvasPrice' => $canvasPrice, // Стоимость холста
             'podramnikPrice' => $podramnikPrice, // Стоимость подрамника
             'totalPrice' => $totalPrice, // Общая стоимость
@@ -308,6 +389,10 @@ class Calculator {
             'roundedHeight' => $roundedHeight, // Округленная высота
             'area' => isset($area) ? $area : null // Площадь, если она была рассчитана
         ];
+
+        // Логируем результат перед возвратом
+        $this->logData(__METHOD__, $result, 'Canvas calculation completed');
+        return $result;
     }
     // Функция для вычисления дополнительных услуг
     private function calculateAdditionalCosts($bigovka, $cornerRadius, $perforation, $drill, $numbering, $quantity) {
@@ -347,12 +432,26 @@ class Calculator {
 
 
     function calculatePVCPrice($width, $height, $pvcType, $flatA4, $flatA5, $volumeA4, $volumeA5) {
+        // Логируем входные данные
+        $this->logData(__METHOD__, [
+            'width' => $width,
+            'height' => $height,
+            'pvcType' => $pvcType,
+            'flatA4' => $flatA4,
+            'flatA5' => $flatA5,
+            'volumeA4' => $volumeA4,
+            'volumeA5' => $volumeA5
+        ], 'Start PVC calculation');
+
         // Валидация входных данных
         $errors = [];
         if ($width <= 0 || $height <= 0) $errors[] = "Некорректные размеры";
         if ($flatA4 < 0 || $flatA5 < 0 || $volumeA4 < 0 || $volumeA5 < 0) $errors[] = "Количество карманов не может быть отрицательным";
         
-        if (!empty($errors)) return ['error' => implode("<br>", $errors)];
+        if (!empty($errors)) {
+            $this->logData(__METHOD__, ['errors' => $errors], 'Error: Invalid PVC input');
+            return ['error' => implode("<br>", $errors)];
+        }
         
         // Расчет площади
         $area = ($width / 100) * ($height / 100); // Перевод см в метры
@@ -362,6 +461,7 @@ class Calculator {
         $maxAllowedPoints = $area * $this->priceConfig['pocket_limits']['max_points_per_m2'];
         
         if ($totalPoints > $maxAllowedPoints) {
+            $this->logData(__METHOD__, ['totalPoints' => $totalPoints, 'maxAllowedPoints' => $maxAllowedPoints], 'Error: PVC points exceeded');
             return ['error' => "Превышено максимальное количество карманов. Максимум: " . floor($maxAllowedPoints) . " баллов"];
         }
         
@@ -374,7 +474,7 @@ class Calculator {
             $volumeA4 * $this->priceConfig['pocket_prices']['volume_a4'] +
             $volumeA5 * $this->priceConfig['pocket_prices']['volume_a5'];
         
-        return [
+        $result = [
             'pvcCost' => $pvcCost,
             'pocketsCost' => $pocketsCost,
             'totalPrice' => $pvcCost + $pocketsCost,
@@ -382,6 +482,10 @@ class Calculator {
             'totalPoints' => $totalPoints,
             'maxPoints' => $maxAllowedPoints
         ];
+
+        // Логируем результат перед возвратом
+        $this->logData(__METHOD__, $result, 'PVC calculation completed');
+        return $result;
     }
     function calculateCalendarPrice($type, $size, $quantity, $printType, $pages = 14) {
         $result = [];
@@ -457,12 +561,25 @@ class Calculator {
         $quantity,
         $bindingType
     ) {
+        // Логируем входные данные
+        $this->logData(__METHOD__, [
+            'coverPaper' => $coverPaper,
+            'coverPrintType' => $coverPrintType,
+            'innerPaper' => $innerPaper,
+            'innerPrintType' => $innerPrintType,
+            'size' => $size,
+            'pages' => $pages,
+            'quantity' => $quantity,
+            'bindingType' => $bindingType
+        ], 'Start Catalog calculation');
+
         // Нормализация размера
         $size = mb_convert_case($size, MB_CASE_UPPER, "UTF-8");
 
         // Проверка существования формата
         if (!isset($this->priceConfig["catalog"]["sheet_conversion"][$size])) {
             $allowedSizes = implode(', ', array_keys($this->priceConfig["catalog"]["sheet_conversion"]));
+            $this->logData(__METHOD__, ['size' => $size, 'allowedSizes' => $allowedSizes], 'Error: Invalid catalog size');
             return ['error' => "Неверный формат каталога. Допустимые форматы: $allowedSizes"];
         }
 
@@ -472,22 +589,27 @@ class Calculator {
         // Проверка страниц
         if (!isset($conversionData[$pages])) {
             $allowedPages = implode(', ', array_keys($conversionData));
+            $this->logData(__METHOD__, ['size' => $size, 'pages' => $pages, 'allowedPages' => $allowedPages], 'Error: Invalid pages for catalog size');
             return ['error' => "Недопустимое количество страниц для формата $size. Допустимые значения: $allowedPages"];
         }
 
         // Валидация других параметров
         $errors = [];
         if (!in_array($coverPaper, [130, 170, 300], true)) {
+            $this->logData(__METHOD__, ['coverPaper' => $coverPaper], 'Error: Invalid cover paper density');
             $errors[] = "Некорректная плотность обложки";
         }
         if (!in_array($innerPaper, [130, 170], true)) {
+            $this->logData(__METHOD__, ['innerPaper' => $innerPaper], 'Error: Invalid inner paper density');
             $errors[] = "Некорректная плотность внутренних листов";
         }
         if ($quantity <= 0) {
+            $this->logData(__METHOD__, ['quantity' => $quantity], 'Error: Invalid quantity');
             $errors[] = "Некорректный тираж";
         }
         
         if (!empty($errors)) {
+            $this->logData(__METHOD__, ['errors' => $errors], 'Error: Invalid catalog input');
             return ['error' => implode("<br>", $errors)];
         }
 
@@ -514,6 +636,7 @@ class Calculator {
             ];
             
             if (!isset($coverSizeMap[$size])) {
+                $this->logData(__METHOD__, ['size' => $size], 'Error: Invalid cover size for calculation');
                 return ['error' => "Неверный формат для расчета обложки"];
             }
 
@@ -552,7 +675,7 @@ class Calculator {
         }
         $totalPrice += $bindingCost;
 
-        return [
+        $result = [
             'coverCost' => $isSamePaper ? 0 : $coverResult['totalPrice'],
             'innerCost' => $isSamePaper ? $coverResult['totalPrice'] : $innerResult['totalPrice'],
             'collationCost' => $collationCost,
@@ -562,11 +685,18 @@ class Calculator {
             'isSamePaper' => $isSamePaper,
             'adjustedPages' => $adjustedPages ?? $pages
         ];
+
+        // Логируем результат перед возвратом
+        $this->logData(__METHOD__, $result, 'Catalog calculation completed');
+        return $result;
     }
 
 
 
     function calculateNotePrice($params) {
+        // Логируем входные данные
+        $this->logData(__METHOD__, $params, 'Start Note calculation');
+
         // Получаем конфигурацию блокнотов
         $noteConfig = $this->priceConfig['note'];
         
@@ -653,7 +783,7 @@ class Calculator {
             $bindingCost
         ]);
         
-        return [
+        $result = [
             'components' => [
                 'cover' => $coverResult,
                 'back' => $backResult,
@@ -668,10 +798,17 @@ class Calculator {
                 'services' => $services
             ]
         ];
+
+        // Логируем результат перед возвратом
+        $this->logData(__METHOD__, $result, 'Note calculation completed');
+        return $result;
     }
 
     // Вспомогательные функции для расчета компонентов
     function calculateComponent($params) {
+        // Логируем входные данные
+        $this->logData(__METHOD__, $params, 'Start Component calculation');
+
         // Базовый расчет стоимости печати
         $baseResult = $this->calculatePrice(
             $params['paperType'],
@@ -686,14 +823,21 @@ class Calculator {
             $params['quantity']
         );
         
-        return [
+        $result = [
             'base' => $baseResult,
             'additional' => $additionalCost,
             'total' => $baseResult['totalPrice'] + $additionalCost
         ];
+
+        // Логируем результат перед возвратом
+        $this->logData(__METHOD__, $result, 'Component calculation completed');
+        return $result;
     }
 
     function calculateRizoComponent($params) {
+        // Логируем входные данные
+        $this->logData(__METHOD__, $params, 'Start RizoComponent calculation');
+
         // Расчет ризографии
         $baseResult = $this->calculateRizoPrice(
             $params['paperType'],
@@ -708,26 +852,37 @@ class Calculator {
             $params['quantity']
         );
         
-        return [
+        $result = [
             'base' => $baseResult,
             'additional' => $additionalCost,
             'total' => $baseResult['totalPrice'] + $additionalCost
         ];
+
+        // Логируем результат перед возвратом
+        $this->logData(__METHOD__, $result, 'RizoComponent calculation completed');
+        return $result;
     }
 
     function calculateNoteBinding($params) {
+        // Логируем входные данные
+        $this->logData(__METHOD__, $params, 'Start NoteBinding calculation');
+
         $config = $params['config']['spiral'][$params['size']];
         $quantity = $params['quantity'];
         
         if ($quantity <= 100) {
-            return $config[100] * $quantity;
+            $result = $config[100] * $quantity;
         } elseif ($quantity <= 500) {
-            return $config[500] * $quantity;
+            $result = $config[500] * $quantity;
         } elseif ($quantity <= 1000) {
-            return $config[1000] * $quantity;
+            $result = $config[1000] * $quantity;
         } else {
-            return $config['max'] * $quantity;
+            $result = $config['max'] * $quantity;
         }
+
+        // Логируем результат перед возвратом
+        $this->logData(__METHOD__, ['quantity' => $quantity, 'bindingCost' => $result], 'NoteBinding calculation completed');
+        return $result;
     }
 
     function calculateAdditionalServices($services, $quantity) {

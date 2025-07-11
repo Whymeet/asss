@@ -191,6 +191,14 @@ BX.ready(function() {
         features: <?= json_encode($features) ?>
     };
 
+    // Добавляем функцию логирования
+    function logToConsole(action, data) {
+        console.group('Calculator Log: ' + action);
+        console.log('Timestamp:', new Date().toISOString());
+        console.log('Data:', data);
+        console.groupEnd();
+    }
+
     var form = document.getElementById(calcConfig.type + 'CalcForm');
     var resultDiv = document.getElementById('calcResult');
     var calcBtn = document.getElementById('calcBtn');
@@ -219,14 +227,22 @@ BX.ready(function() {
         data.calcType = calcConfig.type;
         data.sessid = BX.bitrix_sessid();
 
+        // Логируем собранные данные формы
+        logToConsole('Form Data Collected', data);
+
         return data;
     }
 
     function showError(message) {
+        // Логируем ошибку
+        logToConsole('Error Displayed', message);
         return '<div class="error">' + message + '</div>';
     }
 
     function formatResult(result) {
+        // Логируем результат перед форматированием
+        logToConsole('Formatting Result', result);
+
         var html = '<div class="success">';
         html += '<p>Тип печати: ' + result.printingType + '</p>';
         html += '<p>Стоимость печати: ' + result.printingCost + ' руб.</p>';
@@ -249,11 +265,17 @@ BX.ready(function() {
         var data = collectFormData();
         resultDiv.innerHTML = '<div class="loading">Выполняется расчет...</div>';
 
+        // Логируем начало расчета
+        logToConsole('Calculation Started', data);
+
         BX.ajax.runComponentAction(calcConfig.component, 'calc', {
             mode: 'class',
             data: data,
             method: 'POST'
         }).then(function(response) {
+            // Логируем ответ сервера
+            logToConsole('Server Response', response);
+
             if (response.data.error) {
                 resultDiv.innerHTML = showError(response.data.error);
             } else {
@@ -265,6 +287,9 @@ BX.ready(function() {
                 }
             }
         }).catch(function(error) {
+            // Логируем ошибку
+            logToConsole('Ajax Error', error);
+
             if (error.status === 401) {
                 resultDiv.innerHTML = showError('Ошибка авторизации. Пожалуйста, обновите страницу.');
             } else {
@@ -293,6 +318,9 @@ BX.ready(function() {
             data.laminationThickness = laminationThickness.value;
             data.withLamination = true;
 
+            // Логируем данные ламинации
+            logToConsole('Lamination Calculation Started', data);
+
             laminationResult.innerHTML = '<div class="loading">Выполняется расчет...</div>';
 
             BX.ajax.runComponentAction(calcConfig.component, 'calc', {
@@ -300,12 +328,18 @@ BX.ready(function() {
                 data: data,
                 method: 'POST'
             }).then(function(response) {
+                // Логируем ответ сервера для ламинации
+                logToConsole('Lamination Server Response', response);
+
                 if (response.data.error) {
                     laminationResult.innerHTML = showError(response.data.error);
                 } else {
                     laminationResult.innerHTML = formatResult(response.data);
                 }
             }).catch(function(error) {
+                // Логируем ошибку ламинации
+                logToConsole('Lamination Ajax Error', error);
+
                 if (error.status === 401) {
                     laminationResult.innerHTML = showError('Ошибка авторизации. Пожалуйста, обновите страницу.');
                 } else {

@@ -1,0 +1,194 @@
+/* Common Calculator Styles */
+
+/* Container */
+.calc-container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 20px;
+    font-family: Arial, sans-serif;
+}
+
+/* Disclaimer */
+.calc-disclaimer {
+    background-color: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 4px;
+    padding: 15px;
+    margin-bottom: 20px;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.calc-disclaimer a {
+    color: #007bff;
+    text-decoration: none;
+}
+
+.calc-disclaimer a:hover {
+    text-decoration: underline;
+}
+
+/* Form Elements */
+.calc-form {
+    margin-top: 20px;
+}
+
+.form-group {
+    margin-bottom: 15px;
+}
+
+.form-label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+}
+
+.form-control {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    font-size: 16px;
+}
+
+.form-control:focus {
+    border-color: #80bdff;
+    outline: 0;
+    box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25);
+}
+
+/* Radio and Checkbox Groups */
+.radio-group,
+.checkbox-group {
+    margin-top: 5px;
+}
+
+.radio-label,
+.checkbox-label {
+    display: block;
+    margin-bottom: 8px;
+    cursor: pointer;
+}
+
+/* Buttons */
+.calc-button {
+    display: inline-block;
+    padding: 10px 20px;
+    font-size: 16px;
+    font-weight: bold;
+    color: #fff;
+    background-color: #007bff;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.calc-button:hover {
+    background-color: #0056b3;
+}
+
+.calc-button-success {
+    background-color: #28a745;
+}
+
+.calc-button-success:hover {
+    background-color: #218838;
+}
+
+/* Results */
+.calc-result {
+    margin-top: 20px;
+}
+
+.result-success {
+    padding: 20px;
+    background-color: #f8f9fa;
+    border: 1px solid #28a745;
+    border-radius: 4px;
+}
+
+.result-error {
+    padding: 15px;
+    color: #721c24;
+    background-color: #f8d7da;
+    border: 1px solid #f5c6cb;
+    border-radius: 4px;
+    margin: 10px 0;
+}
+
+.result-title {
+    margin: 0 0 15px 0;
+    color: #28a745;
+}
+
+.result-price {
+    font-size: 24px;
+    font-weight: bold;
+    color: #28a745;
+    margin-bottom: 15px;
+}
+
+.result-price small {
+    font-size: 16px;
+}
+
+.result-details {
+    margin-top: 15px;
+}
+
+.result-details summary {
+    cursor: pointer;
+    color: #007bff;
+}
+
+.result-details-content {
+    padding: 10px;
+    background-color: #fff;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    margin-top: 10px;
+}
+
+.result-details-content ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.result-details-content li {
+    margin-bottom: 5px;
+}
+
+/* Lamination Section */
+.lamination-section {
+    margin-top: 20px;
+    padding: 15px;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    background-color: #f8f9fa;
+}
+
+.lamination-result {
+    margin-top: 15px;
+}
+
+.lamination-info {
+    color: #28a745;
+    font-weight: bold;
+}
+
+/* Loading State */
+.loading {
+    text-align: center;
+    padding: 20px;
+    color: #6c757d;
+}
+
+/* Thank You Message */
+.calc-thanks {
+    margin-top: 30px;
+    text-align: center;
+    font-style: italic;
+    color: #6c757d;
+} 

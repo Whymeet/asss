@@ -132,20 +132,21 @@ $features = $arResult['FEATURES'] ?? [];
         </div>
         <?php endif; ?>
 
+        <?php if (!empty($features['lamination'])): ?>
+        <!-- Секция ламинации -->
+        <div id="laminationSection" style="display: none; margin: 15px 0; padding: 15px; border: 2px solid #eee; border-radius: 8px; background: #f8f9fa;">
+            <h3 style="margin-top: 0;">Дополнительная ламинация</h3>
+            <div id="laminationControls"></div>
+            <div id="laminationResult" style="margin-top: 15px;"></div>
+        </div>
+        <?php endif; ?>
+
         <input type="hidden" name="calcType" value="<?= $calcType ?>">
         <input type="hidden" name="sessid" value="<?= bitrix_sessid() ?>">
 
         <button id="calcBtn" type="button" style="padding: 12px 24px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px;">Рассчитать</button>
         
         <div id="calcResult" style="margin-top: 20px;"></div>
-        
-        <?php if (!empty($features['lamination'])): ?>
-        <!-- Секция ламинации (показывается после расчета) -->
-        <div id="laminationSection" style="display: none; margin-top: 20px; padding: 15px; border: 2px solid #eee; border-radius: 8px; background: #f8f9fa;">
-            <h3>Дополнительная ламинация</h3>
-            <div id="laminationControls"></div>
-        </div>
-        <?php endif; ?>
     </form>
 </div>
 
@@ -296,29 +297,6 @@ function initWithoutBX() {
     });
 }
 
-// Сбор данных формы
-function collectFormData(form) {
-    const formData = new FormData(form);
-    const data = {};
-    
-    // Собираем все поля формы
-    for (let [key, value] of formData.entries()) {
-        data[key] = value;
-    }
-    
-    // Добавляем чекбоксы (они не попадают в FormData если не отмечены)
-    const checkboxes = ['bigovka', 'perforation', 'drill', 'numbering', 'includePodramnik'];
-    checkboxes.forEach(name => {
-        const checkbox = form.querySelector(`input[name="${name}"]`);
-        if (checkbox) {
-            data[name] = checkbox.checked;
-        }
-    });
-
-    console.log('Собранные данные формы:', data);
-    return data;
-}
-
 // Обработка ответа сервера
 function handleResponse(response, resultDiv) {
     console.log('Обработка ответа:', response);
@@ -329,6 +307,10 @@ function handleResponse(response, resultDiv) {
                 response.data.error + '</div>';
         } else {
             displayResult(response.data, resultDiv);
+            // Показываем секцию ламинации если доступна
+            if (calcConfig.features.lamination && (response.data.laminationAvailable || response.data.printingType)) {
+                showLaminationSection(response.data);
+            }
         }
     } else {
         resultDiv.innerHTML = '<div style="color: red; padding: 10px; background: #ffebee; border-radius: 4px;">Некорректный ответ сервера</div>';
@@ -368,11 +350,6 @@ function displayResult(result, resultDiv) {
     html += '</div>';
     
     resultDiv.innerHTML = html;
-    
-    // Показываем секцию ламинации если доступна
-    if (calcConfig.features.lamination && (result.laminationAvailable || result.printingType)) {
-        showLaminationSection(result);
-    }
 }
 
 // Функция показа секции ламинации
@@ -409,7 +386,6 @@ function showLaminationSection(result) {
     }
     
     html += '<button type="button" id="laminationBtn" style="padding: 8px 16px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; margin-top: 10px;">Пересчитать с ламинацией</button>';
-    html += '<div id="laminationResult" style="margin-top: 15px;"></div>';
     
     controlsDiv.innerHTML = html;
     laminationSection.style.display = 'block';
@@ -427,6 +403,7 @@ function showLaminationSection(result) {
 function calculateLamination(originalResult) {
     const laminationType = document.querySelector('input[name="laminationType"]:checked');
     const laminationThickness = document.querySelector('select[name="laminationThickness"]');
+    const resultDiv = document.getElementById('calcResult');
     const laminationResult = document.getElementById('laminationResult');
     
     if (!laminationType) {
@@ -466,14 +443,68 @@ function calculateLamination(originalResult) {
     const newTotal = Math.round((originalResult.totalPrice + laminationCost) * 10) / 10;
     const roundedLaminationCost = Math.round(laminationCost * 10) / 10;
     
-    let html = '<div style="padding: 15px; background: #fff3cd; border-radius: 8px; border: 1px solid #ffc107;">';
-    html += '<h4 style="margin-top: 0; color: #856404;">Расчет с ламинацией</h4>';
-    html += '<p><strong>Ламинация:</strong> ' + laminationDescription + '</p>';
-    html += '<p><strong>Стоимость ламинации:</strong> ' + roundedLaminationCost + ' ₽</p>';
-    html += '<p style="font-size: 18px; font-weight: bold; color: #856404;"><strong>Итоговая стоимость:</strong> ' + newTotal + ' ₽</p>';
+    // Создаем новый результат с учетом ламинации
+    let html = '<div style="padding: 20px; background: #e8f5e8; border-radius: 8px; border: 1px solid #4caf50;">';
+    html += '<h3 style="margin-top: 0; color: #2e7d32;">Результат расчета</h3>';
+    html += '<div style="font-size: 24px; font-weight: bold; color: #1b5e20; margin: 15px 0;">Итоговая стоимость: ' + newTotal + ' ₽</div>';
+    
+    if (originalResult.printingType) {
+        html += '<p><strong>Тип печати:</strong> ' + originalResult.printingType + '</p>';
+    }
+    
+    html += '<details style="margin-top: 15px;" open>';
+    html += '<summary style="cursor: pointer; font-weight: bold;">Подробности расчета</summary>';
+    html += '<div style="margin-top: 10px; padding: 10px; background: white; border-radius: 4px;">';
+    html += '<ul style="margin: 0; padding-left: 20px;">';
+    
+    if (originalResult.baseA3Sheets) html += '<li>Листов A3: ' + originalResult.baseA3Sheets + '</li>';
+    if (originalResult.printingCost) html += '<li>Стоимость печати: ' + Math.round(originalResult.printingCost * 10) / 10 + ' ₽</li>';
+    if (originalResult.paperCost) html += '<li>Стоимость бумаги: ' + Math.round(originalResult.paperCost * 10) / 10 + ' ₽</li>';
+    if (originalResult.plateCost && originalResult.plateCost > 0) html += '<li>Стоимость пластин: ' + Math.round(originalResult.plateCost * 10) / 10 + ' ₽</li>';
+    if (originalResult.additionalCosts && originalResult.additionalCosts > 0) html += '<li>Дополнительные услуги: ' + Math.round(originalResult.additionalCosts * 10) / 10 + ' ₽</li>';
+    
+    // Добавляем информацию о ламинации
+    html += '<li style="margin-top: 10px; font-weight: bold;">Ламинация ' + laminationDescription + ': ' + roundedLaminationCost + ' ₽</li>';
+    
+    html += '</ul>';
+    html += '</div>';
+    html += '</details>';
     html += '</div>';
     
-    laminationResult.innerHTML = html;
+    resultDiv.innerHTML = html;
+}
+
+// Сбор данных формы
+function collectFormData(form) {
+    const formData = new FormData(form);
+    const data = {};
+    
+    // Собираем все поля формы
+    for (let [key, value] of formData.entries()) {
+        data[key] = value;
+    }
+    
+    // Добавляем чекбоксы и радио кнопки
+    const checkboxes = ['bigovka', 'perforation', 'drill', 'numbering', 'includePodramnik'];
+    checkboxes.forEach(name => {
+        const checkbox = form.querySelector(`input[name="${name}"]`);
+        if (checkbox) {
+            data[name] = checkbox.checked;
+        }
+    });
+
+    // Добавляем данные ламинации
+    const laminationType = form.querySelector('input[name="laminationType"]:checked');
+    const laminationThickness = form.querySelector('select[name="laminationThickness"]');
+    if (laminationType) {
+        data.laminationType = laminationType.value;
+        if (laminationThickness) {
+            data.laminationThickness = laminationThickness.value;
+        }
+    }
+
+    console.log('Собранные данные формы:', data);
+    return data;
 }
 
 // Запуск инициализации

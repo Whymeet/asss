@@ -169,7 +169,7 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
     }
 
     // AJAX-методы для разных типов калькуляторов
-    public function calcAction($paperType = '', $size = '', $quantity = 0, $printType = 'single', $bigovka = false, $cornerRadius = 0, $perforation = false, $drill = false, $numbering = false, $calcType = 'list', $withLamination = false, $laminationType = '', $laminationSide = '', $folding = 0)
+    public function calcAction($paperType = '', $size = '', $quantity = 0, $printType = 'single', $bigovka = false, $cornerRadius = 0, $perforation = false, $drill = false, $numbering = false, $calcType = 'list', $withLamination = false, $laminationType = '', $laminationThickness = '', $folding = 0)
     {
         $this->debug("calcAction вызван с параметрами", func_get_args());
         
@@ -189,6 +189,7 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
             $quantity = (int)$quantity;
             $cornerRadius = (int)$cornerRadius;
             $folding = (int)$folding;
+            $laminationThickness = (int)$laminationThickness;
             
             // Проверяем обязательные параметры
             if (empty($paperType) || empty($size) || $quantity <= 0) {
@@ -214,8 +215,14 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
                 if (empty($config['features']['lamination'])) {
                     return ['error' => 'Ламинация не поддерживается для данного типа продукции'];
                 }
-                if (empty($laminationType) || empty($laminationSide)) {
+                if (empty($laminationType) || empty($laminationThickness)) {
                     return ['error' => 'Не указаны параметры ламинации'];
+                }
+                if (!in_array($laminationType, ['1+0', '1+1'])) {
+                    return ['error' => 'Неверный тип ламинации'];
+                }
+                if (!in_array($laminationThickness, [32, 75, 125, 250])) {
+                    return ['error' => 'Неверная толщина ламинации'];
                 }
             }
 
@@ -245,7 +252,7 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
                     'folding' => $folding,
                     'withLamination' => $withLamination,
                     'laminationType' => $laminationType,
-                    'laminationSide' => $laminationSide
+                    'laminationThickness' => $laminationThickness
                 ]
             );
 

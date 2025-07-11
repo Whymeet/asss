@@ -2,9 +2,16 @@
 /** Универсальный шаблон калькулятора */
 if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED !== true) die();
 
+// Подключаем общие стили
+$this->addExternalCss($templateFolder.'/../.default/style.css');
+// Подключаем специфичные стили для листовок (если есть)
+if (file_exists($templateFolder.'/style.css')) {
+    $this->addExternalCss($templateFolder.'/style.css');
+}
+
 // Проверяем, что конфигурация загружена
 if (!$arResult['CONFIG_LOADED']) {
-    echo '<div style="color: red; padding: 20px;">Ошибка: Конфигурация калькулятора не загружена</div>';
+    echo '<div class="result-error">Ошибка: Конфигурация калькулятора не загружена</div>';
     return;
 }
 
@@ -15,16 +22,25 @@ $calcType = $arResult['CALC_TYPE'];
 $features = $arResult['FEATURES'] ?? [];
 ?>
 
-<div class="calc-container" style="max-width: 800px; font-family: Arial, sans-serif;">
+<div class="calc-container">
+    <!-- Информационный блок -->
+    <div class="calc-disclaimer">
+        <p>
+            Данные, полученные при расчете на калькуляторе – являются ориентировочными в связи с регулярным изменением стоимости материалов.<br>
+            Конечную стоимость заказа уточняйте у менеджера: <a href="tel:+78462060068">+7 (846) 206-00-68</a><br>
+            Спасибо за понимание!
+        </p>
+    </div>
+    
     <h2><?= $arResult['DESCRIPTION'] ?? 'Калькулятор печати' ?></h2>
     
-    <form id="<?= $calcType ?>CalcForm" style="background: #f9f9f9; padding: 20px; border-radius: 8px;">
+    <form id="<?= $calcType ?>CalcForm" class="calc-form">
         
         <?php if (!empty($arResult['PAPER_TYPES'])): ?>
         <!-- Тип бумаги -->
-        <div style="margin: 15px 0;">
-            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Тип бумаги:</label>
-            <select name="paperType" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;" required>
+        <div class="form-group">
+            <label class="form-label" for="paperType">Тип бумаги:</label>
+            <select name="paperType" id="paperType" class="form-control" required>
                 <?php foreach ($arResult['PAPER_TYPES'] as $paper): ?>
                     <option value="<?= htmlspecialchars($paper['ID']) ?>"><?= htmlspecialchars($paper['NAME']) ?></option>
                 <?php endforeach; ?>
@@ -34,9 +50,9 @@ $features = $arResult['FEATURES'] ?? [];
 
         <?php if (!empty($arResult['FORMATS'])): ?>
         <!-- Формат -->
-        <div style="margin: 15px 0;">
-            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Формат:</label>
-            <select name="size" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;" required>
+        <div class="form-group">
+            <label class="form-label" for="size">Формат:</label>
+            <select name="size" id="size" class="form-control" required>
                 <?php foreach ($arResult['FORMATS'] as $format): ?>
                     <option value="<?= htmlspecialchars($format['ID']) ?>"><?= htmlspecialchars($format['NAME']) ?></option>
                 <?php endforeach; ?>
@@ -45,28 +61,39 @@ $features = $arResult['FEATURES'] ?? [];
         <?php endif; ?>
 
         <!-- Тираж -->
-        <div style="margin: 15px 0;">
-            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Тираж:</label>
-            <input name="quantity" type="number" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;" 
+        <div class="form-group">
+            <label class="form-label" for="quantity">Тираж:</label>
+            <input name="quantity" 
+                   id="quantity" 
+                   type="number" 
+                   class="form-control" 
                    min="<?= $arResult['MIN_QUANTITY'] ?? 1 ?>" 
                    max="<?= $arResult['MAX_QUANTITY'] ?? '' ?>" 
-                   value="<?= $arResult['DEFAULT_QUANTITY'] ?? 1000 ?>" required>
+                   value="<?= $arResult['DEFAULT_QUANTITY'] ?? 1000 ?>" 
+                   placeholder="Введите количество"
+                   required>
         </div>
 
         <!-- Тип печати -->
-        <div style="margin: 15px 0;">
-            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Тип печати:</label>
-            <div>
-                <label style="margin-right: 15px;"><input type="radio" name="printType" value="single" checked> Односторонняя</label>
-                <label><input type="radio" name="printType" value="double"> Двусторонняя</label>
+        <div class="form-group">
+            <label class="form-label">Тип печати:</label>
+            <div class="radio-group">
+                <label class="radio-label">
+                    <input type="radio" name="printType" value="single" checked> 
+                    Односторонняя
+                </label>
+                <label class="radio-label">
+                    <input type="radio" name="printType" value="double"> 
+                    Двусторонняя
+                </label>
             </div>
         </div>
 
         <?php if ($calcType === 'booklet' && isset($arResult['MAX_FOLDING'])): ?>
         <!-- Количество сложений для буклетов -->
-        <div style="margin: 15px 0;">
-            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Количество сложений:</label>
-            <select name="foldingCount" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+        <div class="form-group">
+            <label class="form-label" for="foldingCount">Количество сложений:</label>
+            <select name="foldingCount" id="foldingCount" class="form-control">
                 <option value="0">Нет сложений</option>
                 <?php for ($i = 1; $i <= $arResult['MAX_FOLDING']; $i++): ?>
                     <option value="<?= $i ?>"><?= $i ?> сложение<?= $i > 1 ? 'я' : '' ?></option>
@@ -81,48 +108,41 @@ $features = $arResult['FEATURES'] ?? [];
         $supportedServices = [];
         
         if (!empty($features['bigovka'])) {
-            $supportedServices[] = 'bigovka';
+            $supportedServices[] = ['name' => 'bigovka', 'label' => 'Биговка'];
             $showAdditionalServices = true;
         }
         if (!empty($features['perforation'])) {
-            $supportedServices[] = 'perforation';
+            $supportedServices[] = ['name' => 'perforation', 'label' => 'Перфорация'];
             $showAdditionalServices = true;
         }
         if (!empty($features['drill'])) {
-            $supportedServices[] = 'drill';
+            $supportedServices[] = ['name' => 'drill', 'label' => 'Сверление Ø5мм'];
             $showAdditionalServices = true;
         }
         if (!empty($features['numbering'])) {
-            $supportedServices[] = 'numbering';
+            $supportedServices[] = ['name' => 'numbering', 'label' => 'Нумерация'];
             $showAdditionalServices = true;
         }
         
         if ($showAdditionalServices): ?>
         <!-- Дополнительные услуги -->
-        <div style="margin: 15px 0;">
-            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Дополнительные услуги:</label>
-            <div>
-                <?php if (in_array('bigovka', $supportedServices)): ?>
-                <label style="display: block;"><input type="checkbox" name="bigovka"> Биговка</label>
-                <?php endif; ?>
-                <?php if (in_array('perforation', $supportedServices)): ?>
-                <label style="display: block;"><input type="checkbox" name="perforation"> Перфорация</label>
-                <?php endif; ?>
-                <?php if (in_array('drill', $supportedServices)): ?>
-                <label style="display: block;"><input type="checkbox" name="drill"> Сверление Ø5мм</label>
-                <?php endif; ?>
-                <?php if (in_array('numbering', $supportedServices)): ?>
-                <label style="display: block;"><input type="checkbox" name="numbering"> Нумерация</label>
-                <?php endif; ?>
+        <div class="form-group">
+            <label class="form-label">Дополнительные услуги:</label>
+            <div class="checkbox-group">
+                <?php foreach ($supportedServices as $service): ?>
+                <label class="checkbox-label">
+                    <input type="checkbox" name="<?= $service['name'] ?>"> <?= $service['label'] ?>
+                </label>
+                <?php endforeach; ?>
             </div>
         </div>
         <?php endif; ?>
 
         <?php if (!empty($features['corner_radius'])): ?>
         <!-- Скругление углов -->
-        <div style="margin: 15px 0;">
-            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Количество углов:</label>
-            <select name="cornerRadius" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+        <div class="form-group">
+            <label class="form-label" for="cornerRadius">Количество углов для скругления:</label>
+            <select name="cornerRadius" id="cornerRadius" class="form-control">
                 <option value="0">Без скругления</option>
                 <option value="1">1 угол</option>
                 <option value="2">2 угла</option>
@@ -134,20 +154,24 @@ $features = $arResult['FEATURES'] ?? [];
 
         <?php if (!empty($features['lamination'])): ?>
         <!-- Секция ламинации -->
-        <div id="laminationSection" style="display: none; margin: 15px 0; padding: 15px; border: 2px solid #eee; border-radius: 8px; background: #f8f9fa;">
-            <h3 style="margin-top: 0;">Дополнительная ламинация</h3>
+        <div id="laminationSection" class="lamination-section">
+            <h3>Дополнительная ламинация</h3>
             <div id="laminationControls"></div>
-            <div id="laminationResult" style="margin-top: 15px;"></div>
+            <div id="laminationResult" class="lamination-result"></div>
         </div>
         <?php endif; ?>
 
         <input type="hidden" name="calcType" value="<?= $calcType ?>">
         <input type="hidden" name="sessid" value="<?= bitrix_sessid() ?>">
 
-        <button id="calcBtn" type="button" style="padding: 12px 24px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px;">Рассчитать</button>
+        <button id="calcBtn" type="button" class="calc-button">Рассчитать стоимость</button>
         
-        <div id="calcResult" style="margin-top: 20px;"></div>
+        <div id="calcResult" class="calc-result"></div>
     </form>
+
+    <div class="calc-thanks">
+        <p>Спасибо, что Вы с нами!</p>
+    </div>
 </div>
 
 <script>
@@ -233,7 +257,7 @@ function initWithBX() {
         const data = collectFormData(form);
         data.calcType = calcConfig.type;
         
-        resultDiv.innerHTML = '<div style="padding: 10px; color: #666;">Расчет...</div>';
+        resultDiv.innerHTML = '<div class="loading">Выполняется расчет...</div>';
 
         console.log('Отправка данных через BX.ajax:', data);
 
@@ -245,7 +269,7 @@ function initWithBX() {
             handleResponse(response, resultDiv);
         }).catch(function(error) {
             console.error('Ошибка BX:', error);
-            resultDiv.innerHTML = '<div style="color: red; padding: 10px; background: #ffebee; border-radius: 4px;">Ошибка соединения: ' + 
+            resultDiv.innerHTML = '<div class="result-error">Ошибка соединения: ' + 
                 (error.message || 'Неизвестная ошибка') + '</div>';
         });
     });
@@ -270,7 +294,7 @@ function initWithoutBX() {
         const data = collectFormData(form);
         data.calcType = calcConfig.type;
         
-        resultDiv.innerHTML = '<div style="padding: 10px; color: #666;">Расчет...</div>';
+        resultDiv.innerHTML = '<div class="loading">Выполняется расчет...</div>';
 
         console.log('Отправка данных через fetch:', data);
 
@@ -291,7 +315,7 @@ function initWithoutBX() {
         })
         .catch(error => {
             console.error('Ошибка fetch:', error);
-            resultDiv.innerHTML = '<div style="color: red; padding: 10px; background: #ffebee; border-radius: 4px;">Ошибка соединения: ' + 
+            resultDiv.innerHTML = '<div class="result-error">Ошибка соединения: ' + 
                 error.message + '</div>';
         });
     });
@@ -303,7 +327,7 @@ function handleResponse(response, resultDiv) {
     
     if (response && response.data) {
         if (response.data.error) {
-            resultDiv.innerHTML = '<div style="color: red; padding: 10px; background: #ffebee; border-radius: 4px;">Ошибка: ' + 
+            resultDiv.innerHTML = '<div class="result-error">Ошибка: ' + 
                 response.data.error + '</div>';
         } else {
             displayResult(response.data, resultDiv);
@@ -313,7 +337,7 @@ function handleResponse(response, resultDiv) {
             }
         }
     } else {
-        resultDiv.innerHTML = '<div style="color: red; padding: 10px; background: #ffebee; border-radius: 4px;">Некорректный ответ сервера</div>';
+        resultDiv.innerHTML = '<div class="result-error">Некорректный ответ сервера</div>';
         console.error('Неожиданная структура ответа:', response);
     }
 }
@@ -325,18 +349,19 @@ function displayResult(result, resultDiv) {
     // Округляем все цены до десятых
     const totalPrice = Math.round((result.totalPrice || 0) * 10) / 10;
     
-    let html = '<div style="padding: 20px; background: #e8f5e8; border-radius: 8px; border: 1px solid #4caf50;">';
-    html += '<h3 style="margin-top: 0; color: #2e7d32;">Результат расчета</h3>';
-    html += '<div style="font-size: 24px; font-weight: bold; color: #1b5e20; margin: 15px 0;">Стоимость: ' + totalPrice + ' ₽</div>';
+    let html = '<div class="result-success">';
+    html += '<h3 class="result-title">Результат расчета</h3>';
+    html += '<div class="result-price">' + totalPrice + ' <small>₽</small></div>';
     
     // Стандартное отображение для листовок и буклетов
     if (result.printingType) {
         html += '<p><strong>Тип печати:</strong> ' + result.printingType + '</p>';
     }
     
-    html += '<details style="margin-top: 15px;"><summary style="cursor: pointer; font-weight: bold;">Подробности расчета</summary>';
-    html += '<div style="margin-top: 10px; padding: 10px; background: white; border-radius: 4px;">';
-    html += '<ul style="margin: 0; padding-left: 20px;">';
+    html += '<details class="result-details">';
+    html += '<summary>Подробности расчета</summary>';
+    html += '<div class="result-details-content">';
+    html += '<ul>';
     
     if (result.baseA3Sheets) html += '<li>Листов A3: ' + result.baseA3Sheets + '</li>';
     if (result.printingCost) html += '<li>Стоимость печати: ' + Math.round(result.printingCost * 10) / 10 + ' ₽</li>';
@@ -364,28 +389,30 @@ function showLaminationSection(result) {
     
     console.log('Показываем секцию ламинации');
     
-    let html = '<p style="margin-bottom: 15px;">Добавить ламинацию к заказу:</p>';
+    let html = '<p>Добавить ламинацию к заказу:</p>';
     
     if (result.printingType === 'Офсетная') {
-        html += '<div style="margin: 10px 0;">';
-        html += '<label style="display: block; margin: 5px 0;"><input type="radio" name="laminationType" value="1+0"> 1+0 (7 руб/лист)</label>';
-        html += '<label style="display: block; margin: 5px 0;"><input type="radio" name="laminationType" value="1+1"> 1+1 (14 руб/лист)</label>';
+        html += '<div class="radio-group">';
+        html += '<label class="radio-label"><input type="radio" name="laminationType" value="1+0"> 1+0 (7 руб/лист)</label>';
+        html += '<label class="radio-label"><input type="radio" name="laminationType" value="1+1"> 1+1 (14 руб/лист)</label>';
         html += '</div>';
     } else {
-        html += '<div style="margin: 10px 0;">';
-        html += '<label style="display: block; margin-bottom: 10px;">Толщина: ';
-        html += '<select name="laminationThickness" style="padding: 5px; margin-left: 10px;">';
+        html += '<div class="form-group">';
+        html += '<label class="form-label">Толщина:';
+        html += '<select name="laminationThickness" class="form-control">';
         html += '<option value="32">32 мкм</option>';
         html += '<option value="75">75 мкм</option>';
         html += '<option value="125">125 мкм</option>';
         html += '<option value="250">250 мкм</option>';
         html += '</select></label>';
-        html += '<label style="display: block; margin: 5px 0;"><input type="radio" name="laminationType" value="1+0"> 1+0 (x1)</label>';
-        html += '<label style="display: block; margin: 5px 0;"><input type="radio" name="laminationType" value="1+1"> 1+1 (x2)</label>';
+        html += '<div class="radio-group">';
+        html += '<label class="radio-label"><input type="radio" name="laminationType" value="1+0"> 1+0 (x1)</label>';
+        html += '<label class="radio-label"><input type="radio" name="laminationType" value="1+1"> 1+1 (x2)</label>';
+        html += '</div>';
         html += '</div>';
     }
     
-    html += '<button type="button" id="laminationBtn" style="padding: 8px 16px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; margin-top: 10px;">Пересчитать с ламинацией</button>';
+    html += '<button type="button" id="laminationBtn" class="calc-button calc-button-success">Пересчитать с ламинацией</button>';
     
     controlsDiv.innerHTML = html;
     laminationSection.style.display = 'block';
@@ -407,7 +434,7 @@ function calculateLamination(originalResult) {
     const laminationResult = document.getElementById('laminationResult');
     
     if (!laminationType) {
-        laminationResult.innerHTML = '<div style="color: red; padding: 10px;">Выберите тип ламинации</div>';
+        laminationResult.innerHTML = '<div class="result-error">Выберите тип ламинации</div>';
         return;
     }
     
@@ -444,18 +471,18 @@ function calculateLamination(originalResult) {
     const roundedLaminationCost = Math.round(laminationCost * 10) / 10;
     
     // Создаем новый результат с учетом ламинации
-    let html = '<div style="padding: 20px; background: #e8f5e8; border-radius: 8px; border: 1px solid #4caf50;">';
-    html += '<h3 style="margin-top: 0; color: #2e7d32;">Результат расчета</h3>';
-    html += '<div style="font-size: 24px; font-weight: bold; color: #1b5e20; margin: 15px 0;">Итоговая стоимость: ' + newTotal + ' ₽</div>';
+    let html = '<div class="result-success">';
+    html += '<h3 class="result-title">Результат расчета</h3>';
+    html += '<div class="result-price">' + newTotal + ' <small>₽</small></div>';
     
     if (originalResult.printingType) {
         html += '<p><strong>Тип печати:</strong> ' + originalResult.printingType + '</p>';
     }
     
-    html += '<details style="margin-top: 15px;" open>';
-    html += '<summary style="cursor: pointer; font-weight: bold;">Подробности расчета</summary>';
-    html += '<div style="margin-top: 10px; padding: 10px; background: white; border-radius: 4px;">';
-    html += '<ul style="margin: 0; padding-left: 20px;">';
+    html += '<details class="result-details" open>';
+    html += '<summary>Подробности расчета</summary>';
+    html += '<div class="result-details-content">';
+    html += '<ul>';
     
     if (originalResult.baseA3Sheets) html += '<li>Листов A3: ' + originalResult.baseA3Sheets + '</li>';
     if (originalResult.printingCost) html += '<li>Стоимость печати: ' + Math.round(originalResult.printingCost * 10) / 10 + ' ₽</li>';
@@ -464,7 +491,7 @@ function calculateLamination(originalResult) {
     if (originalResult.additionalCosts && originalResult.additionalCosts > 0) html += '<li>Дополнительные услуги: ' + Math.round(originalResult.additionalCosts * 10) / 10 + ' ₽</li>';
     
     // Добавляем информацию о ламинации
-    html += '<li style="margin-top: 10px; font-weight: bold;">Ламинация ' + laminationDescription + ': ' + roundedLaminationCost + ' ₽</li>';
+    html += '<li class="lamination-info">Ламинация ' + laminationDescription + ': ' + roundedLaminationCost + ' ₽</li>';
     
     html += '</ul>';
     html += '</div>';

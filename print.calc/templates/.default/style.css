@@ -456,3 +456,7 @@ select.form-control {
 .mt-3 {
     margin-top: 1rem;
 }
+
+#laminationBtn {
+    margin-top: 32px;
+}

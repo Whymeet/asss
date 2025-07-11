@@ -1,30 +1,47 @@
 <?php
-/** Универсальный шаблон калькулятора */
+/** Шаблон калькулятора буклетов */
 if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED !== true) die();
+
+// Подключаем общие стили
+$this->addExternalCss($templateFolder.'/../.default/style.css');
+// Подключаем специфичные стили для буклетов (если есть)
+if (file_exists($templateFolder.'/style.css')) {
+    $this->addExternalCss($templateFolder.'/style.css');
+}
 
 // Проверяем, что конфигурация загружена
 if (!$arResult['CONFIG_LOADED']) {
-    echo '<div style="color: red; padding: 20px;">Ошибка: Конфигурация калькулятора не загружена</div>';
+    echo '<div class="result-error">Ошибка: Конфигурация калькулятора не загружена</div>';
     return;
 }
 
 // Принудительно подключаем основные скрипты Битрикса
-CJSCore::Init(['ajax', 'window']);
+CJSCore::Init(['ajax', 'core']);
 
 $calcType = $arResult['CALC_TYPE'];
 $features = $arResult['FEATURES'] ?? [];
+$additional = $arResult['ADDITIONAL'] ?? [];
 ?>
 
-<div class="calc-container" style="max-width: 800px; font-family: Arial, sans-serif;">
-    <h2><?= $arResult['DESCRIPTION'] ?? 'Калькулятор печати' ?></h2>
+<div class="calc-container">
+    <!-- Информационный блок -->
+    <div class="calc-disclaimer">
+        <p>
+            Данные, полученные при расчете на калькуляторе – являются ориентировочными в связи с регулярным изменением стоимости материалов.<br>
+            Конечную стоимость заказа уточняйте у менеджера: <a href="tel:+78462060068">+7 (846) 206-00-68</a><br>
+            Спасибо за понимание!
+        </p>
+    </div>
     
-    <form id="<?= $calcType ?>CalcForm" style="background: #f9f9f9; padding: 20px; border-radius: 8px;">
+    <h2><?= $arResult['DESCRIPTION'] ?? 'Калькулятор печати буклетов' ?></h2>
+    
+    <form id="<?= $calcType ?>CalcForm" class="calc-form">
         
         <?php if (!empty($arResult['PAPER_TYPES'])): ?>
         <!-- Тип бумаги -->
-        <div style="margin: 15px 0;">
-            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Тип бумаги:</label>
-            <select name="paperType" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;" required>
+        <div class="form-group">
+            <label class="form-label" for="paperType">Тип бумаги:</label>
+            <select name="paperType" id="paperType" class="form-control" required>
                 <?php foreach ($arResult['PAPER_TYPES'] as $paper): ?>
                     <option value="<?= htmlspecialchars($paper['ID']) ?>"><?= htmlspecialchars($paper['NAME']) ?></option>
                 <?php endforeach; ?>
@@ -34,9 +51,9 @@ $features = $arResult['FEATURES'] ?? [];
 
         <?php if (!empty($arResult['FORMATS'])): ?>
         <!-- Формат -->
-        <div style="margin: 15px 0;">
-            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Формат:</label>
-            <select name="size" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;" required>
+        <div class="form-group">
+            <label class="form-label" for="size">Формат:</label>
+            <select name="size" id="size" class="form-control" required>
                 <?php foreach ($arResult['FORMATS'] as $format): ?>
                     <option value="<?= htmlspecialchars($format['ID']) ?>"><?= htmlspecialchars($format['NAME']) ?></option>
                 <?php endforeach; ?>
@@ -45,32 +62,42 @@ $features = $arResult['FEATURES'] ?? [];
         <?php endif; ?>
 
         <!-- Тираж -->
-        <div style="margin: 15px 0;">
-            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Тираж:</label>
-            <input name="quantity" type="number" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;" 
+        <div class="form-group">
+            <label class="form-label" for="quantity">Тираж:</label>
+            <input name="quantity" 
+                   id="quantity" 
+                   type="number" 
+                   class="form-control" 
                    min="<?= $arResult['MIN_QUANTITY'] ?? 1 ?>" 
                    max="<?= $arResult['MAX_QUANTITY'] ?? '' ?>" 
-                   value="<?= $arResult['DEFAULT_QUANTITY'] ?? 1000 ?>" required>
+                   value="<?= $arResult['DEFAULT_QUANTITY'] ?? 1000 ?>" 
+                   placeholder="Введите количество"
+                   required>
         </div>
 
         <!-- Тип печати -->
-        <div style="margin: 15px 0;">
-            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Тип печати:</label>
-            <div>
-                <label style="margin-right: 15px;"><input type="radio" name="printType" value="single" checked> Односторонняя</label>
-                <label><input type="radio" name="printType" value="double"> Двусторонняя</label>
+        <div class="form-group">
+            <label class="form-label">Тип печати:</label>
+            <div class="radio-group">
+                <label class="radio-label">
+                    <input type="radio" name="printType" value="single" checked> 
+                    Односторонняя
+                </label>
+                <label class="radio-label">
+                    <input type="radio" name="printType" value="double"> 
+                    Двусторонняя
+                </label>
             </div>
         </div>
 
-        <?php if ($calcType === 'booklet' && isset($arResult['MAX_FOLDING'])): ?>
-        <!-- Количество сложений для буклетов -->
-        <div style="margin: 15px 0;">
-            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Количество сложений:</label>
-            <select name="foldingCount" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                <option value="0">Нет сложений</option>
-                <?php for ($i = 1; $i <= $arResult['MAX_FOLDING']; $i++): ?>
-                    <option value="<?= $i ?>"><?= $i ?> сложение<?= $i > 1 ? 'я' : '' ?></option>
-                <?php endfor; ?>
+        <?php if (!empty($features['folding'])): ?>
+        <!-- Сложение -->
+        <div class="form-group">
+            <label class="form-label" for="folding">Сложение:</label>
+            <select name="folding" id="folding" class="form-control">
+                <?php foreach ($additional['folding_info'] as $value => $name): ?>
+                    <option value="<?= $value ?>"><?= htmlspecialchars($name) ?></option>
+                <?php endforeach; ?>
             </select>
         </div>
         <?php endif; ?>
@@ -81,48 +108,41 @@ $features = $arResult['FEATURES'] ?? [];
         $supportedServices = [];
         
         if (!empty($features['bigovka'])) {
-            $supportedServices[] = 'bigovka';
+            $supportedServices[] = ['name' => 'bigovka', 'label' => 'Биговка'];
             $showAdditionalServices = true;
         }
         if (!empty($features['perforation'])) {
-            $supportedServices[] = 'perforation';
+            $supportedServices[] = ['name' => 'perforation', 'label' => 'Перфорация'];
             $showAdditionalServices = true;
         }
         if (!empty($features['drill'])) {
-            $supportedServices[] = 'drill';
+            $supportedServices[] = ['name' => 'drill', 'label' => 'Сверление Ø5мм'];
             $showAdditionalServices = true;
         }
         if (!empty($features['numbering'])) {
-            $supportedServices[] = 'numbering';
+            $supportedServices[] = ['name' => 'numbering', 'label' => 'Нумерация'];
             $showAdditionalServices = true;
         }
         
         if ($showAdditionalServices): ?>
         <!-- Дополнительные услуги -->
-        <div style="margin: 15px 0;">
-            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Дополнительные услуги:</label>
-            <div>
-                <?php if (in_array('bigovka', $supportedServices)): ?>
-                <label style="display: block;"><input type="checkbox" name="bigovka"> Биговка</label>
-                <?php endif; ?>
-                <?php if (in_array('perforation', $supportedServices)): ?>
-                <label style="display: block;"><input type="checkbox" name="perforation"> Перфорация</label>
-                <?php endif; ?>
-                <?php if (in_array('drill', $supportedServices)): ?>
-                <label style="display: block;"><input type="checkbox" name="drill"> Сверление Ø5мм</label>
-                <?php endif; ?>
-                <?php if (in_array('numbering', $supportedServices)): ?>
-                <label style="display: block;"><input type="checkbox" name="numbering"> Нумерация</label>
-                <?php endif; ?>
+        <div class="form-group">
+            <label class="form-label">Дополнительные услуги:</label>
+            <div class="checkbox-group">
+                <?php foreach ($supportedServices as $service): ?>
+                <label class="checkbox-label">
+                    <input type="checkbox" name="<?= $service['name'] ?>"> <?= $service['label'] ?>
+                </label>
+                <?php endforeach; ?>
             </div>
         </div>
         <?php endif; ?>
 
         <?php if (!empty($features['corner_radius'])): ?>
         <!-- Скругление углов -->
-        <div style="margin: 15px 0;">
-            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Количество углов:</label>
-            <select name="cornerRadius" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+        <div class="form-group">
+            <label class="form-label" for="cornerRadius">Количество углов для скругления:</label>
+            <select name="cornerRadius" id="cornerRadius" class="form-control">
                 <option value="0">Без скругления</option>
                 <option value="1">1 угол</option>
                 <option value="2">2 угла</option>
@@ -135,353 +155,303 @@ $features = $arResult['FEATURES'] ?? [];
         <input type="hidden" name="calcType" value="<?= $calcType ?>">
         <input type="hidden" name="sessid" value="<?= bitrix_sessid() ?>">
 
-        <button id="calcBtn" type="button" style="padding: 12px 24px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px;">Рассчитать</button>
+        <button id="calcBtn" type="button" class="calc-button">Рассчитать стоимость</button>
         
-        <div id="calcResult" style="margin-top: 20px;"></div>
+        <div id="calcResult" class="calc-result"></div>
         
         <?php if (!empty($features['lamination'])): ?>
         <!-- Секция ламинации (показывается после расчета) -->
-        <div id="laminationSection" style="display: none; margin-top: 20px; padding: 15px; border: 2px solid #eee; border-radius: 8px; background: #f8f9fa;">
+        <div id="laminationSection" class="lamination-section" style="display: none;">
             <h3>Дополнительная ламинация</h3>
-            <div id="laminationControls"></div>
+            <div class="form-group">
+                <label class="form-label">Тип ламинации:</label>
+                <div class="radio-group">
+                    <label class="radio-label">
+                        <input type="radio" name="laminationType" value="gloss"> 
+                        Глянцевая
+                    </label>
+                    <label class="radio-label">
+                        <input type="radio" name="laminationType" value="matt"> 
+                        Матовая
+                    </label>
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Сторона ламинации:</label>
+                <div class="radio-group">
+                    <label class="radio-label">
+                        <input type="radio" name="laminationSide" value="single"> 
+                        Односторонняя
+                    </label>
+                    <label class="radio-label">
+                        <input type="radio" name="laminationSide" value="double"> 
+                        Двусторонняя
+                    </label>
+                </div>
+            </div>
+            <button id="laminationCalcBtn" type="button" class="calc-button">Рассчитать с ламинацией</button>
+            <div id="laminationResult" class="calc-result"></div>
         </div>
         <?php endif; ?>
     </form>
+    
+    <div class="calc-thanks">
+        <p>Спасибо, что Вы с нами!</p>
+    </div>
 </div>
 
 <script>
-// Улучшенная блокировка внешних ошибок
-window.addEventListener('error', function(e) {
-    if (e.message && (
-        e.message.includes('Cannot set properties of null') || 
-        e.message.includes('Cannot read properties of null') ||
-        e.message.includes('recaptcha') ||
-        e.message.includes('mail.ru') ||
-        e.message.includes('top-fwz1') ||
-        e.message.includes('code.js')
-    )) {
-        console.log('Заблокирована внешняя ошибка:', e.message);
-        e.preventDefault();
-        e.stopPropagation();
-        return true;
+BX.ready(function() {
+    var calcConfig = {
+        type: '<?= $calcType ?>',
+        component: 'my:print.calc',
+        features: <?= json_encode($features) ?>
+    };
+
+    var form = document.getElementById(calcConfig.type + 'CalcForm');
+    var resultDiv = document.getElementById('calcResult');
+    var calcBtn = document.getElementById('calcBtn');
+    var laminationBtn = document.getElementById('laminationCalcBtn');
+    var laminationSection = document.getElementById('laminationSection');
+    var laminationResult = document.getElementById('laminationResult');
+    var lastCalculation = null;
+
+    if (!form || !resultDiv || !calcBtn) {
+        console.error('Не найдены необходимые элементы формы');
+        return;
     }
-});
 
-window.addEventListener('unhandledrejection', function(e) {
-    if (e.reason === null || (e.reason && e.reason.toString().includes('recaptcha'))) {
-        console.log('Заблокирована ошибка Promise');
-        e.preventDefault();
-        return true;
+    function collectFormData() {
+        var formData = new FormData(form);
+        var data = {};
+        
+        formData.forEach(function(value, key) {
+            data[key] = value;
+        });
+
+        form.querySelectorAll('input[type="checkbox"]').forEach(function(checkbox) {
+            data[checkbox.name] = checkbox.checked;
+        });
+
+        data.calcType = calcConfig.type;
+        data.sessid = BX.bitrix_sessid();
+
+        return data;
     }
-});
 
-// Конфигурация для текущего калькулятора
-const calcConfig = {
-    type: '<?= $calcType ?>',
-    features: <?= json_encode($features) ?>,
-    component: 'my:print.calc'
-};
+    function showError(message) {
+        return '<div class="error">' + message + '</div>';
+    }
 
-console.log('Конфигурация калькулятора:', calcConfig);
-
-// Функция ожидания BX с таймаутом
-function waitForBX(callback, fallbackCallback, timeout = 3000) {
-    const startTime = Date.now();
-    
-    function checkBX() {
-        if (typeof BX !== 'undefined' && BX.ajax) {
-            console.log('BX найден через', Date.now() - startTime, 'мс');
-            callback();
-        } else if (Date.now() - startTime < timeout) {
-            setTimeout(checkBX, 50);
-        } else {
-            console.warn('BX не загрузился за', timeout, 'мс. Используем запасной вариант');
-            fallbackCallback();
+    function formatResult(result) {
+        var html = '<div class="success">';
+        html += '<p>Тип печати: ' + result.printingType + '</p>';
+        html += '<p>Стоимость печати: ' + result.printingCost + ' руб.</p>';
+        if (result.plateCost > 0) {
+            html += '<p>Стоимость пластин: ' + result.plateCost + ' руб.</p>';
         }
+        html += '<p>Стоимость бумаги: ' + result.paperCost + ' руб.</p>';
+        if (result.additionalCosts > 0) {
+            html += '<p>Дополнительные услуги: ' + result.additionalCosts + ' руб.</p>';
+        }
+        if (result.foldingCost > 0) {
+            html += '<p>Стоимость сложения: ' + result.foldingCost + ' руб.</p>';
+        }
+        if (result.laminationCost > 0) {
+            html += '<p>Стоимость ламинации: ' + result.laminationCost + ' руб.</p>';
+        }
+        html += '<p class="total">Итого: ' + result.totalPrice + ' руб.</p>';
+        html += '</div>';
+        return html;
     }
-    
-    checkBX();
-}
-
-// Основная инициализация с BX
-function initWithBX() {
-    console.log('Инициализация с BX.ajax для', calcConfig.type);
-    
-    const form = document.getElementById(calcConfig.type + 'CalcForm');
-    const resultDiv = document.getElementById('calcResult');
-    const calcBtn = document.getElementById('calcBtn');
-    
-    if (!form) {
-        console.error('Форма не найдена:', calcConfig.type + 'CalcForm');
-        return;
-    }
-    if (!resultDiv) {
-        console.error('Div результата не найден: calcResult');
-        return;
-    }
-    if (!calcBtn) {
-        console.error('Кнопка расчета не найдена: calcBtn');
-        return;
-    }
-
-    console.log('Все элементы формы найдены');
 
     calcBtn.addEventListener('click', function() {
-        console.log('Клик по кнопке расчета');
-        
-        const data = collectFormData(form);
-        data.calcType = calcConfig.type;
-        
-        resultDiv.innerHTML = '<div style="padding: 10px; color: #666;">Расчет...</div>';
-
-        console.log('Отправка данных через BX.ajax:', data);
+        var data = collectFormData();
+        resultDiv.innerHTML = '<div class="loading">Выполняется расчет...</div>';
 
         BX.ajax.runComponentAction(calcConfig.component, 'calc', {
             mode: 'class',
-            data: data
+            data: data,
+            method: 'POST'
         }).then(function(response) {
-            console.log('Получен ответ BX:', response);
-            handleResponse(response, resultDiv);
+            if (response.data.error) {
+                resultDiv.innerHTML = showError(response.data.error);
+            } else {
+                lastCalculation = response.data;
+                resultDiv.innerHTML = formatResult(response.data);
+
+                if (calcConfig.features.lamination) {
+                    laminationSection.style.display = 'block';
+                }
+            }
         }).catch(function(error) {
-            console.error('Ошибка BX:', error);
-            resultDiv.innerHTML = '<div style="color: red; padding: 10px; background: #ffebee; border-radius: 4px;">Ошибка соединения: ' + 
-                (error.message || 'Неизвестная ошибка') + '</div>';
+            if (error.status === 401) {
+                resultDiv.innerHTML = showError('Ошибка авторизации. Пожалуйста, обновите страницу.');
+            } else {
+                resultDiv.innerHTML = showError('Ошибка при расчете: ' + (error.errors?.[0]?.message || 'Неизвестная ошибка'));
+            }
         });
     });
-}
 
-// Запасной вариант без BX
-function initWithoutBX() {
-    console.log('Инициализация без BX (fetch) для', calcConfig.type);
-    
-    const form = document.getElementById(calcConfig.type + 'CalcForm');
-    const resultDiv = document.getElementById('calcResult');
-    const calcBtn = document.getElementById('calcBtn');
-    
-    if (!form || !resultDiv || !calcBtn) {
-        console.error('Элементы формы не найдены');
-        return;
-    }
-
-    calcBtn.addEventListener('click', function() {
-        console.log('Отправка через fetch');
-        
-        const data = collectFormData(form);
-        data.calcType = calcConfig.type;
-        
-        resultDiv.innerHTML = '<div style="padding: 10px; color: #666;">Расчет...</div>';
-
-        console.log('Отправка данных через fetch:', data);
-
-        fetch('/bitrix/services/main/ajax.php?c=' + calcConfig.component + '&action=calc&mode=class', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-            },
-            body: new URLSearchParams(data)
-        })
-        .then(response => {
-            console.log('Статус ответа fetch:', response.status);
-            return response.json();
-        })
-        .then(response => {
-            console.log('Получен ответ fetch:', response);
-            handleResponse(response, resultDiv);
-        })
-        .catch(error => {
-            console.error('Ошибка fetch:', error);
-            resultDiv.innerHTML = '<div style="color: red; padding: 10px; background: #ffebee; border-radius: 4px;">Ошибка соединения: ' + 
-                error.message + '</div>';
-        });
-    });
-}
-
-// Сбор данных формы
-function collectFormData(form) {
-    const formData = new FormData(form);
-    const data = {};
-    
-    // Собираем все поля формы
-    for (let [key, value] of formData.entries()) {
-        data[key] = value;
-    }
-    
-    // Добавляем чекбоксы (они не попадают в FormData если не отмечены)
-    const checkboxes = ['bigovka', 'perforation', 'drill', 'numbering', 'includePodramnik'];
-    checkboxes.forEach(name => {
-        const checkbox = form.querySelector(`input[name="${name}"]`);
-        if (checkbox) {
-            data[name] = checkbox.checked;
-        }
-    });
-
-    console.log('Собранные данные формы:', data);
-    return data;
-}
-
-// Обработка ответа сервера
-function handleResponse(response, resultDiv) {
-    console.log('Обработка ответа:', response);
-    
-    if (response && response.data) {
-        if (response.data.error) {
-            resultDiv.innerHTML = '<div style="color: red; padding: 10px; background: #ffebee; border-radius: 4px;">Ошибка: ' + 
-                response.data.error + '</div>';
-        } else {
-            displayResult(response.data, resultDiv);
-        }
-    } else {
-        resultDiv.innerHTML = '<div style="color: red; padding: 10px; background: #ffebee; border-radius: 4px;">Некорректный ответ сервера</div>';
-        console.error('Неожиданная структура ответа:', response);
-    }
-}
-
-// Отображение результата
-function displayResult(result, resultDiv) {
-    console.log('Отображение результата:', result);
-    
-    // Округляем все цены до десятых
-    const totalPrice = Math.round((result.totalPrice || 0) * 10) / 10;
-    
-    let html = '<div style="padding: 20px; background: #e8f5e8; border-radius: 8px; border: 1px solid #4caf50;">';
-    html += '<h3 style="margin-top: 0; color: #2e7d32;">Результат расчета</h3>';
-    html += '<div style="font-size: 24px; font-weight: bold; color: #1b5e20; margin: 15px 0;">Стоимость: ' + totalPrice + ' ₽</div>';
-    
-    // Стандартное отображение для листовок и буклетов
-    if (result.printingType) {
-        html += '<p><strong>Тип печати:</strong> ' + result.printingType + '</p>';
-    }
-    
-    html += '<details style="margin-top: 15px;"><summary style="cursor: pointer; font-weight: bold;">Подробности расчета</summary>';
-    html += '<div style="margin-top: 10px; padding: 10px; background: white; border-radius: 4px;">';
-    html += '<ul style="margin: 0; padding-left: 20px;">';
-    
-    if (result.baseA3Sheets) html += '<li>Листов A3: ' + result.baseA3Sheets + '</li>';
-    if (result.printingCost) html += '<li>Стоимость печати: ' + Math.round(result.printingCost * 10) / 10 + ' ₽</li>';
-    if (result.paperCost) html += '<li>Стоимость бумаги: ' + Math.round(result.paperCost * 10) / 10 + ' ₽</li>';
-    if (result.plateCost && result.plateCost > 0) html += '<li>Стоимость пластин: ' + Math.round(result.plateCost * 10) / 10 + ' ₽</li>';
-    if (result.additionalCosts && result.additionalCosts > 0) html += '<li>Дополнительные услуги: ' + Math.round(result.additionalCosts * 10) / 10 + ' ₽</li>';
-    
-    html += '</ul>';
-    html += '</div>';
-    html += '</details>';
-    html += '</div>';
-    
-    resultDiv.innerHTML = html;
-    
-    // Показываем секцию ламинации если доступна
-    if (calcConfig.features.lamination && (result.laminationAvailable || result.printingType)) {
-        showLaminationSection(result);
-    }
-}
-
-// Функция показа секции ламинации
-function showLaminationSection(result) {
-    const laminationSection = document.getElementById('laminationSection');
-    const controlsDiv = document.getElementById('laminationControls');
-    
-    if (!laminationSection || !controlsDiv || !calcConfig.features.lamination) {
-        console.log('Секция ламинации недоступна');
-        return;
-    }
-    
-    console.log('Показываем секцию ламинации');
-    
-    let html = '<p style="margin-bottom: 15px;">Добавить ламинацию к заказу:</p>';
-    
-    if (result.printingType === 'Офсетная') {
-        html += '<div style="margin: 10px 0;">';
-        html += '<label style="display: block; margin: 5px 0;"><input type="radio" name="laminationType" value="1+0"> 1+0 (7 руб/лист)</label>';
-        html += '<label style="display: block; margin: 5px 0;"><input type="radio" name="laminationType" value="1+1"> 1+1 (14 руб/лист)</label>';
-        html += '</div>';
-    } else {
-        html += '<div style="margin: 10px 0;">';
-        html += '<label style="display: block; margin-bottom: 10px;">Толщина: ';
-        html += '<select name="laminationThickness" style="padding: 5px; margin-left: 10px;">';
-        html += '<option value="32">32 мкм</option>';
-        html += '<option value="75">75 мкм</option>';
-        html += '<option value="125">125 мкм</option>';
-        html += '<option value="250">250 мкм</option>';
-        html += '</select></label>';
-        html += '<label style="display: block; margin: 5px 0;"><input type="radio" name="laminationType" value="1+0"> 1+0 (x1)</label>';
-        html += '<label style="display: block; margin: 5px 0;"><input type="radio" name="laminationType" value="1+1"> 1+1 (x2)</label>';
-        html += '</div>';
-    }
-    
-    html += '<button type="button" id="laminationBtn" style="padding: 8px 16px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; margin-top: 10px;">Пересчитать с ламинацией</button>';
-    html += '<div id="laminationResult" style="margin-top: 15px;"></div>';
-    
-    controlsDiv.innerHTML = html;
-    laminationSection.style.display = 'block';
-    
-    // Обработчик для кнопки ламинации
-    const laminationBtn = document.getElementById('laminationBtn');
     if (laminationBtn) {
         laminationBtn.addEventListener('click', function() {
-            calculateLamination(result);
+            if (!lastCalculation) {
+                laminationResult.innerHTML = showError('Сначала выполните основной расчет');
+                return;
+            }
+
+            var data = collectFormData();
+            var laminationType = form.querySelector('input[name="laminationType"]:checked');
+            var laminationSide = form.querySelector('input[name="laminationSide"]:checked');
+
+            if (!laminationType || !laminationSide) {
+                laminationResult.innerHTML = showError('Выберите тип и сторону ламинации');
+                return;
+            }
+
+            data.laminationType = laminationType.value;
+            data.laminationSide = laminationSide.value;
+            data.withLamination = true;
+
+            laminationResult.innerHTML = '<div class="loading">Выполняется расчет...</div>';
+
+            BX.ajax.runComponentAction(calcConfig.component, 'calc', {
+                mode: 'class',
+                data: data,
+                method: 'POST'
+            }).then(function(response) {
+                if (response.data.error) {
+                    laminationResult.innerHTML = showError(response.data.error);
+                } else {
+                    laminationResult.innerHTML = formatResult(response.data);
+                }
+            }).catch(function(error) {
+                if (error.status === 401) {
+                    laminationResult.innerHTML = showError('Ошибка авторизации. Пожалуйста, обновите страницу.');
+                } else {
+                    laminationResult.innerHTML = showError('Ошибка при расчете: ' + (error.errors?.[0]?.message || 'Неизвестная ошибка'));
+                }
+            });
         });
     }
-}
-
-// Функция расчета с ламинацией
-function calculateLamination(originalResult) {
-    const laminationType = document.querySelector('input[name="laminationType"]:checked');
-    const laminationThickness = document.querySelector('select[name="laminationThickness"]');
-    const laminationResult = document.getElementById('laminationResult');
-    
-    if (!laminationType) {
-        laminationResult.innerHTML = '<div style="color: red; padding: 10px;">Выберите тип ламинации</div>';
-        return;
-    }
-    
-    const form = document.getElementById(calcConfig.type + 'CalcForm');
-    const quantity = parseInt(form.querySelector('input[name="quantity"]').value);
-    
-    let laminationCost = 0;
-    let laminationDescription = '';
-    
-    if (originalResult.printingType === 'Офсетная') {
-        // Офсетная печать: простые тарифы
-        if (laminationType.value === '1+0') {
-            laminationCost = quantity * 7;
-            laminationDescription = '1+0 (7 руб/лист)';
-        } else {
-            laminationCost = quantity * 14;
-            laminationDescription = '1+1 (14 руб/лист)';
-        }
-    } else {
-        // Цифровая печать: зависит от толщины
-        const thickness = laminationThickness ? laminationThickness.value : '32';
-        const rates = {
-            '32': { '1+0': 40, '1+1': 80 },
-            '75': { '1+0': 60, '1+1': 120 },
-            '125': { '1+0': 80, '1+1': 160 },
-            '250': { '1+0': 90, '1+1': 180 }
-        };
-        
-        laminationCost = quantity * rates[thickness][laminationType.value];
-        laminationDescription = `${laminationType.value} ${thickness} мкм (${rates[thickness][laminationType.value]} руб/лист)`;
-    }
-    
-    const newTotal = Math.round((originalResult.totalPrice + laminationCost) * 10) / 10;
-    const roundedLaminationCost = Math.round(laminationCost * 10) / 10;
-    
-    let html = '<div style="padding: 15px; background: #fff3cd; border-radius: 8px; border: 1px solid #ffc107;">';
-    html += '<h4 style="margin-top: 0; color: #856404;">Расчет с ламинацией</h4>';
-    html += '<p><strong>Ламинация:</strong> ' + laminationDescription + '</p>';
-    html += '<p><strong>Стоимость ламинации:</strong> ' + roundedLaminationCost + ' ₽</p>';
-    html += '<p style="font-size: 18px; font-weight: bold; color: #856404;"><strong>Итоговая стоимость:</strong> ' + newTotal + ' ₽</p>';
-    html += '</div>';
-    
-    laminationResult.innerHTML = html;
-}
-
-// Запуск инициализации
-console.log('Калькулятор:', calcConfig.type);
-console.log('Время запуска:', new Date().toLocaleTimeString());
-
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('DOM загружен, ждем BX...');
-    waitForBX(initWithBX, initWithoutBX, 3000);
 });
 </script>
+
+<style>
+.calc-container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.calc-disclaimer {
+    background: #f9f9f9;
+    padding: 15px;
+    margin-bottom: 20px;
+    border-radius: 5px;
+}
+
+.form-group {
+    margin-bottom: 15px;
+}
+
+.form-label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+}
+
+.form-control {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+.radio-group, .checkbox-group {
+    display: flex;
+    gap: 15px;
+}
+
+.radio-label, .checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.calc-button {
+    background: #007bff;
+    color: white;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    width: 100%;
+    margin-top: 20px;
+}
+
+.calc-button:hover {
+    background: #0056b3;
+}
+
+.calc-result {
+    margin-top: 20px;
+    padding: 15px;
+    border-radius: 4px;
+}
+
+.loading {
+    text-align: center;
+    color: #666;
+}
+
+.error {
+    background: #fee;
+    color: #c00;
+    padding: 10px;
+    border-radius: 4px;
+}
+
+.success {
+    background: #efe;
+    padding: 10px;
+    border-radius: 4px;
+}
+
+.success p {
+    margin: 5px 0;
+}
+
+.success .total {
+    font-weight: bold;
+    font-size: 1.2em;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid #ccc;
+}
+
+.lamination-section {
+    margin-top: 20px;
+    padding: 15px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background: #f9f9f9;
+}
+
+.lamination-section h3 {
+    margin-top: 0;
+    margin-bottom: 15px;
+    color: #333;
+}
+
+#laminationResult {
+    margin-top: 15px;
+}
+
+.calc-thanks {
+    text-align: center;
+    margin-top: 20px;
+    font-style: italic;
+    color: #666;
+}
+</style>

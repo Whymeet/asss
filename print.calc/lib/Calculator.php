@@ -5,88 +5,12 @@ class Calculator {
     private $priceConfig;
 
     public function __construct() {
-        $this->priceConfig = [
-            // Цены на бумагу (плотность => цена за лист, тип бумаги => цена)
-            "paper" => [
-                80.0   => 1.7,
-                120.0  => 2.5,
-                90.0   => 2.5,
-                105.0  => 2.8,
-                115.0  => 3.1,
-                130.0  => 3.4,
-                150.0  => 3.9,
-                170.0  => 4.4,
-                200.0  => 5.4,
-                250.0  => 6.9,
-                270.0  => 7.5,
-                300.0  => 8.5,
-                "Крафтовая" => 1.5,
-                "Самоклейка" => 17.5,
-                "Картон Одн" => 12.0,
-                "Картон Двух" => 10.0
-            ],
-            // Цены на ламинацию
-            "lamination" => [
-                "offset" => [
-                    "1+0" => 7,
-                    "1+1" => 14
-                ],
-                "digital" => [
-                    "32" => ["1+0" => 40, "1+1" => 80],
-                    "75" => ["1+0" => 60, "1+1" => 120],
-                    "125" => ["1+0" => 80, "1+1" => 160],
-                    "250" => ["1+0" => 90, "1+1" => 180]
-                ]
-            ],
-            "size_coefficients" => [
-                "A7"   => 16.0,
-                "A6"   => 8.0,
-                "Евро" => 6.0,
-                "A5"   => 4.0,
-                "A4"   => 2.0,
-                "A3"   => 1.0,
-                "200X210" => 2.0,
-                "9X9" => 15.0,          
-                "100X70" => 16.0
-            ],
-            "adjustment_sheets" => [
-                ["min" => 250, "max" => 500, "sheets" => 100],
-                ["min" => 501, "max" => 1500, "sheets" => 150],
-                ["min" => 1501, "max" => 3000, "sheets" => 250],
-                ["min" => 3001, "max" => 5000, "sheets" => 350],
-                ["min" => 5001, "max" => 10000, "sheets" => 450],
-            ],
-            "offset_prices" => [
-                ["min" => 200, "max" => 500, "4+0" => 2580, "4+4" => 5170, "custom" => 3850],
-                ["min" => 501, "max" => 700, "4+0" => 2860, "4+4" => 5370, "custom" => 4290],
-                ["min" => 701, "max" => 900, "4+0" => 2940, "4+4" => 5530, "custom" => 4400],
-                ["min" => 901, "max" => 1000, "4+0" => 3070, "4+4" => 5990, "custom" => 4600],
-                ["min" => 1001, "max" => 1500, "4+0" => 3460, "4+4" => 6900, "custom" => 5170],
-                ["min" => 1501, "max" => 2000, "4+0" => 3840, "4+4" => 7700, "custom" => 5760],
-                ["min" => 2001, "max" => 2500, "4+0" => 4400, "4+4" => 8800, "custom" => 6600]
-            ],
-            "digital_prices" => [
-                20 => ["4+0" => 50, "4+4" => 60],
-                50 => ["4+0" => 45, "4+4" => 55],
-                100 => ["4+0" => 35, "4+4" => 45],
-                150 => ["4+0" => 25, "4+4" => 40],
-                200 => ["4+0" => 20, "4+4" => 38]
-            ],
-            "plate_prices" => [
-                "A3_double" => 2400,
-                "default" => 1200
-            ],
-            "offset_threshold" => 200,
-            "bigovka" => 1,
-            "corner_radius" => 0.3,
-            "perforation" => 0.5,
-            "drill" => 0.4,
-            "numbering_small" => 0.5,
-            "numbering_large" => 0.3
-        ];
+        $this->priceConfig = require_once(__DIR__ . '/../config/price_config.php');
     }
 
-    public function calculatePrice($calcType, $paperType, $size, $quantity, $printType, $options = []) {
+    // Функция для вычисления стоимости
+    // Базовая функция для печати. На основе этой функции считаются следующие функции 
+    function calculatePrice($paperType, $size, $quantity, $printType, $foldingCount = 0, $bigovka = false, $cornerRadius = 0, $perforation = false, $drill = false, $numbering = false) {
         // Проверка корректности данных
         if ($quantity <= 0 || !isset($this->priceConfig['size_coefficients'][$size])) {
             return ['error' => 'Некорректные данные'];
@@ -135,6 +59,8 @@ class Calculator {
             $paperCost = $totalA3Sheets * $this->priceConfig['paper'][$paperType];
             $totalPrice = $paperCost + $printingCost + $plateCost;
 
+            // Добавляем сложения для офсетной печати
+            $totalPrice += $foldingCount * ($size === 'A3' ? 0.2 : 0.4) * $quantity;
         } else { // Цифровая печать
             // Определение колонки стоимости
             $priceColumn = ($printType === 'double') ? '4+4' : '4+0';
@@ -157,29 +83,14 @@ class Calculator {
             $printingCost = $baseA3Sheets * $digitalPrice;
             $paperCost = $baseA3Sheets * $this->priceConfig['paper'][$paperType];
             $totalPrice = $paperCost + $printingCost;
+
+            // Добавляем сложения для цифровой печати
+            $totalPrice += $foldingCount * 0.4 * $quantity;
         }
 
         // Добавляем дополнительные услуги
-        $additionalCosts = $this->calculateAdditionalCosts(
-            $options['bigovka'] ?? false,
-            $options['corner_radius'] ?? 0,
-            $options['perforation'] ?? false,
-            $options['drill'] ?? false,
-            $options['numbering'] ?? false,
-            $quantity
-        );
+        $additionalCosts = $this->calculateAdditionalCosts($bigovka, $cornerRadius, $perforation, $drill, $numbering, $quantity);
         $totalPrice += $additionalCosts;
-
-        // Добавляем ламинацию если она запрошена
-        if (!empty($options['lamination'])) {
-            $laminationCost = $this->calculateLaminationCost(
-                $printingType,
-                $options['lamination_thickness'],
-                $options['lamination_type'],
-                $quantity
-            );
-            $totalPrice += $laminationCost;
-        }
 
         return [
             'printingType' => $printingType,
@@ -190,10 +101,215 @@ class Calculator {
             'plateCost' => $plateCost,
             'paperCost' => $paperCost,
             'totalPrice' => $totalPrice,
-            'additionalCosts' => $additionalCosts
+            'additionalCosts' => $additionalCosts,
+            'printingType' => $printingType,
+            'laminationAvailable' => true
         ];
     }
 
+    // Функция для вычисления стоимости ризографической и офсетной печати
+    function calculateRizoPrice($paperType, $size, $quantity, $printType, $bigovka = false, $cornerRadius = 0, $perforation = false, $drill = false, $numbering = false) {
+        // Проверка корректности данных
+        if ($quantity <= 0 || !isset($this->priceConfig['size_coefficients'][$size])) {
+            return ['error' => 'Некорректные данные'];
+        }
+
+        // Расчёт базовых значений
+        $sizeCoefficient = $this->priceConfig['size_coefficients'][$size];
+        $baseA3Sheets = ceil($quantity / $sizeCoefficient);
+        $totalA3Sheets = $baseA3Sheets;
+
+        // Определение типа печати
+        $printingType = $baseA3Sheets > 499 ? 'Офсетная' : 'Ризографическая';
+        $adjustment = 0;
+        $printingCost = 0;
+        $plateCost = 0;
+        $paperCost = 0;
+        $totalPrice = 0;
+
+        if ($printingType === 'Офсетная') {
+            // Определение колонки для стоимости
+            $priceColumn = ($printType === 'double') ? '1+1' : '1+0';
+
+            // Поиск стоимости печати
+            foreach ($this->priceConfig['offset_rizo_prices'] as $range) {
+                if ($totalA3Sheets >= $range['min'] && $totalA3Sheets <= $range['max']) {
+                    $printingCost = $range[$priceColumn];
+                    $adjustment = $range['adjustment'];
+                    break;
+                }
+            }
+
+            // Стоимость пластины
+            $plateCost = $this->priceConfig['plate_price'];
+            $totalA3Sheets += $adjustment;
+
+            // Стоимость бумаги
+            $paperCost = $totalA3Sheets * $this->priceConfig['paper'][$paperType];
+            $totalPrice = $paperCost + $printingCost + $plateCost;
+        } else { // Ризографическая печать
+            // Определение колонки стоимости
+            $priceColumn = ($printType === 'double') ? '1+1' : '1+0';
+            $rizoPrice = 0;
+
+            // Поиск цены в таблице ризографической печати
+            foreach ($this->priceConfig['rizo_prices'] as $max => $prices) {
+                if ($baseA3Sheets <= $max) {
+                    $rizoPrice = $prices[$priceColumn];
+                    break;
+                }
+            }
+
+            $printingCost = $baseA3Sheets * $rizoPrice;
+            $paperCost = $baseA3Sheets * $this->priceConfig['paper'][$paperType];
+            $totalPrice = $paperCost + $printingCost;
+        }
+
+        // Добавляем дополнительные услуги
+        $additionalCosts = $this->calculateAdditionalCosts($bigovka, $cornerRadius, $perforation, $drill, $numbering, $quantity);
+        $totalPrice += $additionalCosts;
+
+        return [
+            'printingType' => $printingType,
+            'baseA3Sheets' => $baseA3Sheets,
+            'adjustment' => $adjustment,
+            'totalA3Sheets' => $totalA3Sheets,
+            'printingCost' => $printingCost,
+            'plateCost' => $plateCost,
+            'paperCost' => $paperCost,
+            'totalPrice' => $totalPrice,
+            'additionalCosts' => $additionalCosts // Возвращаем дополнительные услуги
+        ];
+    }
+
+    // Функция для вычисления стоимости визиток
+    function calculateVizitPrice($printType, $quantity, $sideType = 'single') {
+        // Валидация данных
+        $errors = [];
+        if ($printType === 'offset') {
+            if ($quantity < 1000 || $quantity > 12000 || $quantity % 1000 !== 0) {
+                $errors[] = "Для офсетной печати выберите тираж из списка";
+            }
+        } else {
+            if ($quantity < 100 || $quantity > 999) {
+                $errors[] = "Для цифровой печати введите тираж от 100 до 999";
+            }
+        }
+
+        if (!empty($errors)) {
+            return ['error' => implode("<br>", $errors)];
+        }
+
+        // Расчет стоимости
+        $totalPrice = 0;
+        
+        if ($printType === 'offset') {
+            foreach ($this->priceConfig['offset_vizit_prices'] as $range) {
+                if ($quantity >= $range['min'] && $quantity <= $range['max']) {
+                    $totalPrice = $quantity * $range['price'];
+                    break;
+                }
+            }
+        } else {
+            $priceColumn = ($sideType === 'double') ? '4+4' : '4+0';
+            foreach ($this->priceConfig['digital_vizit_prices'] as $max => $prices) {
+                if ($quantity <= $max) {
+                    $totalPrice = $quantity * $prices[$priceColumn];
+                    break;
+                }
+            }
+        }
+
+        return [
+            'printType' => $printType === 'offset' ? 'Офсетная' : 'Цифровая',
+            'quantity' => $quantity,
+            'totalPrice' => $totalPrice
+        ];
+    }
+
+    // Функция для округления значения до ближайшего разрешенного размера
+    function ceilToNearest($value, $allowed) {
+        // Находим максимальное разрешенное значение
+        $maxAllowed = max($allowed);
+        
+        // Если значение больше максимального разрешенного, возвращаем его без изменений
+        if ($value > $maxAllowed) {
+            return $value;
+        }
+        
+        // Сортируем массив разрешенных значений
+        sort($allowed);
+        
+        // Проходим по каждому разрешенному значению
+        foreach ($allowed as $a) {
+            // Если текущее разрешенное значение больше или равно заданному, возвращаем его
+            if ($a >= $value) {
+                return $a;
+            }
+        }
+        
+        // Если не найдено подходящее значение, возвращаем исходное значение
+        return $value;
+    }
+
+    // Функция для вычисления стоимости холста
+    function calculateCanvasPrice($width, $height, $includePodramnik) {
+        // Проверка на корректность входных данных: ширина и высота должны быть больше нуля
+        if ($width <= 0 || $height <= 0) {
+            return ['error' => 'Ширина и высота должны быть больше нуля.'];
+        }
+
+        // Разрешенные размеры для округления
+        $allowedSizes = [30, 40, 50, 60, 70, 80, 90, 100];
+        
+        // Округляем ширину и высоту до ближайших разрешенных значений
+        $roundedWidth = $this->ceilToNearest($width, $allowedSizes);
+        $roundedHeight = $this->ceilToNearest($height, $allowedSizes);
+
+        // Инициализация переменных для стоимости холста и подрамника
+        $canvasPrice = 0;
+        $podramnikPrice = 0;
+
+        // Если хотя бы один размер больше 100 см
+        if ($roundedWidth > 100 || $roundedHeight > 100) {
+            // Вычисляем площадь в квадратных метрах
+            $area = ($width * $height) / 10000; // Переводим см² в м²
+            // Стоимость холста для больших размеров
+            $canvasPrice = $area * 2700; // 2700 руб. за м²
+            // Если подрамник включен, рассчитываем его стоимость
+            $podramnikPrice = $includePodramnik ? $area * 1900 : 0; // 1900 руб. за м²
+        } else {
+            // Проверяем, существует ли цена для заданных округленных размеров
+            if (!isset($this->priceConfig['canvas_prices'][$roundedHeight][$roundedWidth])) {
+                return ['error' => 'Неверный размер холста.']; // Возвращаем ошибку, если размер неверный
+            }
+            // Получаем стоимость холста из конфигурации
+            $canvasPrice = $this->priceConfig['canvas_prices'][$roundedHeight][$roundedWidth];
+
+            // Если подрамник включен, проверяем его стоимость
+            if ($includePodramnik) {
+                if (!isset($this->priceConfig['podramnik_prices'][$roundedHeight][$roundedWidth])) {
+                    return ['error' => 'Неверный размер подрамника.']; // Возвращаем ошибку, если размер подрамника неверный
+                }
+                // Получаем стоимость подрамника из конфигурации
+                $podramnikPrice = $this->priceConfig['podramnik_prices'][$roundedHeight][$roundedWidth];
+            }
+        }
+
+        // Общая стоимость = стоимость холста + стоимость подрамника
+        $totalPrice = $canvasPrice + $podramnikPrice;
+
+        // Возвращаем массив с деталями расчета
+        return [
+            'canvasPrice' => $canvasPrice, // Стоимость холста
+            'podramnikPrice' => $podramnikPrice, // Стоимость подрамника
+            'totalPrice' => $totalPrice, // Общая стоимость
+            'roundedWidth' => $roundedWidth, // Округленная ширина
+            'roundedHeight' => $roundedHeight, // Округленная высота
+            'area' => isset($area) ? $area : null // Площадь, если она была рассчитана
+        ];
+    }
+    // Функция для вычисления дополнительных услуг
     private function calculateAdditionalCosts($bigovka, $cornerRadius, $perforation, $drill, $numbering, $quantity) {
         $cost = 0;
 
@@ -212,7 +328,7 @@ class Calculator {
             $cost += $quantity * $this->priceConfig['perforation'];
         }
 
-        // Сверление
+        // Сверление диаметром 5мм
         if ($drill) {
             $cost += $quantity * $this->priceConfig['drill'];
         }
@@ -229,13 +345,423 @@ class Calculator {
         return $cost;
     }
 
-    public function calculateLaminationCost($printingType, $thickness, $type, $quantity) {
-        if ($printingType === 'Офсетная') {
-            return $quantity * $this->priceConfig['lamination']['offset'][$type];
+
+    function calculatePVCPrice($width, $height, $pvcType, $flatA4, $flatA5, $volumeA4, $volumeA5) {
+        // Валидация входных данных
+        $errors = [];
+        if ($width <= 0 || $height <= 0) $errors[] = "Некорректные размеры";
+        if ($flatA4 < 0 || $flatA5 < 0 || $volumeA4 < 0 || $volumeA5 < 0) $errors[] = "Количество карманов не может быть отрицательным";
+        
+        if (!empty($errors)) return ['error' => implode("<br>", $errors)];
+        
+        // Расчет площади
+        $area = ($width / 100) * ($height / 100); // Перевод см в метры
+        $totalPoints = ($flatA4 + $volumeA4) * $this->priceConfig['pocket_limits']['a4_points'] 
+                     + ($flatA5 + $volumeA5) * $this->priceConfig['pocket_limits']['a5_points'];
+                     
+        $maxAllowedPoints = $area * $this->priceConfig['pocket_limits']['max_points_per_m2'];
+        
+        if ($totalPoints > $maxAllowedPoints) {
+            return ['error' => "Превышено максимальное количество карманов. Максимум: " . floor($maxAllowedPoints) . " баллов"];
+        }
+        
+        // Расчет стоимости
+        $pvcCost = $area * $this->priceConfig['pvc_prices'][$pvcType];
+        
+        $pocketsCost = 
+            $flatA4 * $this->priceConfig['pocket_prices']['flat_a4'] +
+            $flatA5 * $this->priceConfig['pocket_prices']['flat_a5'] +
+            $volumeA4 * $this->priceConfig['pocket_prices']['volume_a4'] +
+            $volumeA5 * $this->priceConfig['pocket_prices']['volume_a5'];
+        
+        return [
+            'pvcCost' => $pvcCost,
+            'pocketsCost' => $pocketsCost,
+            'totalPrice' => $pvcCost + $pocketsCost,
+            'area' => $area,
+            'totalPoints' => $totalPoints,
+            'maxPoints' => $maxAllowedPoints
+        ];
+    }
+    function calculateCalendarPrice($type, $size, $quantity, $printType, $pages = 14) {
+        $result = [];
+        $additionalCost = 0;
+
+        switch($type) {
+            case 'desktop':
+                // Настольный A4 300гр 4+0 с 3 биговками
+                $result = $this->calculatePrice(300.0, "A4", $quantity, 'single', 0, true, 0, false, false, false);
+                $result['totalPrice'] += 3 * $quantity * $this->priceConfig['bigovka'];
+                break;
+
+            case 'pocket':
+                // Карманный A6 300гр с 4 углами
+                $result = $this->calculatePrice(300.0, "100X70", $quantity, $printType, 0, false, 4, false, false, false);
+                break;
+
+            case 'wall':
+                // Настенный перекидной
+                $baseSize = ($size === "A4") ? "A4" : "A3";
+                $sheets = ($baseSize === "A4") ? 7 : 14; // Для A4 7 листов A3
+                
+                // Расчет стоимости печати
+                $printResult = $this->calculatePrice(300.0, $baseSize, $quantity * $sheets, $printType);
+                
+                // Расчет стоимости сборки
+                $assemblyPrice = 0;
+                foreach ($this->priceConfig['calendar_prices']['wall_assembly'][$size] as $max => $price) {
+                    if ($quantity <= $max) {
+                        $assemblyPrice = $price * $quantity;
+                        break;
+                    }
+                }
+                
+                $result = [
+                    'printingCost' => $printResult['printingCost'],
+                    'assemblyCost' => $assemblyPrice,
+                    'totalPrice' => $printResult['totalPrice'] + $assemblyPrice
+                ];
+                break;
+        }
+
+        return $result;
+    }
+
+    function calculateBindingCost($size, $quantity) {
+        $bindingPrices = $this->priceConfig['binding_prices'];
+        return $this->calculateBindingPrice($size, $quantity, $bindingPrices);
+    }
+
+    private function calculateBindingPrice($size, $quantity, $prices) {
+        if ($quantity <= 100) {
+            return $prices[$size][100] * $quantity;
+        } elseif ($quantity <= 500) {
+            return $prices[$size][500] * $quantity;
+        } elseif ($quantity <= 1000) {
+            return $prices[$size][1000] * $quantity;
         } else {
-            return $quantity * $this->priceConfig['lamination']['digital'][$thickness][$type];
+            return $prices[$size]["max"] * $quantity;
         }
     }
+
+    function calculateStapleCost($quantity) {
+        return $this->priceConfig['staple_price'] * 2 * $quantity; // 2 скобы на изделие
+    }
+    function calculateCatalogPrice(
+        $coverPaper, 
+        $coverPrintType,
+        $innerPaper,
+        $innerPrintType,
+        $size,
+        $pages,
+        $quantity,
+        $bindingType
+    ) {
+        // Нормализация размера
+        $size = mb_convert_case($size, MB_CASE_UPPER, "UTF-8");
+
+        // Проверка существования формата
+        if (!isset($this->priceConfig["catalog"]["sheet_conversion"][$size])) {
+            $allowedSizes = implode(', ', array_keys($this->priceConfig["catalog"]["sheet_conversion"]));
+            return ['error' => "Неверный формат каталога. Допустимые форматы: $allowedSizes"];
+        }
+
+        $conversionData = $this->priceConfig["catalog"]["sheet_conversion"][$size];
+        $pages = (int)$pages;
+
+        // Проверка страниц
+        if (!isset($conversionData[$pages])) {
+            $allowedPages = implode(', ', array_keys($conversionData));
+            return ['error' => "Недопустимое количество страниц для формата $size. Допустимые значения: $allowedPages"];
+        }
+
+        // Валидация других параметров
+        $errors = [];
+        if (!in_array($coverPaper, [130, 170, 300], true)) {
+            $errors[] = "Некорректная плотность обложки";
+        }
+        if (!in_array($innerPaper, [130, 170], true)) {
+            $errors[] = "Некорректная плотность внутренних листов";
+        }
+        if ($quantity <= 0) {
+            $errors[] = "Некорректный тираж";
+        }
+        
+        if (!empty($errors)) {
+            return ['error' => implode("<br>", $errors)];
+        }
+
+        $totalPrice = 0;
+        $isSamePaper = ($coverPaper == $innerPaper);
+
+        // Расчет обложки и внутренних листов
+        if ($isSamePaper) {
+            // Если бумага одинаковая
+            $a3Sheets = $conversionData[$pages] * $quantity;
+            $coverResult = $this->calculatePrice(
+                $coverPaper,
+                $size,
+                $a3Sheets,
+                $coverPrintType
+            );
+            $totalPrice += $coverResult['totalPrice'];
+        } else {
+            // Если бумага разная
+            $coverSizeMap = [
+                "A4" => "A3",
+                "A5" => "A4",
+                "A6" => "A5"
+            ];
+            
+            if (!isset($coverSizeMap[$size])) {
+                return ['error' => "Неверный формат для расчета обложки"];
+            }
+
+            // Расчет обложки
+            $coverSize = $coverSizeMap[$size];
+            $coverSheets = ceil($quantity / 2);
+            $coverResult = $this->calculatePrice(
+                $coverPaper,
+                $coverSize,
+                $coverSheets,
+                $coverPrintType
+            );
+            $totalPrice += $coverResult['totalPrice'];
+
+            // Расчет внутренних листов
+            $adjustedPages = max(8, $pages - 4);
+            $innerSheets = $conversionData[$adjustedPages] * $quantity;
+            $innerResult = $this->calculatePrice(
+                $innerPaper,
+                $size,
+                $innerSheets,
+                $innerPrintType
+            );
+            $totalPrice += $innerResult['totalPrice'];
+        }
+
+        // Листоподборка
+        $collationCost = $pages * $quantity * $this->priceConfig["catalog"]["collation_price"];
+        $totalPrice += $collationCost;
+
+        // Расчет стоимости сборки
+        if ($bindingType === 'staple') {
+            $bindingCost = $this->calculateStapleCost($quantity);
+        } else {
+            $bindingCost = $this->calculateBindingCost($size, $quantity);
+        }
+        $totalPrice += $bindingCost;
+
+        return [
+            'coverCost' => $isSamePaper ? 0 : $coverResult['totalPrice'],
+            'innerCost' => $isSamePaper ? $coverResult['totalPrice'] : $innerResult['totalPrice'],
+            'collationCost' => $collationCost,
+            'bindingCost' => $bindingCost,
+            'totalPrice' => $totalPrice,
+            'sheets' => $conversionData[$pages],
+            'isSamePaper' => $isSamePaper,
+            'adjustedPages' => $adjustedPages ?? $pages
+        ];
+    }
+
+
+
+    function calculateNotePrice($params) {
+        // Получаем конфигурацию блокнотов
+        $noteConfig = $this->priceConfig['note'];
+        
+        // 1. Валидация и подготовка параметров
+        $size = in_array($params['size'], $noteConfig['available_sizes']) 
+            ? $params['size'] 
+            : $noteConfig['available_sizes'][0];
+        
+        $quantity = max(1, (int)$params['quantity']);
+        $innerPages = in_array($params['inner_pages'], $noteConfig['inner_pages']) 
+            ? $params['inner_pages'] 
+            : $noteConfig['inner_pages'][0];
+        
+        $services = [
+            'bigovka' => (bool)$params['bigovka'],
+            'perforation' => (bool)$params['perforation'],
+            'drill' => (bool)$params['drill'],
+            'numbering' => (bool)$params['numbering'],
+            'cornerRadius' => (int)$params['corner_radius']
+        ];
+
+        // 2. Расчет обложки
+        $coverParams = [
+            'paperType' => $noteConfig['paper']['cover'],
+            'size' => $size,
+            'quantity' => $quantity,
+            'printType' => ($params['cover_print'] === '4+4') ? 'double' : 'single',
+            'services' => $services
+        ];
+        
+        $coverResult = $this->calculateComponent($coverParams);
+        
+        // 3. Расчет задника
+        $backPrintType = $params['back_print'];
+        $backParams = [
+            'paperType' => $noteConfig['paper']['back'],
+            'size' => $size,
+            'quantity' => $quantity,
+            'printType' => ($backPrintType === '4+4') ? 'double' : 
+                          ($backPrintType === '4+0' ? 'single' : 'none'),
+            'services' => $services
+        ];
+        
+        $backResult = $this->calculateComponent($backParams);
+        
+        // 4. Расчет внутреннего блока
+        $totalInnerSheets = $quantity * $innerPages;
+        $innerPrintType = $params['inner_print'];
+        
+        if (strpos($innerPrintType, '1+') === 0) {
+            // Ризография
+            $innerResult = $this->calculateRizoComponent([
+                'paperType' => $noteConfig['paper']['inner'],
+                'size' => $size,
+                'quantity' => $totalInnerSheets,
+                'printType' => $innerPrintType,
+                'services' => $services
+            ]);
+        } else {
+            // Обычная печать
+            $innerParams = [
+                'paperType' => $noteConfig['paper']['inner'],
+                'size' => $size,
+                'quantity' => $totalInnerSheets,
+                'printType' => ($innerPrintType === '4+4') ? 'double' : 'single',
+                'services' => $services
+            ];
+            
+            $innerResult = $this->calculateComponent($innerParams);
+        }
+        
+        // 5. Расчет сборки
+        $bindingCost = $this->calculateNoteBinding([
+            'size' => $size,
+            'quantity' => $quantity,
+            'config' => $noteConfig['binding']
+        ]);
+        
+        // 6. Суммирование всех компонентов
+        $totalPrice = array_sum([
+            $coverResult['total'],
+            $backResult['total'],
+            $innerResult['total'],
+            $bindingCost
+        ]);
+        
+        return [
+            'components' => [
+                'cover' => $coverResult,
+                'back' => $backResult,
+                'inner' => $innerResult
+            ],
+            'binding' => $bindingCost,
+            'total' => $totalPrice,
+            'details' => [
+                'quantity' => $quantity,
+                'size' => $size,
+                'inner_pages' => $innerPages,
+                'services' => $services
+            ]
+        ];
+    }
+
+    // Вспомогательные функции для расчета компонентов
+    function calculateComponent($params) {
+        // Базовый расчет стоимости печати
+        $baseResult = $this->calculatePrice(
+            $params['paperType'],
+            $params['size'],
+            $params['quantity'],
+            $params['printType']
+        );
+        
+        // Добавляем дополнительные услуги
+        $additionalCost = $this->calculateAdditionalServices(
+            $params['services'],
+            $params['quantity']
+        );
+        
+        return [
+            'base' => $baseResult,
+            'additional' => $additionalCost,
+            'total' => $baseResult['totalPrice'] + $additionalCost
+        ];
+    }
+
+    function calculateRizoComponent($params) {
+        // Расчет ризографии
+        $baseResult = $this->calculateRizoPrice(
+            $params['paperType'],
+            $params['size'],
+            $params['quantity'],
+            $params['printType']
+        );
+        
+        // Добавляем дополнительные услуги
+        $additionalCost = $this->calculateAdditionalServices(
+            $params['services'],
+            $params['quantity']
+        );
+        
+        return [
+            'base' => $baseResult,
+            'additional' => $additionalCost,
+            'total' => $baseResult['totalPrice'] + $additionalCost
+        ];
+    }
+
+    function calculateNoteBinding($params) {
+        $config = $params['config']['spiral'][$params['size']];
+        $quantity = $params['quantity'];
+        
+        if ($quantity <= 100) {
+            return $config[100] * $quantity;
+        } elseif ($quantity <= 500) {
+            return $config[500] * $quantity;
+        } elseif ($quantity <= 1000) {
+            return $config[1000] * $quantity;
+        } else {
+            return $config['max'] * $quantity;
+        }
+    }
+
+    function calculateAdditionalServices($services, $quantity) {
+        $noteServices = $this->priceConfig['note']['services'];
+        
+        $cost = 0;
+        
+        // Биговка
+        if ($services['bigovka']) {
+            $cost += $quantity * $noteServices['bigovka'];
+        }
+        
+        // Перфорация
+        if ($services['perforation']) {
+            $cost += $quantity * $noteServices['perforation'];
+        }
+        
+        // Сверление
+        if ($services['drill']) {
+            $cost += $quantity * $noteServices['drill'];
+        }
+        
+        // Нумерация
+        if ($services['numbering']) {
+            $cost += $quantity * $noteServices['numbering'];
+        }
+        
+        // Скругление углов
+        $cornerCost = $noteServices['corner_radius'][$services['cornerRadius']] ?? 0;
+        $cost += $quantity * $cornerCost;
+        
+        return $cost;
+    }
+
 }
 
 ?>

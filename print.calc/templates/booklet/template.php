@@ -163,33 +163,29 @@ $additional = $arResult['ADDITIONAL'] ?? [];
         <!-- Секция ламинации (показывается после расчета) -->
         <div id="laminationSection" class="lamination-section" style="display: none;">
             <h3>Дополнительная ламинация</h3>
+            <p style="margin-bottom: 15px;">Добавить ламинацию к заказу:</p>
             <div class="form-group">
-                <label class="form-label">Тип ламинации:</label>
+                <label class="form-label">Толщина:</label>
+                <select name="laminationThickness" class="form-control">
+                    <option value="32">32 мкм</option>
+                    <option value="75">75 мкм</option>
+                    <option value="125">125 мкм</option>
+                    <option value="250">250 мкм</option>
+                </select>
+            </div>
+            <div class="form-group">
                 <div class="radio-group">
                     <label class="radio-label">
-                        <input type="radio" name="laminationType" value="gloss"> 
-                        Глянцевая
+                        <input type="radio" name="laminationType" value="1+0"> 
+                        1+0 (x1)
                     </label>
                     <label class="radio-label">
-                        <input type="radio" name="laminationType" value="matt"> 
-                        Матовая
+                        <input type="radio" name="laminationType" value="1+1"> 
+                        1+1 (x2)
                     </label>
                 </div>
             </div>
-            <div class="form-group">
-                <label class="form-label">Сторона ламинации:</label>
-                <div class="radio-group">
-                    <label class="radio-label">
-                        <input type="radio" name="laminationSide" value="single"> 
-                        Односторонняя
-                    </label>
-                    <label class="radio-label">
-                        <input type="radio" name="laminationSide" value="double"> 
-                        Двусторонняя
-                    </label>
-                </div>
-            </div>
-            <button id="laminationCalcBtn" type="button" class="calc-button">Рассчитать с ламинацией</button>
+            <button id="laminationCalcBtn" type="button" class="calc-button calc-button-success">Пересчитать с ламинацией</button>
             <div id="laminationResult" class="calc-result"></div>
         </div>
         <?php endif; ?>
@@ -302,15 +298,15 @@ BX.ready(function() {
 
             var data = collectFormData();
             var laminationType = form.querySelector('input[name="laminationType"]:checked');
-            var laminationSide = form.querySelector('input[name="laminationSide"]:checked');
+            var laminationThickness = form.querySelector('select[name="laminationThickness"]');
 
-            if (!laminationType || !laminationSide) {
-                laminationResult.innerHTML = showError('Выберите тип и сторону ламинации');
+            if (!laminationType || !laminationThickness) {
+                laminationResult.innerHTML = showError('Выберите тип и толщину ламинации');
                 return;
             }
 
             data.laminationType = laminationType.value;
-            data.laminationSide = laminationSide.value;
+            data.laminationThickness = laminationThickness.value;
             data.withLamination = true;
 
             laminationResult.innerHTML = '<div class="loading">Выполняется расчет...</div>';
@@ -453,5 +449,13 @@ BX.ready(function() {
     margin-top: 20px;
     font-style: italic;
     color: #666;
+}
+
+.calc-button-success {
+    background: #28a745;
+}
+
+.calc-button-success:hover {
+    background: #218838;
 }
 </style>

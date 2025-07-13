@@ -236,6 +236,12 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
                 $this->arResult['MAX_FOLDING'] = $calcConfig['max_folding'] ?? 2;
                 break;
                 
+            case 'rizo':
+                // Специфичные данные для ризографии
+                $this->arResult['RIZO_THRESHOLD'] = 499; // Порог переключения на офсет
+                $this->arResult['PRINT_TYPES_INFO'] = $calcConfig['additional']['print_info'] ?? [];
+                break;
+                
             case 'catalog':
                 $this->arResult['CATALOG_CONFIG'] = $priceConfig['catalog'];
                 $this->arResult['AVAILABLE_PAGES'] = $calcConfig['additional']['available_pages'] ?? [];

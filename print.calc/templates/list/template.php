@@ -167,6 +167,9 @@ $features = $arResult['FEATURES'] ?? [];
         <button id="calcBtn" type="button" class="calc-button">Рассчитать стоимость</button>
         
         <div id="calcResult" class="calc-result"></div>
+        
+        <!-- Отступ между результатом и ламинацией -->
+        <div class="calc-spacer"></div>
     </form>
 
     <div class="calc-thanks">
@@ -230,8 +233,6 @@ function waitForBX(callback, fallbackCallback, timeout = 3000) {
 
 // Основная инициализация с BX
 function initWithBX() {
-    console.log('Инициализация с BX.ajax для', calcConfig.type);
-    
     const form = document.getElementById(calcConfig.type + 'CalcForm');
     const resultDiv = document.getElementById('calcResult');
     const calcBtn = document.getElementById('calcBtn');
@@ -249,23 +250,16 @@ function initWithBX() {
         return;
     }
 
-    console.log('Все элементы формы найдены');
-
     calcBtn.addEventListener('click', function() {
-        console.log('Клик по кнопке расчета');
-        
         const data = collectFormData(form);
         data.calcType = calcConfig.type;
         
         resultDiv.innerHTML = '<div class="loading">Выполняется расчет...</div>';
 
-        console.log('Отправка данных через BX.ajax:', data);
-
         BX.ajax.runComponentAction(calcConfig.component, 'calc', {
             mode: 'class',
             data: data
         }).then(function(response) {
-            console.log('Получен ответ BX:', response);
             handleResponse(response, resultDiv);
         }).catch(function(error) {
             console.error('Ошибка BX:', error);
@@ -277,8 +271,6 @@ function initWithBX() {
 
 // Запасной вариант без BX
 function initWithoutBX() {
-    console.log('Инициализация без BX (fetch) для', calcConfig.type);
-    
     const form = document.getElementById(calcConfig.type + 'CalcForm');
     const resultDiv = document.getElementById('calcResult');
     const calcBtn = document.getElementById('calcBtn');
@@ -289,14 +281,10 @@ function initWithoutBX() {
     }
 
     calcBtn.addEventListener('click', function() {
-        console.log('Отправка через fetch');
-        
         const data = collectFormData(form);
         data.calcType = calcConfig.type;
         
         resultDiv.innerHTML = '<div class="loading">Выполняется расчет...</div>';
-
-        console.log('Отправка данных через fetch:', data);
 
         fetch('/bitrix/services/main/ajax.php?c=' + calcConfig.component + '&action=calc&mode=class', {
             method: 'POST',
@@ -306,11 +294,9 @@ function initWithoutBX() {
             body: new URLSearchParams(data)
         })
         .then(response => {
-            console.log('Статус ответа fetch:', response.status);
             return response.json();
         })
         .then(response => {
-            console.log('Получен ответ fetch:', response);
             handleResponse(response, resultDiv);
         })
         .catch(error => {
@@ -323,8 +309,6 @@ function initWithoutBX() {
 
 // Обработка ответа сервера
 function handleResponse(response, resultDiv) {
-    console.log('Обработка ответа:', response);
-    
     if (response && response.data) {
         if (response.data.error) {
             resultDiv.innerHTML = '<div class="result-error">Ошибка: ' + 
@@ -344,8 +328,6 @@ function handleResponse(response, resultDiv) {
 
 // Отображение результата
 function displayResult(result, resultDiv) {
-    console.log('Отображение результата:', result);
-    
     // Округляем все цены до десятых
     const totalPrice = Math.round((result.totalPrice || 0) * 10) / 10;
     
@@ -359,7 +341,7 @@ function displayResult(result, resultDiv) {
     }
     
     html += '<details class="result-details">';
-    html += '<summary>Подробности расчета</summary>';
+    html += '<summary class="result-summary">Подробности расчета</summary>';
     html += '<div class="result-details-content">';
     html += '<ul>';
     
@@ -383,20 +365,21 @@ function showLaminationSection(result) {
     const controlsDiv = document.getElementById('laminationControls');
     
     if (!laminationSection || !controlsDiv || !calcConfig.features.lamination) {
-        console.log('Секция ламинации недоступна');
         return;
     }
     
-    console.log('Показываем секцию ламинации');
-    
-    let html = '<p>Добавить ламинацию к заказу:</p>';
+    let html = '<div class="lamination-content">';
+    html += '<p class="lamination-title">Добавить ламинацию к заказу:</p>';
     
     if (result.printingType === 'Офсетная') {
+        html += '<div class="lamination-options">';
         html += '<div class="radio-group">';
         html += '<label class="radio-label"><input type="radio" name="laminationType" value="1+0"> 1+0 (7 руб/лист)</label>';
         html += '<label class="radio-label"><input type="radio" name="laminationType" value="1+1"> 1+1 (14 руб/лист)</label>';
         html += '</div>';
+        html += '</div>';
     } else {
+        html += '<div class="lamination-options">';
         html += '<div class="form-group">';
         html += '<label class="form-label">Толщина:';
         html += '<select name="laminationThickness" class="form-control">';
@@ -405,6 +388,7 @@ function showLaminationSection(result) {
         html += '<option value="125">125 мкм</option>';
         html += '<option value="250">250 мкм</option>';
         html += '</select></label>';
+        html += '</div>';
         html += '<div class="radio-group">';
         html += '<label class="radio-label"><input type="radio" name="laminationType" value="1+0"> 1+0 (x1)</label>';
         html += '<label class="radio-label"><input type="radio" name="laminationType" value="1+1"> 1+1 (x2)</label>';
@@ -412,7 +396,10 @@ function showLaminationSection(result) {
         html += '</div>';
     }
     
+    html += '<div class="lamination-button-container">';
     html += '<button type="button" id="laminationBtn" class="calc-button calc-button-success">Пересчитать с ламинацией</button>';
+    html += '</div>';
+    html += '</div>';
     
     controlsDiv.innerHTML = html;
     laminationSection.style.display = 'block';
@@ -424,6 +411,17 @@ function showLaminationSection(result) {
             calculateLamination(result);
         });
     }
+    
+    // Добавляем обработчики для радио кнопок чтобы убирать ошибку
+    const radioButtons = controlsDiv.querySelectorAll('input[name="laminationType"]');
+    radioButtons.forEach(radio => {
+        radio.addEventListener('change', function() {
+            const laminationResult = document.getElementById('laminationResult');
+            if (laminationResult && laminationResult.innerHTML.includes('Выберите тип ламинации')) {
+                laminationResult.innerHTML = '';
+            }
+        });
+    });
 }
 
 // Функция расчета с ламинацией

@@ -4,6 +4,10 @@ if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED !== true) die();
 
 // Подключаем общие стили
 $this->addExternalCss($templateFolder.'/../.default/style.css');
+// Подключаем специфичные стили для визиток (если есть)
+if (file_exists($templateFolder.'/style.css')) {
+    $this->addExternalCss($templateFolder.'/style.css');
+}
 
 // Проверяем, что конфигурация загружена
 if (!$arResult['CONFIG_LOADED']) {
@@ -99,6 +103,9 @@ $sideTypes = $arResult['side_types'] ?? [];
         <button id="calcBtn" type="button" class="calc-button">Рассчитать стоимость</button>
         
         <div id="calcResult" class="calc-result"></div>
+        
+        <!-- Отступ между результатом и ламинацией -->
+        <div class="calc-spacer"></div>
     </form>
 
     <div class="calc-thanks">
@@ -284,6 +291,20 @@ function displayVizitResult(result, resultDiv) {
         html += '<p><strong>Количество:</strong> ' + number_format(result.quantity, 0, '', ' ') + ' шт</p>';
     }
     
+    html += '<details class="result-details">';
+    html += '<summary class="result-summary">Подробности расчета</summary>';
+    html += '<div class="result-details-content">';
+    html += '<ul>';
+    
+    if (result.baseA3Sheets) html += '<li>Листов A3: ' + result.baseA3Sheets + '</li>';
+    if (result.printingCost) html += '<li>Стоимость печати: ' + Math.round(result.printingCost * 10) / 10 + ' ₽</li>';
+    if (result.paperCost) html += '<li>Стоимость бумаги: ' + Math.round(result.paperCost * 10) / 10 + ' ₽</li>';
+    if (result.plateCost && result.plateCost > 0) html += '<li>Стоимость пластин: ' + Math.round(result.plateCost * 10) / 10 + ' ₽</li>';
+    if (result.additionalCosts && result.additionalCosts > 0) html += '<li>Дополнительные услуги: ' + Math.round(result.additionalCosts * 10) / 10 + ' ₽</li>';
+    
+    html += '</ul>';
+    html += '</div>';
+    html += '</details>';
     html += '</div>';
     
     resultDiv.innerHTML = html;

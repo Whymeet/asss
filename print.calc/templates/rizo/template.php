@@ -2,8 +2,12 @@
 /** Шаблон калькулятора ризографии */
 if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED !== true) die();
 
-// Подключаем общие стили (используем существующие)
+// Подключаем общие стили
 $this->addExternalCss($templateFolder.'/../.default/style.css');
+// Подключаем специфичные стили для ризографии (если есть)
+if (file_exists($templateFolder.'/style.css')) {
+    $this->addExternalCss($templateFolder.'/style.css');
+}
 
 // Проверяем, что конфигурация загружена
 if (!$arResult['CONFIG_LOADED']) {
@@ -147,6 +151,9 @@ $features = $arResult['FEATURES'] ?? [];
         <button id="calcBtn" type="button" class="calc-button">Рассчитать стоимость</button>
         
         <div id="calcResult" class="calc-result"></div>
+        
+        <!-- Отступ между результатом и ламинацией -->
+        <div class="calc-spacer"></div>
     </form>
 
     <div class="calc-thanks">
@@ -302,7 +309,7 @@ function displayRizoResult(result, resultDiv) {
     }
     
     html += '<details class="result-details">';
-    html += '<summary>Подробности расчета</summary>';
+    html += '<summary class="result-summary">Подробности расчета</summary>';
     html += '<div class="result-details-content">';
     html += '<ul>';
     

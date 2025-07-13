@@ -199,25 +199,29 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
         
         // Форматируем типы бумаги (только доступные)
         $paperTypes = [];
-        foreach ($priceConfig['paper'] as $type => $price) {
-            if (in_array($type, $availablePapers)) {
-                $paperTypes[] = [
-                    'ID' => $type,
-                    'NAME' => is_numeric($type) ? $type . ' г/м²' : $type,
-                    'PRICE' => $price
-                ];
+        if (!empty($availablePapers)) {
+            foreach ($priceConfig['paper'] as $type => $price) {
+                if (in_array($type, $availablePapers)) {
+                    $paperTypes[] = [
+                        'ID' => $type,
+                        'NAME' => is_numeric($type) ? $type . ' г/м²' : $type,
+                        'PRICE' => $price
+                    ];
+                }
             }
         }
         
         // Форматируем размеры (только доступные)
         $formats = [];
-        foreach ($priceConfig['size_coefficients'] as $size => $coef) {
-            if (in_array($size, $availableSizes)) {
-                $formats[] = [
-                    'ID' => $size,
-                    'NAME' => $size,
-                    'COEFFICIENT' => $coef
-                ];
+        if (!empty($availableSizes)) {
+            foreach ($priceConfig['size_coefficients'] as $size => $coef) {
+                if (in_array($size, $availableSizes)) {
+                    $formats[] = [
+                        'ID' => $size,
+                        'NAME' => $size,
+                        'COEFFICIENT' => $coef
+                    ];
+                }
             }
         }
         
@@ -260,6 +264,10 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
                 
             case 'canvas':
                 $this->arResult['CANVAS_CONFIG'] = $calcConfig['additional'] ?? [];
+                break;
+                
+            case 'sticker':
+                // Специфичные данные для наклеек - НЕ ПЕРЕЗАПИСЫВАЕМ то что уже добавлено из additional
                 break;
         }
         
@@ -326,6 +334,12 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
                     $height = (float)($_POST['height'] ?? 0);
                     $includePodramnik = filter_var($_POST['includePodramnik'] ?? false, FILTER_VALIDATE_BOOLEAN);
                     return $this->calculateCanvas($width, $height, $includePodramnik);
+                    
+                case 'sticker':
+                    $length = (float)($_POST['length'] ?? 0);
+                    $width = (float)($_POST['width'] ?? 0);
+                    $stickerType = $_POST['stickerType'] ?? '';
+                    return $this->calculateSticker($length, $width, $quantity, $stickerType);
                     
                 default:
                     return $this->calculateList($paperType, $size, $quantity, $printType, $bigovka, $cornerRadius, $perforation, $drill, $numbering);
@@ -453,7 +467,73 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
         return calculateCanvasPrice($width, $height, $includePodramnik);
     }
 
+    /**
+     * Расчет стоимости наклеек
+     */
+    private function calculateSticker($length, $width, $quantity, $stickerType)
+    {
+        $this->debug("calculateSticker вызван", [
+            'length' => $length,
+            'width' => $width,
+            'quantity' => $quantity,
+            'stickerType' => $stickerType
+        ]);
+
+        // Загружаем конфигурацию наклеек
+        $calcConfig = $this->loadCalcConfig('sticker');
+        if (!$calcConfig) {
+            return ['error' => 'Конфигурация наклеек не найдена'];
+        }
+
+        $priceRanges = $calcConfig['additional']['price_ranges'] ?? [];
+        
+        // Валидация входных данных
+        $errors = [];
+        if ($length <= 0) $errors[] = "Длина должна быть больше 0";
+        if ($width <= 0) $errors[] = "Ширина должна быть больше 0";
+        if ($quantity <= 0) $errors[] = "Количество должно быть больше 0";
+        if (!isset($priceRanges[$stickerType])) $errors[] = "Некорректный тип наклейки";
+        
+        if (!empty($errors)) {
+            return ['error' => implode("<br>", $errors)];
+        }
+
+        // Вычисляем площади
+        $areaPerSticker = $length * $width; // м²
+        $totalArea = $areaPerSticker * $quantity; // общая площадь м²
+        
+        // Находим цену за м² в зависимости от общей площади
+        $pricePerM2 = 0;
+        $ranges = $priceRanges[$stickerType];
+        
+        foreach ($ranges as $range) {
+            if ($totalArea >= $range[0] && $totalArea < $range[1]) {
+                $pricePerM2 = $range[2];
+                break;
+            }
+        }
+        
+        if ($pricePerM2 === 0) {
+            return ['error' => 'Не удалось определить цену для данной площади'];
+        }
+        
+        // Вычисляем итоговую стоимость
+        $totalPrice = $totalArea * $pricePerM2;
+        
+        return [
+            'length' => $length,
+            'width' => $width,
+            'quantity' => $quantity,
+            'stickerType' => $stickerType,
+            'areaPerSticker' => $areaPerSticker,
+            'totalArea' => $totalArea,
+            'pricePerM2' => $pricePerM2,
+            'totalPrice' => $totalPrice
+        ];
+    }
+
     private function addLogMessage($message) {
         $this->debug($message);
     }
 }
+?>

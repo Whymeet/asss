@@ -165,6 +165,13 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
         $this->arResult['DESCRIPTION'] = $calcConfig['description'] ?? 'Калькулятор печати';
         $this->arResult['FEATURES'] = $calcConfig['features'] ?? [];
         
+        // Добавляем дополнительную информацию из конфигурации в arResult
+        if (isset($calcConfig['additional'])) {
+            foreach ($calcConfig['additional'] as $key => $value) {
+                $this->arResult[$key] = $value;
+            }
+        }
+        
         $this->debug("Данные подготовлены для шаблона", [
             'CALC_TYPE' => $calcType,
             'PAPER_TYPES_COUNT' => count($this->arResult['PAPER_TYPES'] ?? []),
@@ -400,11 +407,32 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
 
     private function calculateRizo($paperType, $size, $quantity, $printType, $bigovka, $cornerRadius, $perforation, $drill, $numbering)
     {
+        $this->debug("calculateRizo вызван", [
+            'paperType' => $paperType,
+            'size' => $size,
+            'quantity' => $quantity,
+            'printType' => $printType
+        ]);
+
         if (!function_exists('calculateRizoPrice')) {
+            $this->debug("Функция calculateRizoPrice не найдена");
             return ['error' => 'Функция calculateRizoPrice не найдена'];
         }
         
-        return calculateRizoPrice($paperType, $size, $quantity, $printType, $bigovka, $cornerRadius, $perforation, $drill, $numbering);
+        try {
+            $result = calculateRizoPrice($paperType, $size, $quantity, $printType, $bigovka, $cornerRadius, $perforation, $drill, $numbering);
+            $this->debug("Результат calculateRizoPrice", $result);
+            
+            if (!$result) {
+                return ['error' => 'Ошибка выполнения расчета ризографии'];
+            }
+            
+            return $result;
+            
+        } catch (Exception $e) {
+            $this->debug("Исключение в calculateRizoPrice", $e->getMessage());
+            return ['error' => 'Ошибка расчета ризографии: ' . $e->getMessage()];
+        }
     }
 
     private function calculateVizit($printType, $quantity, $sideType)

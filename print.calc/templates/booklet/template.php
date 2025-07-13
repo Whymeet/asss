@@ -167,12 +167,138 @@ $features = $arResult['FEATURES'] ?? [];
         <button id="calcBtn" type="button" class="calc-button">Рассчитать стоимость</button>
         
         <div id="calcResult" class="calc-result"></div>
+        
+        <!-- Отступ между результатом и ламинацией -->
+        <div class="calc-spacer"></div>
     </form>
 
     <div class="calc-thanks">
         <p>Спасибо, что Вы с нами!</p>
     </div>
 </div>
+
+<style>
+/* Исправления для калькулятора буклетов */
+
+/* Отступ между результатом и ламинацией */
+.calc-spacer {
+    height: 40px;
+}
+
+/* Отступы в секции ламинации */
+.lamination-content {
+    padding: 20px 0;
+}
+
+.lamination-title {
+    margin-bottom: 20px;
+    font-weight: 600;
+    color: #495057;
+}
+
+.lamination-options {
+    margin-bottom: 25px;
+}
+
+.lamination-button-container {
+    margin-top: 20px;
+    padding-top: 15px;
+    border-top: 1px solid #e9ecef;
+}
+
+/* Отступ между кнопкой расчета и результатом */
+#calcBtn {
+    margin-bottom: 35px;
+}
+
+/* Отступ между результатом и секцией ламинации */
+#calcResult {
+    margin-bottom: 35px;
+}
+
+/* Убираем hover эффект у summary чтобы избежать белой полоски */
+.result-summary {
+    cursor: pointer;
+    padding: 10px 0;
+    border: none;
+    background: none;
+    outline: none;
+}
+
+.result-summary:hover {
+    background: none !important;
+    color: inherit !important;
+}
+
+.result-summary:focus {
+    background: none !important;
+    outline: none !important;
+}
+
+/* Убираем стандартные стили details */
+.result-details {
+    border: none;
+    background: none;
+}
+
+.result-details[open] summary {
+    background: none !important;
+}
+
+/* Отступ для результата ламинации */
+.lamination-result {
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px solid #e9ecef;
+}
+
+/* Улучшенные стили для кнопки ламинации */
+.calc-button-success {
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+    color: white;
+    border: none;
+    padding: 12px 30px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.calc-button-success:hover {
+    background: linear-gradient(135deg, #218838 0%, #1ea085 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
+}
+
+/* Отступы для радио групп в ламинации */
+.lamination-options .radio-group {
+    margin-top: 15px;
+}
+
+.lamination-options .form-group {
+    margin-bottom: 15px;
+}
+
+/* Убираем стандартные стрелки у селектов */
+select.form-control {
+    background-image: none !important;
+    -webkit-appearance: none !important;
+    -moz-appearance: none !important;
+    appearance: none !important;
+    padding-right: 16px !important;
+}
+
+/* Для Firefox */
+select.form-control::-ms-expand {
+    display: none !important;
+}
+
+/* Для IE */
+select.form-control::-ms-expand {
+    display: none !important;
+}
+</style>
 
 <script>
 // Улучшенная блокировка внешних ошибок
@@ -215,12 +341,10 @@ function waitForBX(callback, fallbackCallback, timeout = 3000) {
     
     function checkBX() {
         if (typeof BX !== 'undefined' && BX.ajax) {
-            console.log('BX найден через', Date.now() - startTime, 'мс');
             callback();
         } else if (Date.now() - startTime < timeout) {
             setTimeout(checkBX, 50);
         } else {
-            console.warn('BX не загрузился за', timeout, 'мс. Используем запасной вариант');
             fallbackCallback();
         }
     }
@@ -230,8 +354,6 @@ function waitForBX(callback, fallbackCallback, timeout = 3000) {
 
 // Основная инициализация с BX
 function initWithBX() {
-    console.log('Инициализация с BX.ajax для', calcConfig.type);
-    
     const form = document.getElementById(calcConfig.type + 'CalcForm');
     const resultDiv = document.getElementById('calcResult');
     const calcBtn = document.getElementById('calcBtn');
@@ -249,23 +371,16 @@ function initWithBX() {
         return;
     }
 
-    console.log('Все элементы формы найдены');
-
     calcBtn.addEventListener('click', function() {
-        console.log('Клик по кнопке расчета');
-        
         const data = collectFormData(form);
         data.calcType = calcConfig.type;
         
         resultDiv.innerHTML = '<div class="loading">Выполняется расчет...</div>';
 
-        console.log('Отправка данных через BX.ajax:', data);
-
         BX.ajax.runComponentAction(calcConfig.component, 'calc', {
             mode: 'class',
             data: data
         }).then(function(response) {
-            console.log('Получен ответ BX:', response);
             handleResponse(response, resultDiv);
         }).catch(function(error) {
             console.error('Ошибка BX:', error);
@@ -277,8 +392,6 @@ function initWithBX() {
 
 // Запасной вариант без BX
 function initWithoutBX() {
-    console.log('Инициализация без BX (fetch) для', calcConfig.type);
-    
     const form = document.getElementById(calcConfig.type + 'CalcForm');
     const resultDiv = document.getElementById('calcResult');
     const calcBtn = document.getElementById('calcBtn');
@@ -289,14 +402,10 @@ function initWithoutBX() {
     }
 
     calcBtn.addEventListener('click', function() {
-        console.log('Отправка через fetch');
-        
         const data = collectFormData(form);
         data.calcType = calcConfig.type;
         
         resultDiv.innerHTML = '<div class="loading">Выполняется расчет...</div>';
-
-        console.log('Отправка данных через fetch:', data);
 
         fetch('/bitrix/services/main/ajax.php?c=' + calcConfig.component + '&action=calc&mode=class', {
             method: 'POST',
@@ -306,11 +415,9 @@ function initWithoutBX() {
             body: new URLSearchParams(data)
         })
         .then(response => {
-            console.log('Статус ответа fetch:', response.status);
             return response.json();
         })
         .then(response => {
-            console.log('Получен ответ fetch:', response);
             handleResponse(response, resultDiv);
         })
         .catch(error => {
@@ -323,8 +430,6 @@ function initWithoutBX() {
 
 // Обработка ответа сервера
 function handleResponse(response, resultDiv) {
-    console.log('Обработка ответа:', response);
-    
     if (response && response.data) {
         if (response.data.error) {
             resultDiv.innerHTML = '<div class="result-error">Ошибка: ' + 
@@ -344,8 +449,6 @@ function handleResponse(response, resultDiv) {
 
 // Отображение результата
 function displayResult(result, resultDiv) {
-    console.log('Отображение результата:', result);
-    
     // Округляем все цены до десятых
     const totalPrice = Math.round((result.totalPrice || 0) * 10) / 10;
     
@@ -359,7 +462,7 @@ function displayResult(result, resultDiv) {
     }
     
     html += '<details class="result-details">';
-    html += '<summary>Подробности расчета</summary>';
+    html += '<summary class="result-summary">Подробности расчета</summary>';
     html += '<div class="result-details-content">';
     html += '<ul>';
     
@@ -383,20 +486,21 @@ function showLaminationSection(result) {
     const controlsDiv = document.getElementById('laminationControls');
     
     if (!laminationSection || !controlsDiv || !calcConfig.features.lamination) {
-        console.log('Секция ламинации недоступна');
         return;
     }
     
-    console.log('Показываем секцию ламинации');
-    
-    let html = '<p>Добавить ламинацию к заказу:</p>';
+    let html = '<div class="lamination-content">';
+    html += '<p class="lamination-title">Добавить ламинацию к заказу:</p>';
     
     if (result.printingType === 'Офсетная') {
+        html += '<div class="lamination-options">';
         html += '<div class="radio-group">';
         html += '<label class="radio-label"><input type="radio" name="laminationType" value="1+0"> 1+0 (7 руб/лист)</label>';
         html += '<label class="radio-label"><input type="radio" name="laminationType" value="1+1"> 1+1 (14 руб/лист)</label>';
         html += '</div>';
+        html += '</div>';
     } else {
+        html += '<div class="lamination-options">';
         html += '<div class="form-group">';
         html += '<label class="form-label">Толщина:';
         html += '<select name="laminationThickness" class="form-control">';
@@ -405,6 +509,7 @@ function showLaminationSection(result) {
         html += '<option value="125">125 мкм</option>';
         html += '<option value="250">250 мкм</option>';
         html += '</select></label>';
+        html += '</div>';
         html += '<div class="radio-group">';
         html += '<label class="radio-label"><input type="radio" name="laminationType" value="1+0"> 1+0 (x1)</label>';
         html += '<label class="radio-label"><input type="radio" name="laminationType" value="1+1"> 1+1 (x2)</label>';
@@ -412,7 +517,10 @@ function showLaminationSection(result) {
         html += '</div>';
     }
     
+    html += '<div class="lamination-button-container">';
     html += '<button type="button" id="laminationBtn" class="calc-button calc-button-success">Пересчитать с ламинацией</button>';
+    html += '</div>';
+    html += '</div>';
     
     controlsDiv.innerHTML = html;
     laminationSection.style.display = 'block';
@@ -424,6 +532,17 @@ function showLaminationSection(result) {
             calculateLamination(result);
         });
     }
+    
+    // Добавляем обработчики для радио кнопок чтобы убирать ошибку
+    const radioButtons = controlsDiv.querySelectorAll('input[name="laminationType"]');
+    radioButtons.forEach(radio => {
+        radio.addEventListener('change', function() {
+            const laminationResult = document.getElementById('laminationResult');
+            if (laminationResult && laminationResult.innerHTML.includes('Выберите тип ламинации')) {
+                laminationResult.innerHTML = '';
+            }
+        });
+    });
 }
 
 // Функция расчета с ламинацией
@@ -480,7 +599,7 @@ function calculateLamination(originalResult) {
     }
     
     html += '<details class="result-details" open>';
-    html += '<summary>Подробности расчета</summary>';
+    html += '<summary class="result-summary">Подробности расчета</summary>';
     html += '<div class="result-details-content">';
     html += '<ul>';
     
@@ -530,16 +649,11 @@ function collectFormData(form) {
         }
     }
 
-    console.log('Собранные данные формы:', data);
     return data;
 }
 
 // Запуск инициализации
-console.log('Калькулятор:', calcConfig.type);
-console.log('Время запуска:', new Date().toLocaleTimeString());
-
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('DOM загружен, ждем BX...');
     waitForBX(initWithBX, initWithoutBX, 3000);
 });
 </script>

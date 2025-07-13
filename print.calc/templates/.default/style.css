@@ -1,5 +1,5 @@
 /* ==============================================
-   ОБЩИЕ СТИЛИ ДЛЯ ВСЕХ КАЛЬКУЛЯТОРОВ
+   ОБЩИЕ СТИЛИ ДЛЯ ВСЕХ КАЛЬКУЛЯТОРОВ С УЛУЧШЕННЫМИ АНИМАЦИЯМИ
    ============================================== */
 
 /* Основной контейнер */
@@ -145,36 +145,123 @@ select.form-control {
     gap: 12px;
 }
 
-/* Кнопка расчета */
+/* УЛУЧШЕННАЯ КНОПКА РАСЧЕТА С АНИМАЦИЯМИ */
 .calc-button {
-    background: #007bff;
+    background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
     color: white;
     border: none;
     padding: 16px 40px;
-    border-radius: 6px;
+    border-radius: 8px;
     font-size: 16px;
     font-weight: 600;
     cursor: pointer;
-    transition: all 0.3s;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     display: inline-block;
     text-transform: uppercase;
     letter-spacing: 0.5px;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 4px 15px rgba(0,123,255,0.2);
+}
+
+.calc-button::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+    transition: left 0.5s;
 }
 
 .calc-button:hover {
-    background: #0056b3;
+    background: linear-gradient(135deg, #0056b3 0%, #004085 100%);
     transform: translateY(-2px);
-    box-shadow: 0 5px 15px rgba(0,123,255,0.3);
+    box-shadow: 0 8px 25px rgba(0,123,255,0.3);
+}
+
+.calc-button:hover::before {
+    left: 100%;
 }
 
 .calc-button:active {
     transform: translateY(0);
-    box-shadow: 0 2px 5px rgba(0,123,255,0.3);
+    box-shadow: 0 4px 15px rgba(0,123,255,0.3);
 }
 
-/* Блок результатов */
+/* Состояние загрузки кнопки */
+.calc-button.loading {
+    background: linear-gradient(135deg, #6c757d 0%, #5a6268 100%);
+    cursor: not-allowed;
+    transform: none;
+    pointer-events: none;
+}
+
+.calc-button.loading::after {
+    content: '';
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    margin-left: 10px;
+    border: 2px solid rgba(255,255,255,0.3);
+    border-top: 2px solid white;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    vertical-align: middle;
+}
+
+/* УЛУЧШЕННЫЙ БЛОК РЕЗУЛЬТАТОВ */
 .calc-result {
     margin-top: 30px;
+    min-height: 50px;
+    position: relative;
+}
+
+/* Анимация появления результата */
+.calc-result-enter {
+    opacity: 0;
+    transform: translateY(20px) scale(0.95);
+    animation: resultEnter 0.6s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@keyframes resultEnter {
+    0% {
+        opacity: 0;
+        transform: translateY(20px) scale(0.95);
+    }
+    50% {
+        opacity: 0.7;
+        transform: translateY(-5px) scale(1.02);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* Анимация обновления результата */
+.calc-result-update {
+    animation: resultUpdate 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes resultUpdate {
+    0% {
+        opacity: 1;
+        transform: scale(1);
+    }
+    30% {
+        opacity: 0.7;
+        transform: scale(0.98);
+    }
+    70% {
+        opacity: 0.9;
+        transform: scale(1.01);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
 }
 
 /* Успешный результат */
@@ -183,7 +270,29 @@ select.form-control {
     background: linear-gradient(135deg, #f0f9ff 0%, #e8f5e8 100%);
     border-radius: 12px;
     border: 1px solid #4caf50;
-    animation: fadeIn 0.4s ease-out;
+    position: relative;
+    overflow: hidden;
+}
+
+.result-success::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, #4caf50, #2e7d32, #4caf50);
+    background-size: 200% 100%;
+    animation: successGlow 2s ease-in-out infinite;
+}
+
+@keyframes successGlow {
+    0%, 100% {
+        background-position: 0% 50%;
+    }
+    50% {
+        background-position: 100% 50%;
+    }
 }
 
 /* Ошибка */
@@ -193,7 +302,21 @@ select.form-control {
     border-radius: 8px;
     border: 1px solid #f44336;
     color: #c62828;
-    animation: shake 0.3s;
+    animation: errorShake 0.5s;
+    position: relative;
+}
+
+.result-error::before {
+    content: '⚠';
+    position: absolute;
+    top: 15px;
+    left: 15px;
+    font-size: 20px;
+    color: #f44336;
+}
+
+.result-error {
+    padding-left: 50px;
 }
 
 /* Заголовок результата */
@@ -202,9 +325,21 @@ select.form-control {
     color: #2e7d32;
     font-size: 22px;
     font-weight: 600;
+    animation: titleFadeIn 0.8s ease-out 0.2s both;
 }
 
-/* Цена результата */
+@keyframes titleFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* УЛУЧШЕННАЯ АНИМАЦИЯ ЦЕНЫ */
 .result-price {
     font-size: 32px;
     font-weight: 700;
@@ -213,6 +348,46 @@ select.form-control {
     display: flex;
     align-items: baseline;
     gap: 10px;
+    animation: priceCountUp 1s ease-out 0.4s both;
+    position: relative;
+}
+
+.result-price::before {
+    content: '';
+    position: absolute;
+    bottom: -5px;
+    left: 0;
+    width: 0;
+    height: 3px;
+    background: linear-gradient(90deg, #4caf50, #2e7d32);
+    animation: underlineGrow 0.8s ease-out 1.2s both;
+}
+
+@keyframes priceCountUp {
+    0% {
+        opacity: 0;
+        transform: scale(0.8);
+        filter: blur(2px);
+    }
+    70% {
+        opacity: 0.8;
+        transform: scale(1.05);
+        filter: blur(0px);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1);
+        filter: blur(0px);
+    }
+}
+
+@keyframes underlineGrow {
+    from {
+        width: 0;
+    }
+    to {
+        width: 100%;
+    }
 }
 
 .result-price small {
@@ -228,6 +403,18 @@ select.form-control {
     border-radius: 8px;
     overflow: hidden;
     border: 1px solid #e0e0e0;
+    animation: detailsFadeIn 0.6s ease-out 0.8s both;
+}
+
+@keyframes detailsFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(15px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 .result-details summary {
@@ -236,12 +423,13 @@ select.form-control {
     color: #2e7d32;
     padding: 15px 20px;
     background: #f5f5f5;
-    transition: all 0.2s;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     user-select: none;
 }
 
 .result-details summary:hover {
     background: #eeeeee;
+    transform: translateX(5px);
 }
 
 .result-details[open] summary {
@@ -251,6 +439,18 @@ select.form-control {
 
 .result-details-content {
     padding: 20px;
+    animation: contentSlideDown 0.3s ease-out;
+}
+
+@keyframes contentSlideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 .result-details ul {
@@ -264,6 +464,24 @@ select.form-control {
     color: #555;
     position: relative;
     padding-left: 20px;
+    animation: listItemFadeIn 0.3s ease-out;
+}
+
+.result-details li:nth-child(1) { animation-delay: 0.1s; }
+.result-details li:nth-child(2) { animation-delay: 0.2s; }
+.result-details li:nth-child(3) { animation-delay: 0.3s; }
+.result-details li:nth-child(4) { animation-delay: 0.4s; }
+.result-details li:nth-child(5) { animation-delay: 0.5s; }
+
+@keyframes listItemFadeIn {
+    from {
+        opacity: 0;
+        transform: translateX(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
 }
 
 .result-details li:before {
@@ -272,17 +490,68 @@ select.form-control {
     font-weight: bold;
     position: absolute;
     left: 0;
+    animation: bulletPulse 2s ease-in-out infinite;
 }
 
-/* Секция ламинации */
+@keyframes bulletPulse {
+    0%, 100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.2);
+    }
+}
+
+/* УЛУЧШЕННАЯ СЕКЦИЯ ЛАМИНАЦИИ */
 .lamination-section {
     display: none;
     margin-top: 30px;
     padding: 25px;
     border: 2px dashed #dee2e6;
     border-radius: 12px;
-    background: #f8f9fa;
-    animation: fadeIn 0.4s ease-out;
+    background: linear-gradient(135deg, #f8f9fa 0%, #f1f3f4 100%);
+    position: relative;
+    overflow: hidden;
+}
+
+.lamination-section.show {
+    display: block;
+    animation: laminationSlideIn 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes laminationSlideIn {
+    0% {
+        opacity: 0;
+        transform: translateY(30px) scale(0.95);
+    }
+    50% {
+        opacity: 0.7;
+        transform: translateY(-5px) scale(1.02);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.lamination-section::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+    animation: laminationShimmer 3s infinite;
+}
+
+@keyframes laminationShimmer {
+    0% {
+        left: -100%;
+    }
+    50%, 100% {
+        left: 100%;
+    }
 }
 
 .lamination-section h3 {
@@ -290,73 +559,84 @@ select.form-control {
     color: #495057;
     font-size: 20px;
     font-weight: 600;
+    animation: fadeInUp 0.6s ease-out 0.2s both;
 }
 
 .lamination-button {
-    background: #28a745;
+    background: linear-gradient(135deg, #28a745 0%, #218838 100%);
     color: white;
     border: none;
     padding: 12px 24px;
     border-radius: 6px;
     cursor: pointer;
     margin-top: 15px;
-    transition: all 0.3s;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     font-weight: 600;
+    position: relative;
+    overflow: hidden;
+}
+
+.lamination-button::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+    transition: left 0.5s;
 }
 
 .lamination-button:hover {
-    background: #218838;
-    transform: translateY(-1px);
-    box-shadow: 0 3px 10px rgba(40,167,69,0.3);
+    background: linear-gradient(135deg, #218838 0%, #1e7e34 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(40,167,69,0.3);
 }
 
-.lamination-result {
-    margin-top: 20px;
+.lamination-button:hover::before {
+    left: 100%;
 }
 
-.lamination-calc-result {
-    padding: 25px;
-    background: #fff3cd;
-    border-radius: 8px;
-    border: 1px solid #ffc107;
-    animation: fadeIn 0.3s ease-out;
-}
-
-.lamination-calc-result h4 {
-    margin: 0 0 15px 0;
-    color: #856404;
-    font-size: 18px;
-}
-
-.lamination-calc-result p {
-    margin: 12px 0;
-    color: #856404;
-    font-size: 15px;
-}
-
-.lamination-calc-result .final-price {
-    font-size: 22px;
-    font-weight: 700;
-    margin-top: 20px;
-    padding-top: 15px;
-    border-top: 2px solid #ffc107;
-}
-
-/* Состояние загрузки */
+/* УЛУЧШЕННОЕ СОСТОЯНИЕ ЗАГРУЗКИ */
 .loading {
-    padding: 30px;
+    padding: 40px 30px;
     text-align: center;
     color: #666;
     font-size: 16px;
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-radius: 12px;
+    border: 1px solid #dee2e6;
+    position: relative;
+    overflow: hidden;
+}
+
+.loading::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 3px;
+    background: linear-gradient(90deg, transparent, #007bff, transparent);
+    animation: loadingBar 1.5s infinite;
+}
+
+@keyframes loadingBar {
+    0% {
+        left: -100%;
+    }
+    100% {
+        left: 100%;
+    }
 }
 
 .loading::after {
     content: '';
     display: inline-block;
-    width: 20px;
-    height: 20px;
-    margin-left: 10px;
-    border: 3px solid #f3f3f3;
+    width: 24px;
+    height: 24px;
+    margin-left: 15px;
+    border: 3px solid rgba(0,123,255,0.2);
     border-top: 3px solid #007bff;
     border-radius: 50%;
     animation: spin 1s linear infinite;
@@ -371,9 +651,10 @@ select.form-control {
     color: #6c757d;
     font-style: italic;
     font-size: 16px;
+    animation: fadeInUp 0.6s ease-out 1s both;
 }
 
-/* Анимации */
+/* КЛЮЧЕВЫЕ АНИМАЦИИ */
 @keyframes fadeIn {
     from { 
         opacity: 0; 
@@ -382,6 +663,17 @@ select.form-control {
     to { 
         opacity: 1; 
         transform: translateY(0); 
+    }
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
     }
 }
 
@@ -396,10 +688,10 @@ select.form-control {
     }
 }
 
-@keyframes shake {
+@keyframes errorShake {
     0%, 100% { transform: translateX(0); }
-    25% { transform: translateX(-5px); }
-    75% { transform: translateX(5px); }
+    10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+    20%, 40%, 60%, 80% { transform: translateX(5px); }
 }
 
 @keyframes spin {
@@ -459,4 +751,20 @@ select.form-control {
 
 #laminationBtn {
     margin-top: 32px;
+}
+
+/* Специальные стили для информации о ламинации */
+.lamination-info {
+    color: #28a745 !important;
+    font-weight: bold;
+    animation: highlightGlow 2s ease-in-out infinite;
+}
+
+@keyframes highlightGlow {
+    0%, 100% {
+        background-color: transparent;
+    }
+    50% {
+        background-color: rgba(40, 167, 69, 0.1);
+    }
 }

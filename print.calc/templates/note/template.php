@@ -459,4 +459,136 @@ function showLaminationSection(result) {
         return;
     }
     
-    // Если
+    // Если ламинация уже добавлена, не показываем секцию повторно
+    if (result.laminationCost && result.laminationCost > 0) {
+        laminationSection.style.display = 'none';
+        return;
+    }
+    
+    // Определяем тип печати обложки для выбора ламинации
+    let coverPrintingType = 'Цифровая';
+    if (result.components && result.components.cover && result.components.cover.base) {
+        coverPrintingType = result.components.cover.base.printingType || 'Цифровая';
+    }
+    
+    let html = '<div class="lamination-content">';
+    html += '<p class="lamination-title">Добавить ламинацию к обложке:</p>';
+    
+    if (coverPrintingType === 'Офсетная') {
+        html += '<div class="lamination-options">';
+        html += '<div class="radio-group">';
+        html += '<label class="radio-label"><input type="radio" name="laminationType" value="1+0"> 1+0 (7 руб/лист)</label>';
+        html += '<label class="radio-label"><input type="radio" name="laminationType" value="1+1"> 1+1 (14 руб/лист)</label>';
+        html += '</div>';
+        html += '</div>';
+    } else {
+        html += '<div class="lamination-options">';
+        html += '<div class="form-group">';
+        html += '<label class="form-label">Толщина:';
+        html += '<select name="laminationThickness" class="form-control">';
+        html += '<option value="32">32 мкм</option>';
+        html += '<option value="75">75 мкм</option>';
+        html += '<option value="125">125 мкм</option>';
+        html += '<option value="250">250 мкм</option>';
+        html += '</select></label>';
+        html += '</div>';
+        html += '<div class="radio-group">';
+        html += '<label class="radio-label"><input type="radio" name="laminationType" value="1+0"> 1+0 (x1)</label>';
+        html += '<label class="radio-label"><input type="radio" name="laminationType" value="1+1"> 1+1 (x2)</label>';
+        html += '</div>';
+        html += '</div>';
+    }
+    
+    html += '<div class="lamination-button-container">';
+    html += '<button type="button" id="laminationBtn" class="calc-button calc-button-success">Пересчитать с ламинацией</button>';
+    html += '</div>';
+    html += '</div>';
+    
+    controlsDiv.innerHTML = html;
+    laminationSection.style.display = 'block';
+    
+    // Обработчик для кнопки ламинации
+    const laminationBtn = document.getElementById('laminationBtn');
+    if (laminationBtn) {
+        laminationBtn.addEventListener('click', function() {
+            calculateWithLamination();
+        });
+    }
+}
+
+// Функция расчета с ламинацией
+function calculateWithLamination() {
+    const laminationType = document.querySelector('input[name="laminationType"]:checked');
+    const laminationThickness = document.querySelector('select[name="laminationThickness"]');
+    const resultDiv = document.getElementById('calcResult');
+    
+    if (!laminationType) {
+        alert('Выберите тип ламинации');
+        return;
+    }
+    
+    const form = document.getElementById(calcConfig.type + 'CalcForm');
+    const data = collectFormData(form);
+    data.calcType = calcConfig.type;
+    data.lamination_type = laminationType.value;
+    if (laminationThickness) {
+        data.lamination_thickness = laminationThickness.value;
+    }
+    
+    resultDiv.innerHTML = '<div class="loading">Пересчитываем с ламинацией...</div>';
+
+    // Используем тот же метод что и для основного расчета
+    if (typeof BX !== 'undefined' && BX.ajax) {
+        BX.ajax.runComponentAction(calcConfig.component, 'calc', {
+            mode: 'class',
+            data: data
+        }).then(function(response) {
+            handleResponse(response, resultDiv);
+        }).catch(function(error) {
+            resultDiv.innerHTML = '<div class="result-error">Ошибка соединения: ' + error.message + '</div>';
+        });
+    } else {
+        fetch('/bitrix/services/main/ajax.php?c=' + calcConfig.component + '&action=calc&mode=class', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: new URLSearchParams(data)
+        })
+        .then(response => response.json())
+        .then(response => {
+            handleResponse(response, resultDiv);
+        })
+        .catch(error => {
+            resultDiv.innerHTML = '<div class="result-error">Ошибка соединения: ' + error.message + '</div>';
+        });
+    }
+}
+
+// Сбор данных формы
+function collectFormData(form) {
+    const formData = new FormData(form);
+    const data = {};
+    
+    // Собираем все поля формы
+    for (let [key, value] of formData.entries()) {
+        data[key] = value;
+    }
+    
+    // Добавляем чекбоксы
+    const checkboxes = ['bigovka', 'perforation', 'drill', 'numbering'];
+    checkboxes.forEach(name => {
+        const checkbox = form.querySelector(`input[name="${name}"]`);
+        if (checkbox) {
+            data[name] = checkbox.checked;
+        }
+    });
+
+    return data;
+}
+
+// Запуск инициализации
+document.addEventListener('DOMContentLoaded', function() {
+    waitForBX(initWithBX, initWithoutBX, 3000);
+});
+</script>

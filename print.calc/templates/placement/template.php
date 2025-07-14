@@ -352,11 +352,7 @@ function showLaminationSection(result) {
         return;
     }
     
-    // Если ламинация уже добавлена, не показываем секцию повторно
-    if (result.laminationCost && result.laminationCost > 0) {
-        laminationSection.style.display = 'none';
-        return;
-    }
+    // Секция ламинации всегда видима, даже если ламинация уже добавлена
     
     let html = '<div class="lamination-content">';
     html += '<p class="lamination-title">Добавить ламинацию к заказу:</p>';

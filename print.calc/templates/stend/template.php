@@ -149,10 +149,15 @@ $pocketTypes = $arResult['pocket_types'] ?? [];
         <input type="hidden" name="sessid" value="<?= bitrix_sessid() ?>">
 
         <button id="calcBtn" type="button" class="calc-button">Рассчитать стоимость</button>
-        
+        <?php if (!empty($features['lamination'])): ?>
+        <!-- Секция ламинации -->
+        <div id="laminationSection" class="lamination-section" style="margin-top: 32px;">
+            <h3>Дополнительная ламинация</h3>
+            <div id="laminationControls"></div>
+            <div id="laminationResult" class="lamination-result"></div>
+        </div>
+        <?php endif; ?>
         <div id="calcResult" class="calc-result"></div>
-        
-        <!-- Отступ между результатом и ламинацией -->
         <div class="calc-spacer"></div>
     </form>
 
@@ -199,6 +204,39 @@ $pocketTypes = $arResult['pocket_types'] ?? [];
     font-weight: bold;
     margin-top: 5px;
     display: block;
+}
+
+.remove-lamination-btn {
+    background: #dc3545;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    font-size: 14px;
+    cursor: pointer;
+    margin-left: 10px;
+    transition: all 0.3s;
+}
+.remove-lamination-btn:hover {
+    background: #c82333;
+    transform: translateY(-1px);
+}
+.lamination-info-container {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+@media (max-width: 768px) {
+    .lamination-info-container {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .remove-lamination-btn {
+        margin-left: 0;
+        width: 100%;
+    }
 }
 
 @media (max-width: 768px) {
@@ -423,6 +461,13 @@ function displayStendResult(result, resultDiv) {
         if (pockets.volumeA4 > 0) html += '<li>Объемных карманов А4: ' + pockets.volumeA4 + '</li>';
         if (pockets.volumeA5 > 0) html += '<li>Объемных карманов А5: ' + pockets.volumeA5 + '</li>';
     }
+
+    if (result.laminationCost && result.laminationCost > 0) {
+        html += '<div class="lamination-info-container">';
+        html += '<p class="lamination-info" style="margin: 0;"><strong>Ламинация включена:</strong> ' + Math.round(result.laminationCost * 10) / 10 + ' ₽</p>';
+        html += '<button type="button" class="remove-lamination-btn" onclick="removeLamination()">Убрать ламинацию</button>';
+        html += '</div>';
+    }
     
     html += '</ul>';
     html += '</div>';
@@ -449,4 +494,40 @@ function collectFormData(form) {
 document.addEventListener('DOMContentLoaded', function() {
     waitForBX(initWithBX, initWithoutBX, 3000);
 });
+
+function removeLamination() {
+    const laminationSection = document.getElementById('laminationSection');
+    const laminationControls = document.getElementById('laminationControls');
+    const laminationResult = document.getElementById('laminationResult');
+    const calcResult = document.getElementById('calcResult');
+
+    if (laminationSection) {
+        laminationSection.remove();
+    }
+    if (laminationControls) {
+        laminationControls.remove();
+    }
+    if (laminationResult) {
+        laminationResult.remove();
+    }
+
+    // Пересчитываем стоимость без ламинации
+    const form = document.getElementById(calcConfig.type + 'CalcForm');
+    const data = collectFormData(form);
+    data.calcType = calcConfig.type;
+    data.lamination = '0'; // Убираем ламинацию
+
+    const resultDiv = document.getElementById('calcResult');
+    resultDiv.innerHTML = '<div class="loading">Выполняется расчет ПВХ стенда без ламинации...</div>';
+
+    BX.ajax.runComponentAction(calcConfig.component, 'calc', {
+        mode: 'class',
+        data: data
+    }).then(function(response) {
+        handleResponse(response, resultDiv);
+    }).catch(function(error) {
+        resultDiv.innerHTML = '<div class="result-error">Ошибка соединения: ' + 
+            (error.message || 'Неизвестная ошибка') + '</div>';
+    });
+}
 </script>

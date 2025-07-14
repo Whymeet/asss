@@ -149,10 +149,15 @@ $features = $arResult['FEATURES'] ?? [];
         <input type="hidden" name="sessid" value="<?= bitrix_sessid() ?>">
 
         <button id="calcBtn" type="button" class="calc-button">Рассчитать стоимость</button>
-        
+        <?php if (!empty($features['lamination'])): ?>
+        <!-- Секция ламинации -->
+        <div id="laminationSection" class="lamination-section" style="margin-top: 32px;">
+            <h3>Дополнительная ламинация</h3>
+            <div id="laminationControls"></div>
+            <div id="laminationResult" class="lamination-result"></div>
+        </div>
+        <?php endif; ?>
         <div id="calcResult" class="calc-result"></div>
-        
-        <!-- Отступ между результатом и ламинацией -->
         <div class="calc-spacer"></div>
     </form>
 
@@ -323,6 +328,14 @@ function displayRizoResult(result, resultDiv) {
     html += '</ul>';
     html += '</div>';
     html += '</details>';
+
+    if (result.laminationCost && result.laminationCost > 0) {
+        html += '<div class="lamination-info-container">';
+        html += '<p class="lamination-info" style="margin: 0;"><strong>Ламинация включена:</strong> ' + Math.round(result.laminationCost * 10) / 10 + ' ₽</p>';
+        html += '<button type="button" class="remove-lamination-btn" onclick="removeLamination()">Убрать ламинацию</button>';
+        html += '</div>';
+    }
+    
     html += '</div>';
     
     resultDiv.innerHTML = html;
@@ -354,4 +367,70 @@ function collectFormData(form) {
 document.addEventListener('DOMContentLoaded', function() {
     waitForBX(initWithBX, initWithoutBX, 3000);
 });
+
+function removeLamination() {
+    const laminationSection = document.getElementById('laminationSection');
+    const laminationControls = document.getElementById('laminationControls');
+    const laminationResult = document.getElementById('laminationResult');
+    const removeBtn = document.querySelector('.remove-lamination-btn');
+
+    if (laminationSection && laminationControls && laminationResult && removeBtn) {
+        laminationSection.remove();
+        removeBtn.remove();
+        // Перерасчет основного калькулятора
+        const form = document.getElementById(calcConfig.type + 'CalcForm');
+        const calcBtn = document.getElementById('calcBtn');
+        if (form && calcBtn) {
+            const data = collectFormData(form);
+            data.calcType = calcConfig.type;
+            data.sessid = bitrix_sessid(); // Обновляем sessid
+
+            calcBtn.innerHTML = '<div class="loading">Выполняется расчет ризографии...</div>';
+
+            BX.ajax.runComponentAction(calcConfig.component, 'calc', {
+                mode: 'class',
+                data: data
+            }).then(function(response) {
+                handleResponse(response, document.getElementById('calcResult'));
+            }).catch(function(error) {
+                document.getElementById('calcResult').innerHTML = '<div class="result-error">Ошибка соединения: ' + 
+                    (error.message || 'Неизвестная ошибка') + '</div>';
+            });
+        }
+    }
+}
 </script>
+<style>
+.remove-lamination-btn {
+    background: #dc3545;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    font-size: 14px;
+    cursor: pointer;
+    margin-left: 10px;
+    transition: all 0.3s;
+}
+.remove-lamination-btn:hover {
+    background: #c82333;
+    transform: translateY(-1px);
+}
+.lamination-info-container {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+@media (max-width: 768px) {
+    .lamination-info-container {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .remove-lamination-btn {
+        margin-left: 0;
+        width: 100%;
+    }
+}
+</style>

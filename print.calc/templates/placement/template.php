@@ -147,15 +147,15 @@ $features = $arResult['FEATURES'] ?? [];
         <input type="hidden" name="calcType" value="<?= $calcType ?>">
         <input type="hidden" name="sessid" value="<?= bitrix_sessid() ?>">
 
+        <button id="calcBtn" type="button" class="calc-button mt-4" style="margin-top:32px;">Рассчитать стоимость</button>
         <?php if (!empty($features['lamination'])): ?>
         <!-- Секция ламинации -->
-        <div id="laminationSection" class="lamination-section">
+        <div id="laminationSection" class="lamination-section" style="margin-top: 32px;">
             <h3>Дополнительная ламинация</h3>
             <div id="laminationControls"></div>
             <div id="laminationResult" class="lamination-result"></div>
         </div>
         <?php endif; ?>
-        <button id="calcBtn" type="button" class="calc-button mt-4" style="margin-top:32px;">Рассчитать стоимость</button>
         <div id="calcResult" class="calc-result"></div>
         <div class="calc-spacer"></div>
     </form>
@@ -318,8 +318,9 @@ function displayPlacementResult(result, resultDiv) {
 
     // Показываем информацию о ламинации если она была добавлена
     if (result.laminationCost && result.laminationCost > 0) {
-        html += '<div style="color: #28a745; background: #f8fff8; padding: 10px; border-radius: 6px; border-left: 4px solid #28a745; margin-bottom: 15px;">';
-        html += '<strong>Ламинация добавлена:</strong> ' + Math.round(result.laminationCost * 10) / 10 + ' ₽';
+        html += '<div class="lamination-info-container">';
+        html += '<p class="lamination-info" style="margin: 0;"><strong>Ламинация включена:</strong> ' + Math.round(result.laminationCost * 10) / 10 + ' ₽</p>';
+        html += '<button type="button" class="remove-lamination-btn" onclick="removeLamination()">Убрать ламинацию</button>';
         html += '</div>';
     }
     
@@ -477,4 +478,81 @@ function collectFormData(form) {
 document.addEventListener('DOMContentLoaded', function() {
     waitForBX(initWithBX, initWithoutBX, 3000);
 });
+
+// Функция для удаления ламинации
+function removeLamination() {
+    const resultDiv = document.getElementById('calcResult');
+    const laminationInfoContainer = resultDiv.querySelector('.lamination-info-container');
+    if (laminationInfoContainer) {
+        laminationInfoContainer.remove();
+        // Пересчитываем стоимость без ламинации
+        const form = document.getElementById(calcConfig.type + 'CalcForm');
+        const data = collectFormData(form);
+        data.calcType = calcConfig.type;
+        data.lamination_type = '0'; // Удаляем ламинацию
+        data.lamination_thickness = '0'; // Удаляем толщину
+
+        resultDiv.innerHTML = '<div class="loading">Пересчитываем без ламинации...</div>';
+
+        if (typeof BX !== 'undefined' && BX.ajax) {
+            BX.ajax.runComponentAction(calcConfig.component, 'calc', {
+                mode: 'class',
+                data: data
+            }).then(function(response) {
+                handleResponse(response, resultDiv);
+            }).catch(function(error) {
+                resultDiv.innerHTML = '<div class="result-error">Ошибка соединения: ' + error.message + '</div>';
+            });
+        } else {
+            fetch('/bitrix/services/main/ajax.php?c=' + calcConfig.component + '&action=calc&mode=class', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: new URLSearchParams(data)
+            })
+            .then(response => response.json())
+            .then(response => {
+                handleResponse(response, resultDiv);
+            })
+            .catch(error => {
+                resultDiv.innerHTML = '<div class="result-error">Ошибка соединения: ' + error.message + '</div>';
+            });
+        }
+    }
+}
 </script>
+<style>
+.remove-lamination-btn {
+    background: #dc3545;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    font-size: 14px;
+    cursor: pointer;
+    margin-left: 10px;
+    transition: all 0.3s;
+}
+.remove-lamination-btn:hover {
+    background: #c82333;
+    transform: translateY(-1px);
+}
+.lamination-info-container {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+@media (max-width: 768px) {
+    .lamination-info-container {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .remove-lamination-btn {
+        margin-left: 0;
+        width: 100%;
+    }
+}
+</style>

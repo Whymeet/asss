@@ -702,7 +702,7 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
     }
 
     /**
-     * Расчет стоимости блокнотов
+     * Расчет стоимости блокнотов - ИСПРАВЛЕН
      */
     private function calculateNote($paperType, $size, $quantity, $printType, $bigovka, $cornerRadius, $perforation, $drill, $numbering)
     {
@@ -711,12 +711,6 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
             'size' => $size,
             'quantity' => $quantity
         ]);
-
-        // Проверяем доступность функции
-        if (!function_exists('calculateNotePrice')) {
-            $this->debug("Функция calculateNotePrice не найдена");
-            return ['error' => 'Функция calculateNotePrice не найдена'];
-        }
 
         // Проверяем доступность конфигурации
         global $priceConfig;
@@ -727,6 +721,18 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
         if (!isset($priceConfig) || !is_array($priceConfig)) {
             $this->debug("priceConfig недоступна в calculateNote");
             return ['error' => 'Конфигурация цен недоступна'];
+        }
+
+        // Загружаем конфигурацию блокнотов
+        $calcConfig = $this->loadCalcConfig('note');
+        if (!$calcConfig) {
+            return ['error' => 'Конфигурация блокнотов не найдена'];
+        }
+
+        // Получаем конфигурацию блокнотов из $priceConfig
+        $noteConfig = $priceConfig['note'] ?? [];
+        if (empty($noteConfig)) {
+            return ['error' => 'Конфигурация блокнотов не найдена в системе'];
         }
 
         // Собираем параметры для расчета блокнота
@@ -744,85 +750,302 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
             'corner_radius' => $cornerRadius
         ];
 
-        // Выполняем расчет
+        $this->debug("Параметры блокнота", $params);
+
+        // Выполняем расчет блокнота напрямую
         try {
-            $result = calculateNotePrice($params);
+            // 1. Валидация и подготовка параметров
+            $size = in_array($params['size'], $noteConfig['available_sizes']) 
+                ? $params['size'] 
+                : $noteConfig['available_sizes'][0];
             
-            $this->debug("Результат calculateNotePrice", $result);
+            $quantity = max(1, (int)$params['quantity']);
+            $innerPages = in_array($params['inner_pages'], $noteConfig['inner_pages']) 
+                ? $params['inner_pages'] 
+                : $noteConfig['inner_pages'][0];
             
-            if (!$result) {
-                return ['error' => 'Ошибка выполнения расчета блокнота'];
+            $services = [
+                'bigovka' => (bool)$params['bigovka'],
+                'perforation' => (bool)$params['perforation'],
+                'drill' => (bool)$params['drill'],
+                'numbering' => (bool)$params['numbering'],
+                'cornerRadius' => (int)$params['corner_radius']
+            ];
+
+            // 2. Расчет обложки
+            $coverParams = [
+                'paperType' => $noteConfig['paper']['cover'],
+                'size' => $size,
+                'quantity' => $quantity,
+                'printType' => ($params['cover_print'] === '4+4') ? 'double' : 'single',
+                'services' => $services
+            ];
+            
+            $coverResult = $this->calculateNoteComponent($coverParams);
+            
+            // 3. Расчет задника
+            $backPrintType = $params['back_print'];
+            $backParams = [
+                'paperType' => $noteConfig['paper']['back'],
+                'size' => $size,
+                'quantity' => $quantity,
+                'printType' => ($backPrintType === '4+4') ? 'double' : 
+                              ($backPrintType === '4+0' ? 'single' : 'none'),
+                'services' => $services
+            ];
+            
+            $backResult = $this->calculateNoteComponent($backParams);
+            
+            // 4. Расчет внутреннего блока
+            $totalInnerSheets = $quantity * $innerPages;
+            $innerPrintType = $params['inner_print'];
+            
+            if (strpos($innerPrintType, '1+') === 0) {
+                // Ризография
+                $innerResult = $this->calculateNoteRizoComponent([
+                    'paperType' => $noteConfig['paper']['inner'],
+                    'size' => $size,
+                    'quantity' => $totalInnerSheets,
+                    'printType' => $innerPrintType,
+                    'services' => $services
+                ]);
+            } else {
+                // Обычная печать
+                $innerParams = [
+                    'paperType' => $noteConfig['paper']['inner'],
+                    'size' => $size,
+                    'quantity' => $totalInnerSheets,
+                    'printType' => ($innerPrintType === '4+4') ? 'double' : 'single',
+                    'services' => $services
+                ];
+                
+                $innerResult = $this->calculateNoteComponent($innerParams);
             }
             
+            // 5. Расчет сборки
+            $bindingCost = $this->calculateNoteBinding([
+                'size' => $size,
+                'quantity' => $quantity,
+                'config' => $noteConfig['binding']
+            ]);
+            
+            // 6. Суммирование всех компонентов
+            $totalPrice = array_sum([
+                $coverResult['total'],
+                $backResult['total'],
+                $innerResult['total'],
+                $bindingCost
+            ]);
+
             // Добавляем обработку ламинации если указана
+            $laminationCost = 0;
             if (!empty($_POST['lamination_type'])) {
-                $result = $this->addNoteLamination($result, $_POST, $quantity);
+                $laminationCost = $this->calculateNoteLamination($_POST, $quantity);
+                $totalPrice += $laminationCost;
             }
+            
+            $result = [
+                'components' => [
+                    'cover' => $coverResult,
+                    'back' => $backResult,
+                    'inner' => $innerResult
+                ],
+                'binding' => $bindingCost,
+                'total' => $totalPrice,
+                'details' => [
+                    'quantity' => $quantity,
+                    'size' => $size,
+                    'inner_pages' => $innerPages,
+                    'services' => $services
+                ]
+            ];
+
+            if ($laminationCost > 0) {
+                $result['laminationCost'] = $laminationCost;
+                $result['laminationType'] = $_POST['lamination_type'];
+                $result['laminationThickness'] = $_POST['lamination_thickness'] ?? '';
+            }
+            
+            $this->debug("Результат calculateNote", $result);
             
             return $result;
             
         } catch (Exception $e) {
-            $this->debug("Исключение в calculateNotePrice", $e->getMessage());
+            $this->debug("Исключение в calculateNote", $e->getMessage());
             return ['error' => 'Ошибка расчета блокнота: ' . $e->getMessage()];
         }
     }
 
     /**
-     * Добавление ламинации к результату расчета блокнота
+     * Вспомогательная функция для расчета компонентов блокнота
      */
-    private function addNoteLamination($result, $postData, $quantity)
+    private function calculateNoteComponent($params)
     {
-        if (isset($result['error'])) {
-            return $result; // Если была ошибка, не обрабатываем ламинацию
-        }
-
         global $priceConfig;
+        
+        // Если печати нет, возвращаем нулевую стоимость
+        if ($params['printType'] === 'none') {
+            return [
+                'base' => ['totalPrice' => 0],
+                'additional' => 0,
+                'total' => 0
+            ];
+        }
+        
+        // Базовый расчет стоимости печати
+        $baseResult = calculatePrice(
+            $params['paperType'],
+            $params['size'],
+            $params['quantity'],
+            $params['printType']
+        );
+        
+        if (!$baseResult || isset($baseResult['error'])) {
+            return [
+                'base' => ['totalPrice' => 0],
+                'additional' => 0,
+                'total' => 0
+            ];
+        }
+        
+        // Добавляем дополнительные услуги
+        $additionalCost = $this->calculateNoteAdditionalServices(
+            $params['services'],
+            $params['quantity']
+        );
+        
+        return [
+            'base' => $baseResult,
+            'additional' => $additionalCost,
+            'total' => $baseResult['totalPrice'] + $additionalCost
+        ];
+    }
+
+    /**
+     * Вспомогательная функция для расчета ризографии в блокноте
+     */
+    private function calculateNoteRizoComponent($params)
+    {
+        global $priceConfig;
+        
+        // Расчет ризографии
+        $baseResult = calculateRizoPrice(
+            $params['paperType'],
+            $params['size'],
+            $params['quantity'],
+            $params['printType']
+        );
+        
+        if (!$baseResult || isset($baseResult['error'])) {
+            return [
+                'base' => ['totalPrice' => 0],
+                'additional' => 0,
+                'total' => 0
+            ];
+        }
+        
+        // Добавляем дополнительные услуги
+        $additionalCost = $this->calculateNoteAdditionalServices(
+            $params['services'],
+            $params['quantity']
+        );
+        
+        return [
+            'base' => $baseResult,
+            'additional' => $additionalCost,
+            'total' => $baseResult['totalPrice'] + $additionalCost
+        ];
+    }
+
+    /**
+     * Расчет сборки блокнота
+     */
+    private function calculateNoteBinding($params)
+    {
+        $config = $params['config']['spiral'][$params['size']];
+        $quantity = $params['quantity'];
+        
+        if ($quantity <= 100) {
+            return $config[100] * $quantity;
+        } elseif ($quantity <= 500) {
+            return $config[500] * $quantity;
+        } elseif ($quantity <= 1000) {
+            return $config[1000] * $quantity;
+        } else {
+            return $config['max'] * $quantity;
+        }
+    }
+
+    /**
+     * Расчет дополнительных услуг для блокнота
+     */
+    private function calculateNoteAdditionalServices($services, $quantity)
+    {
+        global $priceConfig;
+        
+        $cost = 0;
+        $noteServices = $priceConfig['note']['services'];
+        
+        // Биговка
+        if ($services['bigovka']) {
+            $cost += $quantity * $noteServices['bigovka'];
+        }
+        
+        // Перфорация
+        if ($services['perforation']) {
+            $cost += $quantity * $noteServices['perforation'];
+        }
+        
+        // Сверление
+        if ($services['drill']) {
+            $cost += $quantity * $noteServices['drill'];
+        }
+        
+        // Нумерация
+        if ($services['numbering']) {
+            $cost += $quantity * $noteServices['numbering'];
+        }
+        
+        // Скругление углов
+        $cornerCost = $noteServices['corner_radius'][$services['cornerRadius']] ?? 0;
+        $cost += $quantity * $cornerCost;
+        
+        return $cost;
+    }
+
+    /**
+     * Расчет ламинации для блокнота
+     */
+    private function calculateNoteLamination($postData, $quantity)
+    {
+        global $priceConfig;
+        
         if (!isset($priceConfig['lamination'])) {
-            return $result; // Если конфигурация ламинации недоступна
+            return 0;
         }
 
         $laminationType = $postData['lamination_type'] ?? '';
         $laminationThickness = $postData['lamination_thickness'] ?? '';
         
         if (empty($laminationType)) {
-            return $result; // Если тип ламинации не указан
+            return 0;
         }
 
         $laminationCost = 0;
 
         try {
             // Для блокнотов ламинация применяется только к обложке
-            // Определяем тип печати обложки
-            $coverPrintingType = 'Цифровая';
-            if ($result['components'] && $result['components']['cover'] && $result['components']['cover']['base']) {
-                $coverPrintingType = $result['components']['cover']['base']['printingType'] || 'Цифровая';
-            }
-
-            if ($coverPrintingType === 'Офсетная') {
-                // Офсетная печать: простые тарифы
-                if (isset($priceConfig['lamination']['offset'][$laminationType])) {
-                    $laminationCost = $quantity * $priceConfig['lamination']['offset'][$laminationType];
-                }
-            } else {
-                // Цифровая печать: зависит от толщины
-                if (!empty($laminationThickness) && 
-                    isset($priceConfig['lamination']['digital'][$laminationThickness][$laminationType])) {
-                    $laminationCost = $quantity * $priceConfig['lamination']['digital'][$laminationThickness][$laminationType];
-                }
-            }
-
-            if ($laminationCost > 0) {
-                $result['total'] += $laminationCost;
-                $result['laminationCost'] = $laminationCost;
-                $result['laminationType'] = $laminationType;
-                $result['laminationThickness'] = $laminationThickness;
+            // Обычно это цифровая печать
+            if (!empty($laminationThickness) && 
+                isset($priceConfig['lamination']['digital'][$laminationThickness][$laminationType])) {
+                $laminationCost = $quantity * $priceConfig['lamination']['digital'][$laminationThickness][$laminationType];
             }
 
         } catch (Exception $e) {
             $this->debug("Ошибка при добавлении ламинации к блокноту", $e->getMessage());
         }
 
-        return $result;
+        return $laminationCost;
     }
 
     private function addLogMessage($message) {

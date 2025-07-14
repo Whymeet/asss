@@ -147,20 +147,16 @@ $features = $arResult['FEATURES'] ?? [];
         <input type="hidden" name="calcType" value="<?= $calcType ?>">
         <input type="hidden" name="sessid" value="<?= bitrix_sessid() ?>">
 
-        <button id="calcBtn" type="button" class="calc-button">Рассчитать стоимость</button>
-        
-        <div id="calcResult" class="calc-result"></div>
-        
-        <!-- Секция ламинации (показывается после расчета) -->
         <?php if (!empty($features['lamination'])): ?>
+        <!-- Секция ламинации -->
         <div id="laminationSection" class="lamination-section">
             <h3>Дополнительная ламинация</h3>
             <div id="laminationControls"></div>
             <div id="laminationResult" class="lamination-result"></div>
         </div>
         <?php endif; ?>
-        
-        <!-- Отступ между результатом и ламинацией -->
+        <button id="calcBtn" type="button" class="calc-button mt-4" style="margin-top:32px;">Рассчитать стоимость</button>
+        <div id="calcResult" class="calc-result"></div>
         <div class="calc-spacer"></div>
     </form>
 
@@ -412,9 +408,12 @@ function calculateWithLamination() {
     const laminationType = document.querySelector('input[name="laminationType"]:checked');
     const laminationThickness = document.querySelector('select[name="laminationThickness"]');
     const resultDiv = document.getElementById('calcResult');
+    const laminationResult = document.getElementById('laminationResult');
     
     if (!laminationType) {
-        alert('Выберите тип ламинации');
+        if (laminationResult) {
+            laminationResult.innerHTML = '<div class="result-error">Выберите тип ламинации</div>';
+        }
         return;
     }
     

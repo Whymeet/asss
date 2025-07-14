@@ -393,7 +393,7 @@ function displayResult(result, resultDiv) {
         html += '<div class="lamination-info-container">';
         html += '<p class="lamination-info" style="margin: 0;"><strong>Ламинация включена:</strong> ' + Math.round(result.laminationCost * 10) / 10 + ' ₽</p>';
         html += '<button type="button" class="remove-lamination-btn" onclick="removeLamination()">Убрать ламинацию</button>';
-        html += '</div>';
+        html += '</div>'; 
     }
     
     html += '<details class="result-details">';

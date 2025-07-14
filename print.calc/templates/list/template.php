@@ -152,23 +152,19 @@ $features = $arResult['FEATURES'] ?? [];
         </div>
         <?php endif; ?>
 
+        <input type="hidden" name="calcType" value="<?= $calcType ?>">
+        <input type="hidden" name="sessid" value="<?= bitrix_sessid() ?>">
+
+        <button id="calcBtn" type="button" class="calc-button">Рассчитать стоимость</button>
         <?php if (!empty($features['lamination'])): ?>
         <!-- Секция ламинации -->
-        <div id="laminationSection" class="lamination-section">
+        <div id="laminationSection" class="lamination-section" style="margin-top: 32px;">
             <h3>Дополнительная ламинация</h3>
             <div id="laminationControls"></div>
             <div id="laminationResult" class="lamination-result"></div>
         </div>
         <?php endif; ?>
-
-        <input type="hidden" name="calcType" value="<?= $calcType ?>">
-        <input type="hidden" name="sessid" value="<?= bitrix_sessid() ?>">
-
-        <button id="calcBtn" type="button" class="calc-button">Рассчитать стоимость</button>
-        
         <div id="calcResult" class="calc-result"></div>
-        
-        <!-- Отступ между результатом и ламинацией -->
         <div class="calc-spacer"></div>
     </form>
 
@@ -176,6 +172,46 @@ $features = $arResult['FEATURES'] ?? [];
         <p>Спасибо, что Вы с нами!</p>
     </div>
 </div>
+
+<style>
+/* Дополнительные стили для кнопки удаления ламинации */
+.remove-lamination-btn {
+    background: #dc3545;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    font-size: 14px;
+    cursor: pointer;
+    margin-left: 10px;
+    transition: all 0.3s;
+}
+
+.remove-lamination-btn:hover {
+    background: #c82333;
+    transform: translateY(-1px);
+}
+
+.lamination-info-container {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+@media (max-width: 768px) {
+    .lamination-info-container {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .remove-lamination-btn {
+        margin-left: 0;
+        width: 100%;
+    }
+}
+</style>
 
 <script>
 // Улучшенная блокировка внешних ошибок
@@ -209,6 +245,10 @@ const calcConfig = {
     features: <?= json_encode($features) ?>,
     component: 'my:print.calc'
 };
+
+// Сохраняем исходный результат без ламинации
+let originalResultWithoutLamination = null;
+let currentPrintingType = null;
 
 console.log('Конфигурация калькулятора:', calcConfig);
 
@@ -308,13 +348,20 @@ function initWithoutBX() {
 }
 
 // Обработка ответа сервера
-function handleResponse(response, resultDiv) {
+function handleResponse(response, resultDiv, isLaminationCalculation = false) {
     if (response && response.data) {
         if (response.data.error) {
             resultDiv.innerHTML = '<div class="result-error">Ошибка: ' + 
                 response.data.error + '</div>';
         } else {
+            // Сохраняем исходный результат без ламинации
+            if (!isLaminationCalculation && !response.data.laminationCost) {
+                originalResultWithoutLamination = JSON.parse(JSON.stringify(response.data));
+                currentPrintingType = response.data.printingType;
+            }
+            
             displayResult(response.data, resultDiv);
+            
             // Показываем секцию ламинации если доступна
             if (calcConfig.features.lamination && (response.data.laminationAvailable || response.data.printingType)) {
                 showLaminationSection(response.data);
@@ -330,6 +377,7 @@ function handleResponse(response, resultDiv) {
 function displayResult(result, resultDiv) {
     // Округляем все цены до десятых
     const totalPrice = Math.round((result.totalPrice || 0) * 10) / 10;
+    const hasLamination = result.laminationCost && result.laminationCost > 0;
     
     let html = '<div class="result-success">';
     html += '<h3 class="result-title">Результат расчета</h3>';
@@ -338,6 +386,14 @@ function displayResult(result, resultDiv) {
     // Стандартное отображение для листовок и буклетов
     if (result.printingType) {
         html += '<p><strong>Тип печати:</strong> ' + result.printingType + '</p>';
+    }
+    
+    // Информация о ламинации с кнопкой удаления
+    if (hasLamination) {
+        html += '<div class="lamination-info-container">';
+        html += '<p class="lamination-info" style="margin: 0;"><strong>Ламинация включена:</strong> ' + Math.round(result.laminationCost * 10) / 10 + ' ₽</p>';
+        html += '<button type="button" class="remove-lamination-btn" onclick="removeLamination()">Убрать ламинацию</button>';
+        html += '</div>';
     }
     
     html += '<details class="result-details">';
@@ -350,6 +406,7 @@ function displayResult(result, resultDiv) {
     if (result.paperCost) html += '<li>Стоимость бумаги: ' + Math.round(result.paperCost * 10) / 10 + ' ₽</li>';
     if (result.plateCost && result.plateCost > 0) html += '<li>Стоимость пластин: ' + Math.round(result.plateCost * 10) / 10 + ' ₽</li>';
     if (result.additionalCosts && result.additionalCosts > 0) html += '<li>Дополнительные услуги: ' + Math.round(result.additionalCosts * 10) / 10 + ' ₽</li>';
+    if (hasLamination) html += '<li class="lamination-info">Ламинация: ' + Math.round(result.laminationCost * 10) / 10 + ' ₽</li>';
     
     html += '</ul>';
     html += '</div>';
@@ -368,10 +425,13 @@ function showLaminationSection(result) {
         return;
     }
     
+    // Используем сохраненный тип печати или текущий
+    const printingType = currentPrintingType || result.printingType;
+    
     let html = '<div class="lamination-content">';
     html += '<p class="lamination-title">Добавить ламинацию к заказу:</p>';
     
-    if (result.printingType === 'Офсетная') {
+    if (printingType === 'Офсетная') {
         html += '<div class="lamination-options">';
         html += '<div class="radio-group">';
         html += '<label class="radio-label"><input type="radio" name="laminationType" value="1+0"> 1+0 (7 руб/лист)</label>';
@@ -439,10 +499,14 @@ function calculateLamination(originalResult) {
     const form = document.getElementById(calcConfig.type + 'CalcForm');
     const quantity = parseInt(form.querySelector('input[name="quantity"]').value);
     
+    // Используем сохраненный результат или текущий
+    const baseResult = originalResultWithoutLamination || originalResult;
+    const printingType = currentPrintingType || baseResult.printingType;
+    
     let laminationCost = 0;
     let laminationDescription = '';
     
-    if (originalResult.printingType === 'Офсетная') {
+    if (printingType === 'Офсетная') {
         // Офсетная печать: простые тарифы
         if (laminationType.value === '1+0') {
             laminationCost = quantity * 7;
@@ -465,38 +529,25 @@ function calculateLamination(originalResult) {
         laminationDescription = `${laminationType.value} ${thickness} мкм (${rates[thickness][laminationType.value]} руб/лист)`;
     }
     
-    const newTotal = Math.round((originalResult.totalPrice + laminationCost) * 10) / 10;
-    const roundedLaminationCost = Math.round(laminationCost * 10) / 10;
+    // Создаем новый результат с ламинацией
+    const newResult = JSON.parse(JSON.stringify(baseResult));
+    newResult.totalPrice = baseResult.totalPrice + laminationCost;
+    newResult.laminationCost = laminationCost;
+    newResult.laminationDescription = laminationDescription;
     
-    // Создаем новый результат с учетом ламинации
-    let html = '<div class="result-success">';
-    html += '<h3 class="result-title">Результат расчета</h3>';
-    html += '<div class="result-price">' + newTotal + ' <small>₽</small></div>';
+    displayResult(newResult, resultDiv);
+}
+
+// Функция удаления ламинации
+function removeLamination() {
+    const resultDiv = document.getElementById('calcResult');
     
-    if (originalResult.printingType) {
-        html += '<p><strong>Тип печати:</strong> ' + originalResult.printingType + '</p>';
+    if (originalResultWithoutLamination) {
+        displayResult(originalResultWithoutLamination, resultDiv);
+        // Сбрасываем выбор ламинации
+        const laminationRadios = document.querySelectorAll('input[name="laminationType"]');
+        laminationRadios.forEach(radio => radio.checked = false);
     }
-    
-    html += '<details class="result-details" open>';
-    html += '<summary>Подробности расчета</summary>';
-    html += '<div class="result-details-content">';
-    html += '<ul>';
-    
-    if (originalResult.baseA3Sheets) html += '<li>Листов A3: ' + originalResult.baseA3Sheets + '</li>';
-    if (originalResult.printingCost) html += '<li>Стоимость печати: ' + Math.round(originalResult.printingCost * 10) / 10 + ' ₽</li>';
-    if (originalResult.paperCost) html += '<li>Стоимость бумаги: ' + Math.round(originalResult.paperCost * 10) / 10 + ' ₽</li>';
-    if (originalResult.plateCost && originalResult.plateCost > 0) html += '<li>Стоимость пластин: ' + Math.round(originalResult.plateCost * 10) / 10 + ' ₽</li>';
-    if (originalResult.additionalCosts && originalResult.additionalCosts > 0) html += '<li>Дополнительные услуги: ' + Math.round(originalResult.additionalCosts * 10) / 10 + ' ₽</li>';
-    
-    // Добавляем информацию о ламинации
-    html += '<li class="lamination-info">Ламинация ' + laminationDescription + ': ' + roundedLaminationCost + ' ₽</li>';
-    
-    html += '</ul>';
-    html += '</div>';
-    html += '</details>';
-    html += '</div>';
-    
-    resultDiv.innerHTML = html;
 }
 
 // Сбор данных формы

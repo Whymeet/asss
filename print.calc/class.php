@@ -255,7 +255,6 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
                 
             case 'catalog':
                 $this->arResult['CATALOG_CONFIG'] = $priceConfig['catalog'];
-                $this->arResult['AVAILABLE_PAGES'] = $calcConfig['additional']['available_pages'] ?? [];
                 break;
                 
             case 'note':
@@ -351,6 +350,15 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
                     $height = (float)($_POST['height'] ?? 0);
                     $includePodramnik = filter_var($_POST['includePodramnik'] ?? false, FILTER_VALIDATE_BOOLEAN);
                     return $this->calculateCanvas($width, $height, $includePodramnik);
+                    
+                case 'catalog':
+                    $coverPaper = (int)($_POST['coverPaper'] ?? 130);
+                    $coverPrintType = $_POST['coverPrintType'] ?? '4+0';
+                    $innerPaper = (int)($_POST['innerPaper'] ?? 130);
+                    $innerPrintType = $_POST['innerPrintType'] ?? '4+4';
+                    $pages = (int)($_POST['pages'] ?? 8);
+                    $bindingType = $_POST['bindingType'] ?? 'spiral';
+                    return $this->calculateCatalog($coverPaper, $coverPrintType, $innerPaper, $innerPrintType, $size, $pages, $quantity, $bindingType);
                     
                 case 'sticker':
                     $length = (float)($_POST['length'] ?? 0);
@@ -557,13 +565,162 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
         return calculateVizitPrice($printType, $quantity, $sideType);
     }
 
+    /**
+     * Расчет стоимости холстов - использует существующую функцию calculateCanvasPrice
+     */
     private function calculateCanvas($width, $height, $includePodramnik)
     {
+        $this->debug("calculateCanvas вызван", [
+            'width' => $width,
+            'height' => $height,
+            'includePodramnik' => $includePodramnik
+        ]);
+
         if (!function_exists('calculateCanvasPrice')) {
+            $this->debug("Функция calculateCanvasPrice не найдена");
             return ['error' => 'Функция calculateCanvasPrice не найдена'];
         }
         
-        return calculateCanvasPrice($width, $height, $includePodramnik);
+        // Валидация входных данных
+        if ($width <= 0 || $height <= 0) {
+            return ['error' => 'Ширина и высота должны быть больше нуля'];
+        }
+        
+        try {
+            $result = calculateCanvasPrice($width, $height, $includePodramnik);
+            
+            $this->debug("Результат calculateCanvasPrice", $result);
+            
+            if (!$result) {
+                return ['error' => 'Ошибка выполнения расчета холста'];
+            }
+            
+            if (isset($result['error'])) {
+                return $result;
+            }
+            
+            // Добавляем исходные параметры для отображения
+            $result['originalWidth'] = $width;
+            $result['originalHeight'] = $height;
+            $result['includePodramnik'] = $includePodramnik;
+            
+            return $result;
+            
+        } catch (Exception $e) {
+            $this->debug("Исключение в calculateCanvasPrice", $e->getMessage());
+            return ['error' => 'Ошибка расчета холста: ' . $e->getMessage()];
+        }
+    }
+
+    /**
+     * Расчет стоимости каталогов
+     */
+    private function calculateCatalog($coverPaper, $coverPrintType, $innerPaper, $innerPrintType, $size, $pages, $quantity, $bindingType)
+    {
+        $this->debug("calculateCatalog вызван", [
+            'coverPaper' => $coverPaper,
+            'coverPrintType' => $coverPrintType,
+            'innerPaper' => $innerPaper,
+            'innerPrintType' => $innerPrintType,
+            'size' => $size,
+            'pages' => $pages,
+            'quantity' => $quantity,
+            'bindingType' => $bindingType
+        ]);
+
+        // Проверяем доступность функции
+        if (!function_exists('calculateCatalogPrice')) {
+            $this->debug("Функция calculateCatalogPrice не найдена");
+            return ['error' => 'Функция calculateCatalogPrice не найдена'];
+        }
+
+        // Проверяем доступность конфигурации
+        global $priceConfig;
+        if (!isset($priceConfig) && isset($GLOBALS['priceConfig'])) {
+            $priceConfig = $GLOBALS['priceConfig'];
+        }
+        
+        if (!isset($priceConfig) || !is_array($priceConfig)) {
+            $this->debug("priceConfig недоступна в calculateCatalog");
+            return ['error' => 'Конфигурация цен недоступна'];
+        }
+
+        // Загружаем конфигурацию каталогов
+        $calcConfig = $this->loadCalcConfig('catalog');
+        if (!$calcConfig) {
+            return ['error' => 'Конфигурация каталогов не найдена'];
+        }
+
+        // Валидация входных данных
+        $errors = [];
+        
+        // Получаем параметры валидации из конфигурации
+        $availableCoverPapers = array_keys($calcConfig['additional']['cover_paper_types'] ?? []);
+        $availableInnerPapers = array_keys($calcConfig['additional']['inner_paper_types'] ?? []);
+        $availableSizes = $calcConfig['additional']['available_sizes'] ?? [];
+        $availablePages = $calcConfig['additional']['available_pages'] ?? [];
+        $availableBindingTypes = array_keys($calcConfig['additional']['binding_types'] ?? []);
+        
+        if (!empty($availableCoverPapers) && !in_array($coverPaper, $availableCoverPapers)) {
+            $errors[] = "Некорректная плотность бумаги обложки";
+        }
+        if (!empty($availableInnerPapers) && !in_array($innerPaper, $availableInnerPapers)) {
+            $errors[] = "Некорректная плотность бумаги внутренних листов";
+        }
+        if (!empty($availableSizes) && !in_array($size, $availableSizes)) {
+            $errors[] = "Некорректный размер каталога";
+        }
+        if (!empty($availablePages) && !in_array($pages, $availablePages)) {
+            $errors[] = "Некорректное количество страниц";
+        }
+        if (!empty($availableBindingTypes) && !in_array($bindingType, $availableBindingTypes)) {
+            $errors[] = "Некорректный тип сборки";
+        }
+        if ($quantity <= 0) {
+            $errors[] = "Некорректный тираж";
+        }
+        
+        if (!empty($errors)) {
+            return ['error' => implode("<br>", $errors)];
+        }
+
+        try {
+            // Выполняем расчет каталога
+            $result = calculateCatalogPrice(
+                $coverPaper,
+                $coverPrintType,
+                $innerPaper,
+                $innerPrintType,
+                $size,
+                $pages,
+                $quantity,
+                $bindingType
+            );
+            
+            $this->debug("Результат calculateCatalogPrice", $result);
+            
+            if (!$result) {
+                return ['error' => 'Ошибка выполнения расчета каталога'];
+            }
+            
+            if (isset($result['error'])) {
+                return $result;
+            }
+            
+            // Добавляем дополнительную информацию для отображения
+            $result['bindingType'] = $bindingType;
+            $result['coverPaper'] = $coverPaper;
+            $result['innerPaper'] = $innerPaper;
+            $result['size'] = $size;
+            $result['pages'] = $pages;
+            $result['quantity'] = $quantity;
+            
+            return $result;
+            
+        } catch (Exception $e) {
+            $this->debug("Исключение в calculateCatalogPrice", $e->getMessage());
+            return ['error' => 'Ошибка расчета каталога: ' . $e->getMessage()];
+        }
     }
 
     /**

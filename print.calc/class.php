@@ -269,6 +269,16 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
             case 'sticker':
                 // Специфичные данные для наклеек - НЕ ПЕРЕЗАПИСЫВАЕМ то что уже добавлено из additional
                 break;
+                
+            case 'stend':
+                // Специфичные данные для ПВХ стендов уже добавлены через additional
+                // Дополнительная обработка не требуется, так как все данные передаются через конфигурацию
+                break;
+                
+            case 'placement':
+                // Специфичные данные для размещения уже добавлены через additional
+                // Дополнительная обработка не требуется
+                break;
         }
         
         // Добавляем дополнительные параметры из конфигурации
@@ -341,6 +351,31 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
                     $stickerType = $_POST['stickerType'] ?? '';
                     return $this->calculateSticker($length, $width, $quantity, $stickerType);
                     
+                case 'stend':
+                    $width = (float)($_POST['width'] ?? 0);
+                    $height = (float)($_POST['height'] ?? 0);
+                    $pvcType = $_POST['pvcType'] ?? '3mm';
+                    $flatA4 = (int)($_POST['flatA4'] ?? 0);
+                    $flatA5 = (int)($_POST['flatA5'] ?? 0);
+                    $volumeA4 = (int)($_POST['volumeA4'] ?? 0);
+                    $volumeA5 = (int)($_POST['volumeA5'] ?? 0);
+                    return $this->calculateStend($width, $height, $pvcType, $flatA4, $flatA5, $volumeA4, $volumeA5);
+                    
+                case 'placement':
+                    // Для размещения используем стандартную функцию calculatePrice
+                    // но с проверкой ламинации
+                    $result = $this->calculateList($paperType, $size, $quantity, $printType, $bigovka, $cornerRadius, $perforation, $drill, $numbering);
+                    
+                    // Добавляем обработку ламинации если указана
+                    if (!empty($_POST['lamination_type'])) {
+                        $result = $this->addLamination($result, $_POST, $quantity);
+                    }
+                    
+                    return $result;
+                    
+                case 'note':
+                    return $this->calculateNote($paperType, $size, $quantity, $printType, $bigovka, $cornerRadius, $perforation, $drill, $numbering);
+                    
                 default:
                     return $this->calculateList($paperType, $size, $quantity, $printType, $bigovka, $cornerRadius, $perforation, $drill, $numbering);
             }
@@ -369,6 +404,57 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
         }
         
         return true;
+    }
+
+    /**
+     * Добавление ламинации к результату расчета
+     */
+    private function addLamination($result, $postData, $quantity)
+    {
+        if (isset($result['error'])) {
+            return $result; // Если была ошибка, не обрабатываем ламинацию
+        }
+
+        global $priceConfig;
+        if (!isset($priceConfig['lamination'])) {
+            return $result; // Если конфигурация ламинации недоступна
+        }
+
+        $laminationType = $postData['lamination_type'] ?? '';
+        $laminationThickness = $postData['lamination_thickness'] ?? '';
+        
+        if (empty($laminationType)) {
+            return $result; // Если тип ламинации не указан
+        }
+
+        $laminationCost = 0;
+
+        try {
+            if ($result['printingType'] === 'Офсетная') {
+                // Офсетная печать: простые тарифы
+                if (isset($priceConfig['lamination']['offset'][$laminationType])) {
+                    $laminationCost = $quantity * $priceConfig['lamination']['offset'][$laminationType];
+                }
+            } else {
+                // Цифровая печать: зависит от толщины
+                if (!empty($laminationThickness) && 
+                    isset($priceConfig['lamination']['digital'][$laminationThickness][$laminationType])) {
+                    $laminationCost = $quantity * $priceConfig['lamination']['digital'][$laminationThickness][$laminationType];
+                }
+            }
+
+            if ($laminationCost > 0) {
+                $result['totalPrice'] += $laminationCost;
+                $result['laminationCost'] = $laminationCost;
+                $result['laminationType'] = $laminationType;
+                $result['laminationThickness'] = $laminationThickness;
+            }
+
+        } catch (Exception $e) {
+            $this->debug("Ошибка при добавлении ламинации", $e->getMessage());
+        }
+
+        return $result;
     }
 
     private function calculateList($paperType, $size, $quantity, $printType, $bigovka, $cornerRadius, $perforation, $drill, $numbering)
@@ -530,6 +616,213 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
             'pricePerM2' => $pricePerM2,
             'totalPrice' => $totalPrice
         ];
+    }
+
+    /**
+     * Расчет стоимости ПВХ стендов
+     */
+    private function calculateStend($width, $height, $pvcType, $flatA4, $flatA5, $volumeA4, $volumeA5)
+    {
+        $this->debug("calculateStend вызван", [
+            'width' => $width,
+            'height' => $height,
+            'pvcType' => $pvcType,
+            'flatA4' => $flatA4,
+            'flatA5' => $flatA5,
+            'volumeA4' => $volumeA4,
+            'volumeA5' => $volumeA5
+        ]);
+
+        // Загружаем конфигурацию стендов
+        $calcConfig = $this->loadCalcConfig('stend');
+        if (!$calcConfig) {
+            return ['error' => 'Конфигурация стендов не найдена'];
+        }
+
+        $pvcPrices = $calcConfig['additional']['pvc_prices'] ?? [];
+        $pocketPrices = $calcConfig['additional']['pocket_prices'] ?? [];
+        $pocketLimits = $calcConfig['additional']['pocket_limits'] ?? [];
+        
+        // Валидация входных данных
+        $errors = [];
+        if ($width <= 0) $errors[] = "Ширина должна быть больше 0";
+        if ($height <= 0) $errors[] = "Высота должна быть больше 0";
+        if (!isset($pvcPrices[$pvcType])) $errors[] = "Некорректный тип ПВХ";
+        if ($flatA4 < 0 || $flatA5 < 0 || $volumeA4 < 0 || $volumeA5 < 0) {
+            $errors[] = "Количество карманов не может быть отрицательным";
+        }
+        
+        if (!empty($errors)) {
+            return ['error' => implode("<br>", $errors)];
+        }
+
+        // Расчет площади (переводим см в м)
+        $area = ($width / 100) * ($height / 100);
+        
+        // Расчет баллов карманов
+        $totalPoints = ($flatA4 + $volumeA4) * $pocketLimits['a4_points'] 
+                     + ($flatA5 + $volumeA5) * $pocketLimits['a5_points'];
+                     
+        $maxAllowedPoints = $area * $pocketLimits['max_points_per_m2'];
+        
+        if ($totalPoints > $maxAllowedPoints) {
+            return ['error' => "Превышено максимальное количество карманов. Максимум: " . floor($maxAllowedPoints) . " баллов для данной площади"];
+        }
+        
+        // Расчет стоимости ПВХ
+        $pvcCost = $area * $pvcPrices[$pvcType];
+        
+        // Расчет стоимости карманов
+        $pocketsCost = 
+            $flatA4 * $pocketPrices['flat_a4'] +
+            $flatA5 * $pocketPrices['flat_a5'] +
+            $volumeA4 * $pocketPrices['volume_a4'] +
+            $volumeA5 * $pocketPrices['volume_a5'];
+        
+        // Итоговая стоимость
+        $totalPrice = $pvcCost + $pocketsCost;
+        
+        return [
+            'width' => $width,
+            'height' => $height,
+            'pvcType' => $pvcType,
+            'area' => $area,
+            'pvcCost' => $pvcCost,
+            'pocketsCost' => $pocketsCost,
+            'totalPrice' => $totalPrice,
+            'totalPoints' => $totalPoints,
+            'maxPoints' => $maxAllowedPoints,
+            'pockets' => [
+                'flatA4' => $flatA4,
+                'flatA5' => $flatA5,
+                'volumeA4' => $volumeA4,
+                'volumeA5' => $volumeA5
+            ]
+        ];
+    }
+
+    /**
+     * Расчет стоимости блокнотов
+     */
+    private function calculateNote($paperType, $size, $quantity, $printType, $bigovka, $cornerRadius, $perforation, $drill, $numbering)
+    {
+        $this->debug("calculateNote вызван", [
+            'paperType' => $paperType,
+            'size' => $size,
+            'quantity' => $quantity
+        ]);
+
+        // Проверяем доступность функции
+        if (!function_exists('calculateNotePrice')) {
+            $this->debug("Функция calculateNotePrice не найдена");
+            return ['error' => 'Функция calculateNotePrice не найдена'];
+        }
+
+        // Проверяем доступность конфигурации
+        global $priceConfig;
+        if (!isset($priceConfig) && isset($GLOBALS['priceConfig'])) {
+            $priceConfig = $GLOBALS['priceConfig'];
+        }
+        
+        if (!isset($priceConfig) || !is_array($priceConfig)) {
+            $this->debug("priceConfig недоступна в calculateNote");
+            return ['error' => 'Конфигурация цен недоступна'];
+        }
+
+        // Собираем параметры для расчета блокнота
+        $params = [
+            'size' => $size,
+            'quantity' => $quantity,
+            'inner_pages' => (int)($_POST['inner_pages'] ?? 40),
+            'cover_print' => $_POST['cover_print'] ?? '4+0',
+            'back_print' => $_POST['back_print'] ?? '0+0',
+            'inner_print' => $_POST['inner_print'] ?? '0+0',
+            'bigovka' => $bigovka,
+            'perforation' => $perforation,
+            'drill' => $drill,
+            'numbering' => $numbering,
+            'corner_radius' => $cornerRadius
+        ];
+
+        // Выполняем расчет
+        try {
+            $result = calculateNotePrice($params);
+            
+            $this->debug("Результат calculateNotePrice", $result);
+            
+            if (!$result) {
+                return ['error' => 'Ошибка выполнения расчета блокнота'];
+            }
+            
+            // Добавляем обработку ламинации если указана
+            if (!empty($_POST['lamination_type'])) {
+                $result = $this->addNoteLamination($result, $_POST, $quantity);
+            }
+            
+            return $result;
+            
+        } catch (Exception $e) {
+            $this->debug("Исключение в calculateNotePrice", $e->getMessage());
+            return ['error' => 'Ошибка расчета блокнота: ' . $e->getMessage()];
+        }
+    }
+
+    /**
+     * Добавление ламинации к результату расчета блокнота
+     */
+    private function addNoteLamination($result, $postData, $quantity)
+    {
+        if (isset($result['error'])) {
+            return $result; // Если была ошибка, не обрабатываем ламинацию
+        }
+
+        global $priceConfig;
+        if (!isset($priceConfig['lamination'])) {
+            return $result; // Если конфигурация ламинации недоступна
+        }
+
+        $laminationType = $postData['lamination_type'] ?? '';
+        $laminationThickness = $postData['lamination_thickness'] ?? '';
+        
+        if (empty($laminationType)) {
+            return $result; // Если тип ламинации не указан
+        }
+
+        $laminationCost = 0;
+
+        try {
+            // Для блокнотов ламинация применяется только к обложке
+            // Определяем тип печати обложки
+            $coverPrintingType = 'Цифровая';
+            if ($result['components'] && $result['components']['cover'] && $result['components']['cover']['base']) {
+                $coverPrintingType = $result['components']['cover']['base']['printingType'] || 'Цифровая';
+            }
+
+            if ($coverPrintingType === 'Офсетная') {
+                // Офсетная печать: простые тарифы
+                if (isset($priceConfig['lamination']['offset'][$laminationType])) {
+                    $laminationCost = $quantity * $priceConfig['lamination']['offset'][$laminationType];
+                }
+            } else {
+                // Цифровая печать: зависит от толщины
+                if (!empty($laminationThickness) && 
+                    isset($priceConfig['lamination']['digital'][$laminationThickness][$laminationType])) {
+                    $laminationCost = $quantity * $priceConfig['lamination']['digital'][$laminationThickness][$laminationType];
+                }
+            }
+
+            if ($laminationCost > 0) {
+                $result['total'] += $laminationCost;
+                $result['laminationCost'] = $laminationCost;
+                $result['laminationType'] = $laminationType;
+                $result['laminationThickness'] = $laminationThickness;
+            }
+
+        } catch (Exception $e) {
+            $this->debug("Ошибка при добавлении ламинации к блокноту", $e->getMessage());
+        }
+
+        return $result;
     }
 
     private function addLogMessage($message) {

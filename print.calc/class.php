@@ -279,6 +279,11 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
                 // Специфичные данные для размещения уже добавлены через additional
                 // Дополнительная обработка не требуется
                 break;
+                
+            case 'kubaric':
+                // Специфичные данные для кубариков уже добавлены через additional
+                // Дополнительная обработка не требуется
+                break;
         }
         
         // Добавляем дополнительные параметры из конфигурации
@@ -318,9 +323,11 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
                 'calcType' => $calcType
             ]);
 
-            // Валидация на основе конфигурации
+            // Валидация на основе конфигурации (пропускаем для специальных калькуляторов)
+            $specialCalcs = ['kubaric', 'vizit', 'canvas', 'sticker', 'stend'];
             $calcConfig = $this->loadCalcConfig($calcType);
-            if ($calcConfig && !$this->validateInput($calcConfig, $paperType, $size)) {
+
+            if ($calcConfig && !in_array($calcType, $specialCalcs) && !$this->validateInput($calcConfig, $paperType, $size)) {
                 return ['error' => 'Недопустимые параметры для данного типа калькулятора'];
             }
 
@@ -375,6 +382,12 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
                     
                 case 'note':
                     return $this->calculateNote($paperType, $size, $quantity, $printType, $bigovka, $cornerRadius, $perforation, $drill, $numbering);
+                    
+                case 'kubaric':
+                    $sheetsPerPack = (int)($_POST['sheetsPerPack'] ?? 0);
+                    $packsCount = (int)($_POST['packsCount'] ?? 0);
+                    $kubaricPrintType = $_POST['printType'] ?? '4+0';
+                    return $this->calculateKubaric($sheetsPerPack, $packsCount, $kubaricPrintType);
                     
                 default:
                     return $this->calculateList($paperType, $size, $quantity, $printType, $bigovka, $cornerRadius, $perforation, $drill, $numbering);
@@ -699,6 +712,98 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
                 'volumeA5' => $volumeA5
             ]
         ];
+    }
+
+    /**
+     * Расчет стоимости кубариков
+     */
+    private function calculateKubaric($sheetsPerPack, $packsCount, $printType)
+    {
+        $this->debug("calculateKubaric вызван", [
+            'sheetsPerPack' => $sheetsPerPack,
+            'packsCount' => $packsCount,
+            'printType' => $printType
+        ]);
+
+        // Загружаем конфигурацию кубариков
+        $calcConfig = $this->loadCalcConfig('kubaric');
+        if (!$calcConfig) {
+            return ['error' => 'Конфигурация кубариков не найдена'];
+        }
+
+        // Валидация входных данных
+        $errors = [];
+        if ($sheetsPerPack <= 0) $errors[] = "Количество листов в пачке должно быть больше 0";
+        if ($packsCount <= 0) $errors[] = "Количество пачек должно быть больше 0";
+        
+        // Проверяем допустимые варианты листов в пачке
+        $allowedSheets = $calcConfig['additional']['sheets_per_pack_options'] ?? [100, 300, 500, 900];
+        if (!in_array($sheetsPerPack, $allowedSheets)) {
+            $errors[] = "Недопустимое количество листов в пачке";
+        }
+
+        if (!empty($errors)) {
+            return ['error' => implode("<br>", $errors)];
+        }
+
+        // Вычисляем общее количество листов
+        $totalSheets = $sheetsPerPack * $packsCount;
+
+        // Фиксированные параметры для кубариков
+        $paperType = 80.0; // Фиксированная плотность
+        $size = "9X9";     // Фиксированный формат
+
+        // Определяем тип печати для базового расчета
+        $basePrintType = 'single';
+        if (in_array($printType, ['1+1', '4+4'])) {
+            $basePrintType = 'double';
+        }
+
+        try {
+            // Выполняем базовый расчет через существующую функцию
+            if (in_array($printType, ['1+0', '1+1'])) {
+                // Ризография для ч/б печати
+                $baseResult = calculateRizoPrice($paperType, $size, $totalSheets, $basePrintType);
+            } else {
+                // Обычная печать для цветной
+                $baseResult = calculatePrice($paperType, $size, $totalSheets, $basePrintType);
+            }
+
+            if (!$baseResult || isset($baseResult['error'])) {
+                return ['error' => 'Ошибка базового расчета: ' . ($baseResult['error'] ?? 'Неизвестная ошибка')];
+            }
+
+            // Применяем коэффициент наценки
+            $multiplier = $calcConfig['additional']['price_multiplier'] ?? 1.3;
+            $finalPrice = $baseResult['totalPrice'] * $multiplier;
+
+            $result = [
+                'sheetsPerPack' => $sheetsPerPack,
+                'packsCount' => $packsCount,
+                'totalSheets' => $totalSheets,
+                'printType' => $printType,
+                'paperType' => $paperType,
+                'size' => $size,
+                'basePrice' => $baseResult['totalPrice'],
+                'multiplier' => $multiplier,
+                'finalPrice' => $finalPrice,
+                'printingType' => $baseResult['printingType'] ?? 'Неизвестно',
+                // Технические детали для отладки
+                'baseA3Sheets' => $baseResult['baseA3Sheets'] ?? 0,
+                'printingCost' => $baseResult['printingCost'] ?? 0,
+                'paperCost' => $baseResult['paperCost'] ?? 0,
+                'plateCost' => $baseResult['plateCost'] ?? 0,
+                'additionalCosts' => $baseResult['additionalCosts'] ?? 0
+            ];
+
+            $this->debug("Результат calculateKubaric", $result);
+
+            return $result;
+
+        } catch (Exception $e) {
+            $this->debug("Исключение в calculateKubaric", $e->getMessage());
+            return ['error' => 'Ошибка расчета кубариков: ' . $e->getMessage()];
+        }
     }
 
     /**

@@ -283,6 +283,10 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
                 // Специфичные данные для кубариков уже добавлены через additional
                 // Дополнительная обработка не требуется
                 break;
+                
+            case 'doorhanger':
+                // Дополнительная обработка не требуется, все данные передаются через additional
+                break;
         }
         
         // Добавляем дополнительные параметры из конфигурации
@@ -396,6 +400,12 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
                     $packsCount = (int)($_POST['packsCount'] ?? 0);
                     $kubaricPrintType = $_POST['printType'] ?? '4+0';
                     return $this->calculateKubaric($sheetsPerPack, $packsCount, $kubaricPrintType);
+                    
+                case 'doorhanger':
+                    $paperType = (float)($_POST['paperType'] ?? 150.0);
+                    $quantity = (int)($_POST['quantity'] ?? 0);
+                    $printType = $_POST['printType'] ?? 'single';
+                    return $this->calculateDoorhanger($paperType, $quantity, $printType);
                     
                 default:
                     return $this->calculateList($paperType, $size, $quantity, $printType, $bigovka, $cornerRadius, $perforation, $drill, $numbering);
@@ -1308,6 +1318,128 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
         }
 
         return $laminationCost;
+    }
+
+    /**
+     * Расчет стоимости дорхендеров (6 шт/А3)
+     */
+    private function calculateDoorhanger($paperType, $quantity, $printType)
+    {
+        $this->debug("calculateDoorhanger вызван", [
+            'paperType' => $paperType,
+            'quantity' => $quantity,
+            'printType' => $printType
+        ]);
+
+        // Проверяем доступность функции
+        if (!function_exists('calculatePrice')) {
+            $this->debug("Функция calculatePrice не найдена");
+            return ['error' => 'Функция calculatePrice не найдена'];
+        }
+
+        // Проверяем доступность конфигурации
+        global $priceConfig;
+        if (!isset($priceConfig) && isset($GLOBALS['priceConfig'])) {
+            $priceConfig = $GLOBALS['priceConfig'];
+        }
+        
+        if (!isset($priceConfig) || !is_array($priceConfig)) {
+            $this->debug("priceConfig недоступна в calculateDoorhanger");
+            return ['error' => 'Конфигурация цен недоступна'];
+        }
+
+        // Загружаем конфигурацию дорхендеров
+        $calcConfig = $this->loadCalcConfig('doorhanger');
+        if (!$calcConfig) {
+            return ['error' => 'Конфигурация дорхендеров не найдена'];
+        }
+
+        // Получаем параметры из конфигурации
+        $itemsPerSheet = $calcConfig['additional']['items_per_sheet'] ?? 6;
+        $availablePapers = $calcConfig['papers'] ?? [];
+        $pricingRules = $calcConfig['additional']['pricing_rules'] ?? [];
+
+        // Валидация входных данных
+        $errors = [];
+        
+        if (!empty($availablePapers) && !in_array($paperType, $availablePapers)) {
+            $errors[] = "Некорректный тип бумаги";
+        }
+        if ($quantity <= 0) {
+            $errors[] = "Количество должно быть больше 0";
+        }
+        if ($quantity % $itemsPerSheet !== 0) {
+            $errors[] = "Количество должно быть кратно {$itemsPerSheet}";
+        }
+        if (!in_array($printType, ['single', 'double'])) {
+            $errors[] = "Некорректный тип печати";
+        }
+        
+        if (!empty($errors)) {
+            return ['error' => implode("<br>", $errors)];
+        }
+
+        try {
+            // Расчет листов А3
+            $a3Sheets = ceil($quantity / $itemsPerSheet);
+            
+            // Базовый расчет через существующую функцию
+            $baseResult = calculatePrice(
+                $paperType,
+                'A3', // Фиксированный формат А3
+                $quantity,
+                $printType
+            );
+            
+            $this->debug("Базовый результат calculatePrice", $baseResult);
+            
+            if (!$baseResult || isset($baseResult['error'])) {
+                return ['error' => 'Ошибка базового расчета: ' . ($baseResult['error'] ?? 'Неизвестная ошибка')];
+            }
+            
+            // Запоминаем базовую стоимость
+            $basePrice = $baseResult['totalPrice'];
+            
+            // Применяем дополнительные наценки согласно логике оригинального кода
+            $digitalFee = 0;
+            $offsetFee = 0;
+            
+            if ($baseResult['printingType'] === 'Цифровая') {
+                // Для цифровой печати - фиксированная наценка
+                $digitalFee = $pricingRules['digital_fee'] ?? 1500;
+                $baseResult['digital_fee'] = $digitalFee;
+                $baseResult['totalPrice'] += $digitalFee;
+            } else {
+                // Для офсетной печати - зависит от количества листов
+                if ($a3Sheets >= 200 && $a3Sheets <= 1000) {
+                    $offsetFee = $pricingRules['offset_fee_200_1000'] ?? 3500;
+                } elseif ($a3Sheets > 1000) {
+                    $offsetFeePerSheet = $pricingRules['offset_fee_per_sheet'] ?? 3.5;
+                    $offsetFee = $a3Sheets * $offsetFeePerSheet;
+                }
+                
+                if ($offsetFee > 0) {
+                    $baseResult['offset_fee'] = $offsetFee;
+                    $baseResult['totalPrice'] += $offsetFee;
+                }
+            }
+            
+            // Добавляем дополнительную информацию для отображения
+            $baseResult['basePrice'] = $basePrice;
+            $baseResult['a3Sheets'] = $a3Sheets;
+            $baseResult['quantity'] = $quantity;
+            $baseResult['paperType'] = $paperType;
+            $baseResult['printType'] = $printType;
+            $baseResult['itemsPerSheet'] = $itemsPerSheet;
+            
+            $this->debug("Финальный результат calculateDoorhanger", $baseResult);
+            
+            return $baseResult;
+            
+        } catch (Exception $e) {
+            $this->debug("Исключение в calculateDoorhanger", $e->getMessage());
+            return ['error' => 'Ошибка расчета дорхендеров: ' . $e->getMessage()];
+        }
     }
 
     private function addLogMessage($message) {

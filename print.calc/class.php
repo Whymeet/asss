@@ -291,6 +291,12 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
             case 'envelope':
                 // Дополнительная обработка не требуется, все данные передаются через additional
                 break;
+
+            case 'calendar':
+                // НОВЫЙ КОД ДЛЯ КАЛЕНДАРЕЙ
+                // Специфичные данные для календарей уже добавлены через additional
+                // Дополнительная обработка не требуется, все данные передаются через конфигурацию
+                break;
         }
         
         // Добавляем дополнительные параметры из конфигурации
@@ -305,7 +311,9 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
     }
 
     // AJAX-методы для разных типов калькуляторов
-    public function calcAction($paperType = '', $size = '', $quantity = 0, $printType = 'single', $bigovka = false, $cornerRadius = 0, $perforation = false, $drill = false, $numbering = false, $calcType = 'list')
+    public function calcAction($paperType = '', $size = '', $quantity = 0, $printType = 'single', 
+                         $bigovka = false, $cornerRadius = 0, $perforation = false, $drill = false, 
+                         $numbering = false, $calcType = 'list', $calendarType = '', $pages = 14)
     {
         $this->debug("calcAction вызван с параметрами", func_get_args());
         
@@ -331,7 +339,7 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
             ]);
 
             // Валидация на основе конфигурации (пропускаем для специальных калькуляторов)
-            $specialCalcs = ['kubaric', 'vizit', 'canvas', 'sticker', 'stend'];
+            $specialCalcs = ['kubaric', 'vizit', 'canvas', 'sticker', 'stend', 'calendar'];
             $calcConfig = $this->loadCalcConfig($calcType);
 
             if ($calcConfig && !in_array($calcType, $specialCalcs) && !$this->validateInput($calcConfig, $paperType, $size)) {
@@ -415,6 +423,49 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
                     $format = $_POST['format'] ?? '';
                     $quantity = (int)($_POST['quantity'] ?? 0);
                     return $this->calculateEnvelope($format, $quantity);
+
+                case 'calendar':
+                    // КАЛЕНДАРИ - НОВЫЙ ФУНКЦИОНАЛ
+                    if (!function_exists('calculateCalendarPrice')) {
+                        return ['error' => 'Функция расчета календарей не найдена'];
+                    }
+                    
+                    // Преобразуем тип печати из 4+0/4+4 в single/double для внутренней логики
+                    $internalPrintType = $printType;
+                    if ($printType === '4+0') {
+                        $internalPrintType = 'single';
+                    } elseif ($printType === '4+4') {
+                        $internalPrintType = 'double';
+                    }
+                    
+                    $result = calculateCalendarPrice($calendarType, $size, $quantity, $internalPrintType, $pages);
+                    
+                    if (isset($result['error'])) {
+                        return $result;
+                    }
+                    
+                    // Преобразуем тип печати обратно для отображения
+                    $displayPrintType = $printType;
+                    if ($printType === 'single') {
+                        $displayPrintType = '4+0';
+                    } elseif ($printType === 'double') {
+                        $displayPrintType = '4+4';
+                    }
+                    
+                    return [
+                        'totalPrice' => $result['totalPrice'],
+                        'printingCost' => $result['printingCost'] ?? null,
+                        'assemblyCost' => $result['assemblyCost'] ?? null,
+                        'bigovkaCost' => $result['bigovkaCost'] ?? null,
+                        'cornersCost' => $result['cornersCost'] ?? null,
+                        'details' => [
+                            'type' => $calendarType,
+                            'size' => $size,
+                            'quantity' => $quantity,
+                            'printType' => $displayPrintType,
+                            'pages' => $pages
+                        ]
+                    ];
                     
                 default:
                     return $this->calculateList($paperType, $size, $quantity, $printType, $bigovka, $cornerRadius, $perforation, $drill, $numbering);

@@ -287,6 +287,10 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
             case 'doorhanger':
                 // Дополнительная обработка не требуется, все данные передаются через additional
                 break;
+                
+            case 'envelope':
+                // Дополнительная обработка не требуется, все данные передаются через additional
+                break;
         }
         
         // Добавляем дополнительные параметры из конфигурации
@@ -406,6 +410,11 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
                     $quantity = (int)($_POST['quantity'] ?? 0);
                     $printType = $_POST['printType'] ?? 'single';
                     return $this->calculateDoorhanger($paperType, $quantity, $printType);
+                    
+                case 'envelope':
+                    $format = $_POST['format'] ?? '';
+                    $quantity = (int)($_POST['quantity'] ?? 0);
+                    return $this->calculateEnvelope($format, $quantity);
                     
                 default:
                     return $this->calculateList($paperType, $size, $quantity, $printType, $bigovka, $cornerRadius, $perforation, $drill, $numbering);
@@ -1439,6 +1448,100 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
         } catch (Exception $e) {
             $this->debug("Исключение в calculateDoorhanger", $e->getMessage());
             return ['error' => 'Ошибка расчета дорхендеров: ' . $e->getMessage()];
+        }
+    }
+
+    /**
+     * Расчет стоимости конвертов
+     */
+    private function calculateEnvelope($format, $quantity)
+    {
+        $this->debug("calculateEnvelope вызван", [
+            'format' => $format,
+            'quantity' => $quantity
+        ]);
+
+        // Загружаем конфигурацию конвертов
+        $calcConfig = $this->loadCalcConfig('envelope');
+        if (!$calcConfig) {
+            return ['error' => 'Конфигурация конвертов не найдена'];
+        }
+
+        // Получаем таблицы цен из конфигурации
+        $envelopePrices = $calcConfig['additional']['envelope_prices'] ?? [];
+        $availableFormats = array_keys($calcConfig['additional']['available_formats'] ?? []);
+
+        // Валидация входных данных
+        $errors = [];
+        
+        if (empty($format) || !in_array($format, $availableFormats)) {
+            $errors[] = "Некорректный формат конверта";
+        }
+        if ($quantity < 1) {
+            $errors[] = "Количество должно быть больше 0";
+        }
+        if (empty($envelopePrices[$format])) {
+            $errors[] = "Нет данных о ценах для формата {$format}";
+        }
+        
+        if (!empty($errors)) {
+            return ['error' => implode("<br>", $errors)];
+        }
+
+        try {
+            // Поиск подходящего ценового диапазона
+            $pricePerUnit = 0;
+            $priceRanges = $envelopePrices[$format];
+            
+            foreach ($priceRanges as $range) {
+                if ($quantity >= $range['min'] && $quantity <= $range['max']) {
+                    $pricePerUnit = $range['price'];
+                    break;
+                }
+            }
+            
+            if ($pricePerUnit === 0) {
+                return ['error' => 'Не удалось определить цену для указанного количества'];
+            }
+            
+            // Расчет общей стоимости
+            $totalPrice = $quantity * $pricePerUnit;
+            
+            $result = [
+                'format' => $format,
+                'formatName' => $calcConfig['additional']['available_formats'][$format],
+                'quantity' => $quantity,
+                'pricePerUnit' => $pricePerUnit,
+                'totalPrice' => $totalPrice,
+                'priceRange' => $this->findPriceRangeDescription($quantity),
+                'success' => true
+            ];
+            
+            $this->debug("Результат calculateEnvelope", $result);
+            
+            return $result;
+            
+        } catch (Exception $e) {
+            $this->debug("Исключение в calculateEnvelope", $e->getMessage());
+            return ['error' => 'Ошибка расчета конвертов: ' . $e->getMessage()];
+        }
+    }
+
+    /**
+     * Определение описания ценового диапазона
+     */
+    private function findPriceRangeDescription($quantity)
+    {
+        if ($quantity <= 100) {
+            return '1-100 шт (максимальная цена)';
+        } elseif ($quantity <= 300) {
+            return '101-300 шт (скидка при среднем тираже)';
+        } elseif ($quantity <= 500) {
+            return '301-500 шт (дополнительная скидка)';
+        } elseif ($quantity <= 1000) {
+            return '501-1000 шт (скидка при большом тираже)';
+        } else {
+            return '1001+ шт (минимальная цена)';
         }
     }
 

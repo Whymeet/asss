@@ -1584,15 +1584,15 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
     private function findPriceRangeDescription($quantity)
     {
         if ($quantity <= 100) {
-            return '1-100 шт (максимальная цена)';
+            return '1-100 шт (базовая цена)';
         } elseif ($quantity <= 300) {
-            return '101-300 шт (скидка при среднем тираже)';
+            return '101-300 шт (скидка 10%)';
         } elseif ($quantity <= 500) {
-            return '301-500 шт (дополнительная скидка)';
+            return '301-500 шт (скидка 20%)';
         } elseif ($quantity <= 1000) {
-            return '501-1000 шт (скидка при большом тираже)';
+            return '501-1000 шт (скидка 30%)';
         } else {
-            return '1001+ шт (минимальная цена)';
+            return '1001+ шт (максимальная скидка 40%)';
         }
     }
 

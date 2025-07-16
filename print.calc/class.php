@@ -477,6 +477,9 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
                     
                     return $this->calculateBanner($length, $width, $bannerType, $hasHemming, $hasGrommets, $grommetStep);
 
+                case 'avtoviz':
+                    return $this->calculateAvtoviz($paperType, $size, $quantity, $printType, $bigovka, $cornerRadius, $perforation, $drill, $numbering);
+
                 case 'card':
                     return $this->calculateCard($paperType, $size, $quantity, $printType, $bigovka, $cornerRadius, $perforation, $drill, $numbering);
                     
@@ -1676,6 +1679,53 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
             return $result;
         } catch (Exception $e) {
             $this->debug("Ошибка расчета баннера: " . $e->getMessage());
+            return ['error' => 'Ошибка расчета: ' . $e->getMessage()];
+        }
+    }
+
+    /**
+     * Расчет стоимости автовизиток
+     */
+    private function calculateAvtoviz($paperType, $size, $quantity, $printType, $bigovka, $cornerRadius, $perforation, $drill, $numbering)
+    {
+        $this->debug("calculateAvtoviz вызван", [
+            'paperType' => $paperType,
+            'size' => $size,
+            'quantity' => $quantity,
+            'printType' => $printType,
+            'bigovka' => $bigovka,
+            'cornerRadius' => $cornerRadius,
+            'perforation' => $perforation,
+            'drill' => $drill,
+            'numbering' => $numbering
+        ]);
+
+        global $priceConfig;
+        
+        if (!function_exists('calculatePrice')) {
+            return ['error' => 'Функция calculatePrice не найдена'];
+        }
+
+        try {
+            // Принудительно устанавливаем размер Евро
+            $size = 'Евро';
+            
+            // Вызываем основную функцию расчета из Calculator.php
+            $result = calculatePrice($paperType, $size, $quantity, $printType, 0, $bigovka, $cornerRadius, $perforation, $drill, $numbering);
+            
+            // Добавляем специфичную информацию для автовизиток
+            if (!isset($result['error'])) {
+                $result['productType'] = 'Автовизитки';
+                $result['format'] = 'Евро (99×210 мм)';
+                $result['paperType'] = $paperType;
+                $result['quantity'] = $quantity;
+            }
+            
+            $this->debug("Результат расчета автовизиток", $result);
+            
+            return $result;
+        } catch (Exception $e) {
+            $this->debug("Ошибка расчета автовизиток: " . $e->getMessage());
             return ['error' => 'Ошибка расчета: ' . $e->getMessage()];
         }
     }

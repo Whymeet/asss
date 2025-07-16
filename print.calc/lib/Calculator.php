@@ -21,6 +21,19 @@ $priceConfig = [
         "Картон Одн" => 12.0,
         "Картон Двух" => 10.0
     ],
+    // Конфигурация баннеров
+    "banner" => [
+        "banner_types" => [
+            "Баннер 330 г" => 450,
+            "Баннер 440 г" => 560,
+            "Баннер 510 г" => 600,
+            "Перфорированный баннер" => 650
+        ],
+        "additional_services" => [
+            "hemming" => 90,   // руб/метр периметра
+            "grommets" => 30   // руб/штука
+        ]
+    ],
     // Настройки каталогов
 "catalog" => [ // Правильная структура
         "sheet_conversion" => [
@@ -1013,6 +1026,81 @@ function calculateAdditionalServices($services, $quantity) {
     $cost += $quantity * $cornerCost;
     
     return $cost;
+}
+
+/**
+ * Расчет стоимости баннера
+ * @param float $length Длина в метрах
+ * @param float $width Ширина в метрах  
+ * @param string $bannerType Тип баннера
+ * @param bool $hasHemming Проклейка
+ * @param bool $hasGrommets Люверсы
+ * @param float $grommetStep Шаг люверсов
+ * @return array
+ */
+function calculateBanner($length, $width, $bannerType, $hasHemming = false, $hasGrommets = false, $grommetStep = 0.5)
+{
+    global $priceConfig;
+    
+    // Валидация
+    if ($length <= 0 || $width <= 0) {
+        return ['error' => 'Размеры должны быть больше нуля'];
+    }
+    
+    if ($hasGrommets && !$hasHemming) {
+        return ['error' => 'При выборе люверсов проклейка обязательна!'];
+    }
+    
+    if ($hasGrommets && ($grommetStep <= 0 || $grommetStep > max($length, $width))) {
+        return ['error' => 'Некорректный шаг люверсов!'];
+    }
+    
+    if (!isset($priceConfig["banner"]["banner_types"][$bannerType])) {
+        return ['error' => 'Неизвестный тип баннера'];
+    }
+    
+    // Расчет площади
+    $area = $length * $width;
+    
+    // Стоимость полотна
+    $bannerCost = $area * $priceConfig["banner"]["banner_types"][$bannerType];
+    
+    // Расчет проклейки
+    $hemmingCost = 0;
+    $perimeter = 0;
+    if ($hasHemming || $hasGrommets) {
+        $perimeter = ($length + $width) * 2;
+        $hemmingCost = $perimeter * $priceConfig["banner"]["additional_services"]["hemming"];
+    }
+    
+    // Расчет люверсов
+    $grommetCost = 0;
+    $grommetCount = 0;
+    if ($hasGrommets) {
+        // Расчет количества люверсов
+        $verticalCount = ceil($length / $grommetStep) * 2;    // 2 вертикальные стороны
+        $horizontalCount = ceil($width / $grommetStep) * 2;   // 2 горизонтальные стороны
+        $grommetCount = $verticalCount + $horizontalCount;
+        $grommetCost = $grommetCount * $priceConfig["banner"]["additional_services"]["grommets"];
+    }
+    
+    // Итоговая стоимость
+    $totalCost = $bannerCost + $hemmingCost + $grommetCost;
+    
+    return [
+        'area' => round($area, 2),
+        'perimeter' => round($perimeter, 2),
+        'bannerCost' => round($bannerCost, 2),
+        'hemmingCost' => round($hemmingCost, 2),
+        'grommetCount' => $grommetCount,
+        'grommetCost' => round($grommetCost, 2),
+        'totalPrice' => round($totalCost, 2),
+        'bannerType' => $bannerType,
+        'dimensions' => [
+            'length' => $length,
+            'width' => $width
+        ]
+    ];
 }
 
 ?>

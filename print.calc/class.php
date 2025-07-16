@@ -467,6 +467,16 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
                         ]
                     ];
 
+                case 'banner':
+                    $length = (float)($_POST['length'] ?? 0);
+                    $width = (float)($_POST['width'] ?? 0);
+                    $bannerType = $_POST['bannerType'] ?? '';
+                    $hasHemming = filter_var($_POST['hemming'] ?? false, FILTER_VALIDATE_BOOLEAN);
+                    $hasGrommets = filter_var($_POST['grommets'] ?? false, FILTER_VALIDATE_BOOLEAN);
+                    $grommetStep = (float)($_POST['grommetStep'] ?? 0.5);
+                    
+                    return $this->calculateBanner($length, $width, $bannerType, $hasHemming, $hasGrommets, $grommetStep);
+
                 case 'card':
                     return $this->calculateCard($paperType, $size, $quantity, $printType, $bigovka, $cornerRadius, $perforation, $drill, $numbering);
                     
@@ -1635,6 +1645,39 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
 
     private function addLogMessage($message) {
         $this->debug($message);
+    }
+
+    /**
+     * Расчет стоимости баннеров
+     */
+    private function calculateBanner($length, $width, $bannerType, $hasHemming = false, $hasGrommets = false, $grommetStep = 0.5)
+    {
+        $this->debug("calculateBanner вызван", [
+            'length' => $length,
+            'width' => $width,
+            'bannerType' => $bannerType,
+            'hasHemming' => $hasHemming,
+            'hasGrommets' => $hasGrommets,
+            'grommetStep' => $grommetStep
+        ]);
+
+        global $priceConfig;
+        
+        if (!function_exists('calculateBanner')) {
+            return ['error' => 'Функция calculateBanner не найдена'];
+        }
+
+        try {
+            // Вызываем функцию расчета из Calculator.php
+            $result = calculateBanner($length, $width, $bannerType, $hasHemming, $hasGrommets, $grommetStep);
+            
+            $this->debug("Результат расчета баннера", $result);
+            
+            return $result;
+        } catch (Exception $e) {
+            $this->debug("Ошибка расчета баннера: " . $e->getMessage());
+            return ['error' => 'Ошибка расчета: ' . $e->getMessage()];
+        }
     }
 }
 ?>

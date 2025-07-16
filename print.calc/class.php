@@ -466,6 +466,9 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
                             'pages' => $pages
                         ]
                     ];
+
+                case 'card':
+                    return $this->calculateCard($paperType, $size, $quantity, $printType, $bigovka, $cornerRadius, $perforation, $drill, $numbering);
                     
                 default:
                     return $this->calculateList($paperType, $size, $quantity, $printType, $bigovka, $cornerRadius, $perforation, $drill, $numbering);
@@ -1593,6 +1596,40 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
             return '501-1000 шт (скидка 30%)';
         } else {
             return '1001+ шт (максимальная скидка 40%)';
+        }
+    }
+
+    /**
+     * Расчет стоимости открыток
+     */
+    private function calculateCard($paperType, $size, $quantity, $printType, $bigovka, $cornerRadius, $perforation, $drill, $numbering)
+    {
+        $this->debug("calculateCard вызван", [
+            'paperType' => $paperType,
+            'size' => $size,
+            'quantity' => $quantity,
+            'printType' => $printType
+        ]);
+
+        global $priceConfig;
+        
+        if (!function_exists('calculatePrice')) {
+            return ['error' => 'Функция calculatePrice не найдена'];
+        }
+
+        try {
+            // Для открыток используем фиксированную плотность 300.0
+            $paperType = 300.0;
+            
+            // Вызываем функцию расчета из Calculator.php
+            $result = calculatePrice($paperType, $size, $quantity, $printType, 0, $bigovka, $cornerRadius, $perforation, $drill, $numbering);
+            
+            $this->debug("Результат расчета открыток", $result);
+            
+            return $result;
+        } catch (Exception $e) {
+            $this->debug("Ошибка расчета открыток: " . $e->getMessage());
+            return ['error' => 'Ошибка расчета: ' . $e->getMessage()];
         }
     }
 

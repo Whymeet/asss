@@ -73,12 +73,10 @@ $printTypes = $arResult['print_types'] ?? [];
             <div class="radio-group">
                 <label class="radio-label">
                     <input type="radio" name="printType" value="single" checked>
-                    <span class="radio-custom"></span>
                     Односторонняя печать
                 </label>
                 <label class="radio-label">
                     <input type="radio" name="printType" value="double">
-                    <span class="radio-custom"></span>
                     Двусторонняя печать
                 </label>
             </div>
@@ -92,7 +90,6 @@ $printTypes = $arResult['print_types'] ?? [];
                 <?php if ($features['bigovka'] ?? false): ?>
                 <label class="checkbox-label">
                     <input type="checkbox" name="bigovka">
-                    <span class="checkbox-custom"></span>
                     Биговка
                 </label>
                 <?php endif; ?>
@@ -100,7 +97,6 @@ $printTypes = $arResult['print_types'] ?? [];
                 <?php if ($features['perforation'] ?? false): ?>
                 <label class="checkbox-label">
                     <input type="checkbox" name="perforation">
-                    <span class="checkbox-custom"></span>
                     Перфорация
                 </label>
                 <?php endif; ?>
@@ -108,7 +104,6 @@ $printTypes = $arResult['print_types'] ?? [];
                 <?php if ($features['drill'] ?? false): ?>
                 <label class="checkbox-label">
                     <input type="checkbox" name="drill">
-                    <span class="checkbox-custom"></span>
                     Сверление диаметром 5мм
                 </label>
                 <?php endif; ?>
@@ -116,7 +111,6 @@ $printTypes = $arResult['print_types'] ?? [];
                 <?php if ($features['numbering'] ?? false): ?>
                 <label class="checkbox-label">
                     <input type="checkbox" name="numbering">
-                    <span class="checkbox-custom"></span>
                     Нумерация
                 </label>
                 <?php endif; ?>
@@ -156,76 +150,6 @@ $printTypes = $arResult['print_types'] ?? [];
     </div>
 </div>
 
-<style>
-.radio-group, .checkbox-group {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-}
-
-.radio-label, .checkbox-label {
-    display: flex;
-    align-items: center;
-    cursor: pointer;
-    font-size: 14px;
-    gap: 8px;
-}
-
-.radio-custom, .checkbox-custom {
-    width: 18px;
-    height: 18px;
-    border: 2px solid #007bff;
-    border-radius: 50%;
-    position: relative;
-    background: white;
-}
-
-.checkbox-custom {
-    border-radius: 3px;
-}
-
-.radio-label input[type="radio"],
-.checkbox-label input[type="checkbox"] {
-    display: none;
-}
-
-.radio-label input[type="radio"]:checked + .radio-custom::after {
-    content: '';
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: #007bff;
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-}
-
-.checkbox-label input[type="checkbox"]:checked + .checkbox-custom::after {
-    content: '✓';
-    color: white;
-    font-size: 12px;
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-}
-
-.checkbox-label input[type="checkbox"]:checked + .checkbox-custom {
-    background: #007bff;
-}
-
-@media (max-width: 768px) {
-    .radio-group, .checkbox-group {
-        gap: 8px;
-    }
-    
-    .radio-label, .checkbox-label {
-        font-size: 13px;
-    }
-}
-</style>
-
 <script>
 // Конфигурация для JavaScript
 const calcConfig = {
@@ -233,27 +157,22 @@ const calcConfig = {
     component: 'my:print.calc'
 };
 
-// Инициализация калькулятора
-document.addEventListener('DOMContentLoaded', function() {
-    initCalculator();
-});
-
-// Универсальная функция инициализации
-function initCalculator() {
-    // Проверяем доступность BX
+// Универсальная функция ожидания BX
+function waitForBX(successCallback, fallbackCallback, timeout = 3000) {
+    let attempts = 0;
+    const maxAttempts = timeout / 100;
+    
     function checkBX() {
+        attempts++;
+        
         if (typeof BX !== 'undefined' && BX.ajax && BX.ajax.runComponentAction) {
             console.log('BX доступен, используем стандартный метод');
-            initWithBX();
+            successCallback();
+        } else if (attempts >= maxAttempts) {
+            console.log('Превышено время ожидания BX, используем запасной вариант');
+            fallbackCallback();
         } else {
-            console.log('BX недоступен, используем запасной вариант');
-            setTimeout(() => {
-                if (typeof BX !== 'undefined' && BX.ajax && BX.ajax.runComponentAction) {
-                    initWithBX();
-                } else {
-                    initWithoutBX();
-                }
-            }, 1000);
+            setTimeout(checkBX, 100);
         }
     }
     
@@ -326,20 +245,27 @@ function initWithoutBX() {
 
 // Сбор данных формы
 function collectFormData(form) {
-    const data = {};
     const formData = new FormData(form);
+    const data = {};
     
+    // Собираем все обычные поля
     for (let [key, value] of formData.entries()) {
-        if (form.elements[key] && form.elements[key].type === 'checkbox') {
-            data[key] = form.elements[key].checked;
-        } else {
-            data[key] = value;
-        }
+        data[key] = value;
     }
+    
+    // Добавляем чекбоксы с правильным состоянием
+    const checkboxes = ['bigovka', 'perforation', 'drill', 'numbering'];
+    checkboxes.forEach(name => {
+        const checkbox = form.querySelector(`input[name="${name}"]`);
+        if (checkbox) {
+            data[name] = checkbox.checked;
+        }
+    });
     
     // Устанавливаем фиксированную плотность бумаги
     data.paperType = '300.0';
     
+    console.log('Собранные данные формы:', data);
     return data;
 }
 
@@ -349,55 +275,69 @@ function handleResponse(response, resultDiv) {
         if (response.data.error) {
             resultDiv.innerHTML = '<div class="result-error">Ошибка: ' + response.data.error + '</div>';
         } else {
-            displayCardResult(response.data, resultDiv);
+            displayResult(response.data, resultDiv);
         }
     } else {
         resultDiv.innerHTML = '<div class="result-error">Некорректный ответ сервера</div>';
     }
+    
+    // Добавляем анимацию появления результата
+    setTimeout(() => {
+        resultDiv.classList.add('calc-result-enter');
+    }, 50);
 }
 
-// Отображение результата расчета открыток
-function displayCardResult(result, resultDiv) {
+// Отображение результата расчета
+function displayResult(result, resultDiv) {
     const totalPrice = Math.round((result.totalPrice || 0) * 10) / 10;
     
     let html = '<div class="result-success">';
-    html += '<h3>Результат расчета открыток</h3>';
-    html += '<div class="price-breakdown">';
+    html += '<h3 class="result-title">Результат расчета открыток</h3>';
+    html += '<div class="result-price">' + formatPrice(totalPrice) + ' ₽';
+    html += '<small>итоговая стоимость</small></div>';
+    
+    // Детали расчета
+    html += '<details class="result-details">';
+    html += '<summary class="result-summary">Подробности расчета</summary>';
+    html += '<div class="result-details-content">';
+    html += '<ul>';
     
     if (result.printingType) {
-        html += '<div class="price-item"><span>Тип печати:</span><span><strong>' + result.printingType + '</strong></span></div>';
+        html += '<li>Тип печати: <strong>' + result.printingType + '</strong></li>';
     }
     
     if (result.baseA3Sheets) {
-        html += '<div class="price-item"><span>Базовые листы A3:</span><span>' + result.baseA3Sheets + '</span></div>';
+        html += '<li>Базовые листы A3: <strong>' + result.baseA3Sheets + '</strong></li>';
     }
     
     if (result.adjustment) {
-        html += '<div class="price-item"><span>Приладочные листы:</span><span>' + result.adjustment + '</span></div>';
+        html += '<li>Приладочные листы: <strong>' + result.adjustment + '</strong></li>';
     }
     
     if (result.totalA3Sheets) {
-        html += '<div class="price-item"><span>Всего листов A3:</span><span>' + result.totalA3Sheets + '</span></div>';
+        html += '<li>Всего листов A3: <strong>' + result.totalA3Sheets + '</strong></li>';
     }
     
     if (result.printingCost) {
-        html += '<div class="price-item"><span>Стоимость печати:</span><span>' + formatPrice(result.printingCost) + ' ₽</span></div>';
+        html += '<li>Стоимость печати: <strong>' + formatPrice(result.printingCost) + ' ₽</strong></li>';
     }
     
     if (result.plateCost) {
-        html += '<div class="price-item"><span>Стоимость пластины:</span><span>' + formatPrice(result.plateCost) + ' ₽</span></div>';
+        html += '<li>Стоимость пластины: <strong>' + formatPrice(result.plateCost) + ' ₽</strong></li>';
     }
     
     if (result.paperCost) {
-        html += '<div class="price-item"><span>Стоимость бумаги:</span><span>' + formatPrice(result.paperCost) + ' ₽</span></div>';
+        html += '<li>Стоимость бумаги: <strong>' + formatPrice(result.paperCost) + ' ₽</strong></li>';
     }
     
     if (result.additionalCosts) {
-        html += '<div class="price-item"><span>Дополнительные услуги:</span><span>' + formatPrice(result.additionalCosts) + ' ₽</span></div>';
+        html += '<li>Дополнительные услуги: <strong>' + formatPrice(result.additionalCosts) + ' ₽</strong></li>';
     }
     
-    html += '<div class="price-item total-price"><span>Итоговая стоимость:</span><span>' + formatPrice(totalPrice) + ' ₽</span></div>';
+    html += '</ul>';
     html += '</div>';
+    html += '</details>';
+    
     html += '</div>';
     
     resultDiv.innerHTML = html;
@@ -410,4 +350,12 @@ function formatPrice(price) {
         maximumFractionDigits: 2
     });
 }
-</script>
+
+// Инициализация калькулятора
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOM загружен, ждем BX...');
+    console.log('Калькулятор:', calcConfig.type);
+    console.log('Время запуска:', new Date().toLocaleTimeString());
+    waitForBX(initWithBX, initWithoutBX, 3000);
+});
+</script>ё

@@ -13,7 +13,7 @@ return [
         'drill' => true,
         'numbering' => true,
         'corner_radius' => true,
-        'lamination' => true,
+        'lamination' => false,
         'fixed_format' => true, // Фиксированный формат
         'extended_papers' => true // Расширенный выбор бумаги
     ],

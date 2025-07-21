@@ -505,8 +505,8 @@ select.form-control {
 /* УЛУЧШЕННАЯ СЕКЦИЯ ЛАМИНАЦИИ */
 .lamination-section {
     display: none;
-    margin-top: 30px;
-    padding: 25px;
+    margin-top: 15px;
+    padding: 15px;
     border: 2px dashed #dee2e6;
     border-radius: 12px;
     background: linear-gradient(135deg, #f8f9fa 0%, #f1f3f4 100%);
@@ -775,7 +775,7 @@ select.form-control {
 
 /* Отступ между результатом и ламинацией */
 .calc-spacer {
-    height: 40px;
+    height: 20px;
 }
 
 /* Отступы в секции ламинации */

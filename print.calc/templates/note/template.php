@@ -187,15 +187,14 @@ $features = $arResult['FEATURES'] ?? [];
 
         <input type="hidden" name="calcType" value="<?= $calcType ?>">
         <input type="hidden" name="sessid" value="<?= bitrix_sessid() ?>">
-   
-        <?php if (!empty($features['lamination'])): ?>
-        <!-- Секция ламинации - ПЕРЕМЕЩЕНА ПЕРЕД КНОПКОЙ РАСЧЕТА -->
-        <div id="laminationSection" class="lamination-section" style="display: none; margin-top: 20px; margin-bottom: 20px;">
-            <h3>Дополнительная ламинация</h3>
+           <?php if (!empty($features['lamination'])): ?>
+            <div id="laminationSection" class="lamination-section">
+            <h3>Дополнительная ламинация обложки</h3>
             <div id="laminationControls"></div>
             <div id="laminationResult" class="lamination-result"></div>
         </div>
-        <?php endif; ?>
+        <button id="calcBtn" type="button" class="calc-button">Рассчитать стоимость</button>
+     
         <!-- Секция ламинации -->
         
         <?php endif; ?>
@@ -606,10 +605,12 @@ document.addEventListener('DOMContentLoaded', function() {
     margin-left: 10px;
     transition: all 0.3s;
 }
+
 .remove-lamination-btn:hover {
     background: #c82333;
     transform: translateY(-1px);
 }
+
 .lamination-info-container {
     display: flex;
     align-items: center;
@@ -617,14 +618,54 @@ document.addEventListener('DOMContentLoaded', function() {
     flex-wrap: wrap;
     gap: 10px;
 }
-@media (max-width: 768px) {
-    .lamination-info-container {
-        flex-direction: column;
-        align-items: stretch;
-    }
-    .remove-lamination-btn {
-        margin-left: 0;
-        width: 100%;
-    }
+
+/* Улучшенные стили для секции ламинации */
+.lamination-section {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border: 1px solid #dee2e6;
+    border-radius: 12px;
+    padding: 15px;
+    margin: 15px 0;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    position: relative;
+    overflow: hidden;
 }
+
+/* .lamination-section::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, #28a745, #20c997);
+} */
+
+.lamination-section h3 {
+    margin: 0 0 10px 0;
+    color: #495057;
+    font-size: 20px;
+    font-weight: 600;
+}
+
+.lamination-content {
+    animation: fadeInUp 0.4s ease-out;
+}
+
+.lamination-title {
+    margin-bottom: 20px;
+    font-weight: 600;
+    color: #495057;
+}
+
+.lamination-options {
+    margin-bottom: 15px;
+}
+
+.lamination-button-container {
+    margin-top: 20px;
+    padding-top: 15px;
+    border-top: 1px solid #dee2e6;
+}
+
 </style>

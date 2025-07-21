@@ -187,15 +187,17 @@ $features = $arResult['FEATURES'] ?? [];
 
         <input type="hidden" name="calcType" value="<?= $calcType ?>">
         <input type="hidden" name="sessid" value="<?= bitrix_sessid() ?>">
-
-        <button id="calcBtn" type="button" class="calc-button">Рассчитать стоимость</button>
+   
         <?php if (!empty($features['lamination'])): ?>
-        <!-- Секция ламинации -->
-        <div id="laminationSection" class="lamination-section" style="margin-top: 32px;">
-            <h3>Дополнительная ламинация обложки</h3>
+        <!-- Секция ламинации - ПЕРЕМЕЩЕНА ПЕРЕД КНОПКОЙ РАСЧЕТА -->
+        <div id="laminationSection" class="lamination-section" style="display: none; margin-top: 20px; margin-bottom: 20px;">
+            <h3>Дополнительная ламинация</h3>
             <div id="laminationControls"></div>
             <div id="laminationResult" class="lamination-result"></div>
         </div>
+        <?php endif; ?>
+        <!-- Секция ламинации -->
+        
         <?php endif; ?>
         <div id="calcResult" class="calc-result"></div>
         <div class="calc-spacer"></div>

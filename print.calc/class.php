@@ -1779,7 +1779,7 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
             $message = $this->formatOrderMessage($orderInfo, $name, $phone, $email, $callTime);
             
             // Отправляем email через событие Битрикса
-            $success = $this->sendEmailNotification($message, $orderInfo);
+            $success = $this->sendEmailNotification($message, $orderInfo, $name, $phone, $email);
             
             if ($success) {
                 $this->debug("Email успешно отправлен");
@@ -1848,31 +1848,45 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
     /**
      * Отправляет email уведомление через событие Битрикса
      */
-    private function sendEmailNotification($message, $orderInfo)
+    private function sendEmailNotification($message, $orderInfo, $name, $phone, $email)
     {
         if (!CModule::IncludeModule("main")) {
             $this->debug("Модуль main не подключен");
             return false;
         }
 
-        // Данные для отправки
+        // Данные для отправки (соответствуют полям в почтовом шаблоне)
         $arEventFields = [
+            "CALC_TYPE" => $orderInfo['calcType'] ?? 'list',
+            "ORDER_INFO" => $message,
+            "CLIENT_NAME" => $name,
+            "CLIENT_PHONE" => $phone,
+            "CLIENT_EMAIL" => $email,
+            "DATE_CREATE" => date('d.m.Y H:i:s'),
+            // Дополнительные поля для совместимости
             "ORDER_TEXT" => $message,
-            "CLIENT_NAME" => $orderInfo['clientName'] ?? '',
-            "CLIENT_PHONE" => $orderInfo['clientPhone'] ?? '',
-            "CLIENT_EMAIL" => $orderInfo['clientEmail'] ?? '',
             "PRODUCT_TYPE" => $orderInfo['product'] ?? '',
             "TOTAL_PRICE" => $orderInfo['totalPrice'] ?? '0',
             "ORDER_DATE" => date('d.m.Y H:i:s')
         ];
 
         // Отправляем событие
+        $this->debug("Отправка события CALC_ORDER_REQUEST с полями:", $arEventFields);
+        
         $result = CEvent::Send("CALC_ORDER_REQUEST", SITE_ID, $arEventFields);
         
         $this->debug("Результат отправки события CALC_ORDER_REQUEST", [
             'result' => $result,
+            'SITE_ID' => SITE_ID,
             'eventFields' => $arEventFields
         ]);
+        
+        // Дополнительная проверка лога почты
+        if ($result) {
+            $this->debug("Событие отправлено успешно, проверяем последние записи почтового лога");
+        } else {
+            $this->debug("ОШИБКА: Событие не отправлено!");
+        }
         
         return $result;
     }

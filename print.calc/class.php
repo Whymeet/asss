@@ -34,6 +34,10 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
             'calc' => [
                 'prefilters' => [],
                 'postfilters' => []
+            ],
+            'sendOrder' => [
+                'prefilters' => [],
+                'postfilters' => []
             ]
         ];
     }
@@ -1728,6 +1732,149 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
             $this->debug("Ошибка расчета автовизиток: " . $e->getMessage());
             return ['error' => 'Ошибка расчета: ' . $e->getMessage()];
         }
+    }
+
+    /**
+     * Метод для отправки заказа по email
+     */
+    public function sendOrderAction($name = '', $phone = '', $email = '', $callTime = '', $orderData = '')
+    {
+        $this->debug("sendOrderAction вызван", [
+            'name' => $name,
+            'phone' => $phone, 
+            'email' => $email,
+            'callTime' => $callTime,
+            'orderData' => $orderData
+        ]);
+
+        // Валидация обязательных полей
+        if (empty($name) || empty($phone)) {
+            return ['error' => 'Не заполнены обязательные поля: имя и телефон'];
+        }
+
+        // Дополнительная валидация
+        if (strlen($name) < 2) {
+            return ['error' => 'Имя должно содержать минимум 2 символа'];
+        }
+
+        // Валидация телефона
+        $cleanPhone = preg_replace('/[^\d+]/', '', $phone);
+        if (strlen($cleanPhone) < 10) {
+            return ['error' => 'Некорректный номер телефона'];
+        }
+
+        // Валидация email (если указан)
+        if (!empty($email) && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            return ['error' => 'Некорректный email адрес'];
+        }
+
+        try {
+            // Декодируем данные заказа
+            $orderInfo = json_decode($orderData, true);
+            if (!$orderInfo) {
+                return ['error' => 'Некорректные данные заказа'];
+            }
+
+            // Формируем сообщение для email
+            $message = $this->formatOrderMessage($orderInfo, $name, $phone, $email, $callTime);
+            
+            // Отправляем email через событие Битрикса
+            $success = $this->sendEmailNotification($message, $orderInfo);
+            
+            if ($success) {
+                $this->debug("Email успешно отправлен");
+                return ['success' => true, 'message' => 'Заказ успешно отправлен'];
+            } else {
+                $this->debug("Ошибка отправки email");
+                return ['error' => 'Ошибка при отправке заказа'];
+            }
+            
+        } catch (Exception $e) {
+            $this->debug("Исключение при отправке заказа: " . $e->getMessage());
+            return ['error' => 'Техническая ошибка при отправке заказа'];
+        }
+    }
+
+    /**
+     * Форматирует сообщение для email
+     */
+    private function formatOrderMessage($orderInfo, $name, $phone, $email, $callTime)
+    {
+        $message = "=== НОВЫЙ ЗАКАЗ ИЗ КАЛЬКУЛЯТОРА ===\n\n";
+        
+        $message .= "Информация о заказе:\n";
+        $message .= "Продукт: " . ($orderInfo['product'] ?? 'Не указан') . "\n";
+        
+        // Для листовок (БСО)
+        if ($orderInfo['calcType'] === 'list') {
+            $message .= "Формат бланка: " . ($orderInfo['size'] ?? 'Не указан') . "\n";
+            $message .= "Печать: " . ($orderInfo['printType'] ?? 'Не указан') . "\n";
+            $message .= "Тираж: " . ($orderInfo['quantity'] ?? 'Не указан') . "\n";
+            $message .= "Количество слоёв: " . ($orderInfo['layers'] ?? 'Не указан') . "\n";
+            $message .= "Нумерация: " . ($orderInfo['numbering'] ?? 'Не указана') . "\n";
+            $message .= "Одинаковые слои или разные?: " . ($orderInfo['layersSame'] ?? 'Не указано') . "\n";
+            
+            if (!empty($orderInfo['additionalServices'])) {
+                $message .= "Дополнительные услуги: " . $orderInfo['additionalServices'] . "\n";
+            }
+        }
+        
+        $message .= "Итого: " . ($orderInfo['totalPrice'] ?? '0') . " руб.\n\n";
+        
+        $message .= "Клиент:\n";
+        $message .= "Имя: " . $name . "\n";
+        $message .= "Телефон: " . $phone . "\n";
+        
+        if (!empty($email)) {
+            $message .= "E-mail: " . $email . "\n";
+        }
+        
+        if (!empty($callTime)) {
+            // Если время уже отформатировано (содержит точки), используем как есть
+            if (strpos($callTime, '.') !== false) {
+                $message .= "Удобное время для звонка: " . $callTime . "\n";
+            } else {
+                // Иначе пытаемся отформатировать
+                $callTimeFormatted = date('d.m.Y H:i', strtotime($callTime));
+                $message .= "Удобное время для звонка: " . $callTimeFormatted . "\n";
+            }
+        }
+        
+        $message .= "\nДата заказа: " . date('d.m.Y H:i:s') . "\n";
+        
+        return $message;
+    }
+
+    /**
+     * Отправляет email уведомление через событие Битрикса
+     */
+    private function sendEmailNotification($message, $orderInfo)
+    {
+        if (!CModule::IncludeModule("main")) {
+            $this->debug("Модуль main не подключен");
+            return false;
+        }
+
+        // Данные для отправки
+        $arEventFields = [
+            "ORDER_TEXT" => $message,
+            "CLIENT_NAME" => $orderInfo['clientName'] ?? '',
+            "CLIENT_PHONE" => $orderInfo['clientPhone'] ?? '',
+            "CLIENT_EMAIL" => $orderInfo['clientEmail'] ?? '',
+            "PRODUCT_TYPE" => $orderInfo['product'] ?? '',
+            "TOTAL_PRICE" => $orderInfo['totalPrice'] ?? '0',
+            "ORDER_DATE" => date('d.m.Y H:i:s')
+        ];
+
+        // Отправляем событие
+        $result = CEvent::Send("CALC_ORDER_REQUEST", SITE_ID, $arEventFields);
+        
+        $this->debug("Результат отправки события CALC_ORDER_REQUEST", [
+            'result' => $result,
+            'eventFields' => $arEventFields
+        ]);
+        
+        return $result;
     }
 }
 ?>

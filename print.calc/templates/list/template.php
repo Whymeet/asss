@@ -267,18 +267,18 @@ $features = $arResult['FEATURES'] ?? [];
 }
 
 .lamination-title {
-    margin-bottom: 20px;
+    margin-bottom: 15px;
     font-weight: 600;
     color: #495057;
 }
 
 .lamination-options {
-    margin-bottom: 15px;
+    margin-bottom: 10px;
 }
 
 .lamination-button-container {
-    margin-top: 20px;
-    padding-top: 15px;
+    margin-top: 15px;
+    padding-top: 10px;
     border-top: 1px solid #dee2e6;
 }
 
@@ -733,8 +733,8 @@ function showLaminationSection(result) {
         html += '</select></label>';
         html += '</div>';
         html += '<div class="radio-group">';
-        html += '<label class="radio-label"><input type="radio" name="laminationType" value="1+0"> Односторонняя (x1)</label>';
-        html += '<label class="radio-label"><input type="radio" name="laminationType" value="1+1"> Двусторонняя (x2)</label>';
+        html += '<label class="radio-label"><input type="radio" name="laminationType" value="1+0"> Односторонняя</label>';
+        html += '<label class="radio-label"><input type="radio" name="laminationType" value="1+1"> Двусторонняя</label>';
         html += '</div>';
         html += '</div>';
     }

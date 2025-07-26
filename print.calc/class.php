@@ -1899,22 +1899,19 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
             
             // Преобразуем коды ламинации в понятные названия
             $laminationTypes = [
-                '1+0' => 'Матовая односторонняя',
-                '1+1' => 'Матовая двусторонняя', 
-                '4+0' => 'Глянцевая односторонняя',
-                '4+4' => 'Глянцевая двусторонняя',
-                'matt' => 'Матовая',
-                'gloss' => 'Глянцевая',
-                'soft-touch' => 'Софт-тач'
+                '1+0' => 'Односторонняя',
+                '1+1' => 'Двусторонняя'
             ];
             
             if (isset($laminationTypes[$laminationText])) {
                 $laminationText = $laminationTypes[$laminationText];
             }
             
+            // Добавляем толщину если указана
             if (!empty($orderInfo['laminationThickness'])) {
                 $laminationText .= ' (' . $orderInfo['laminationThickness'] . ' мкм)';
             }
+            
             $html .= '<tr><td>Ламинация</td><td>' . htmlspecialchars($laminationText) . '</td></tr>';
         }
         

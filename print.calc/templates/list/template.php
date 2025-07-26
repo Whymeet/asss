@@ -717,8 +717,8 @@ function showLaminationSection(result) {
     if (printingType === 'Офсетная') {
         html += '<div class="lamination-options">';
         html += '<div class="radio-group">';
-        html += '<label class="radio-label"><input type="radio" name="laminationType" value="1+0"> 1+0 (7 руб/лист)</label>';
-        html += '<label class="radio-label"><input type="radio" name="laminationType" value="1+1"> 1+1 (14 руб/лист)</label>';
+        html += '<label class="radio-label"><input type="radio" name="laminationType" value="1+0"> Односторонняя (7 руб/лист)</label>';
+        html += '<label class="radio-label"><input type="radio" name="laminationType" value="1+1"> Двусторонняя (14 руб/лист)</label>';
         html += '</div>';
         html += '</div>';
     } else {
@@ -733,8 +733,8 @@ function showLaminationSection(result) {
         html += '</select></label>';
         html += '</div>';
         html += '<div class="radio-group">';
-        html += '<label class="radio-label"><input type="radio" name="laminationType" value="1+0"> 1+0 (x1)</label>';
-        html += '<label class="radio-label"><input type="radio" name="laminationType" value="1+1"> 1+1 (x2)</label>';
+        html += '<label class="radio-label"><input type="radio" name="laminationType" value="1+0"> Односторонняя (x1)</label>';
+        html += '<label class="radio-label"><input type="radio" name="laminationType" value="1+1"> Двусторонняя (x2)</label>';
         html += '</div>';
         html += '</div>';
     }
@@ -793,10 +793,10 @@ function calculateLamination(originalResult) {
         // Офсетная печать: простые тарифы
         if (laminationType.value === '1+0') {
             laminationCost = quantity * 7;
-            laminationDescription = '1+0 (7 руб/лист)';
+            laminationDescription = 'Односторонняя (7 руб/лист)';
         } else {
             laminationCost = quantity * 14;
-            laminationDescription = '1+1 (14 руб/лист)';
+            laminationDescription = 'Двусторонняя (14 руб/лист)';
         }
     } else {
         // Цифровая печать: зависит от толщины
@@ -809,7 +809,8 @@ function calculateLamination(originalResult) {
         };
         
         laminationCost = quantity * rates[thickness][laminationType.value];
-        laminationDescription = `${laminationType.value} ${thickness} мкм (${rates[thickness][laminationType.value]} руб/лист)`;
+        const laminationName = laminationType.value === '1+0' ? 'Односторонняя' : 'Двусторонняя';
+        laminationDescription = `${laminationName} ${thickness} мкм (${rates[thickness][laminationType.value]} руб/лист)`;
     }
     
     // Создаем новый результат с ламинацией

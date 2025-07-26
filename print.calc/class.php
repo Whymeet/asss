@@ -1800,6 +1800,12 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
      */
     private function formatOrderMessage($orderInfo, $name, $phone, $email, $callTime)
     {
+        // Для листовок создаем красивое HTML-письмо
+        if ($orderInfo['calcType'] === 'list') {
+            return $this->formatListOrderHTML($orderInfo, $name, $phone, $email, $callTime);
+        }
+        
+        // Для остальных калькуляторов - старый текстовый формат
         $message = "=== НОВЫЙ ЗАКАЗ ИЗ КАЛЬКУЛЯТОРА ===\n\n";
         
         $message .= "Информация о заказе:\n";
@@ -1846,6 +1852,116 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
     }
 
     /**
+     * Создает HTML-письмо для заказа листовок
+     */
+    private function formatListOrderHTML($orderInfo, $name, $phone, $email, $callTime)
+    {
+        $html = '<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Новый заказ листовок</title>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: linear-gradient(135deg, #28a745, #20c997); color: white; padding: 20px; border-radius: 8px 8px 0 0; text-align: center; }
+        .content { background: #f8f9fa; padding: 20px; border: 1px solid #dee2e6; }
+        .footer { background: #6c757d; color: white; padding: 15px; border-radius: 0 0 8px 8px; text-align: center; font-size: 14px; }
+        .section { margin-bottom: 20px; }
+        .section h3 { color: #28a745; margin-bottom: 10px; border-bottom: 2px solid #28a745; padding-bottom: 5px; }
+        .info-table { width: 100%; border-collapse: collapse; }
+        .info-table td { padding: 8px 12px; border-bottom: 1px solid #dee2e6; }
+        .info-table td:first-child { font-weight: bold; background: #e8f5e8; width: 40%; }
+        .price { font-size: 24px; font-weight: bold; color: #28a745; text-align: center; margin: 20px 0; }
+        .client-info { background: white; padding: 15px; border-radius: 6px; border-left: 4px solid #28a745; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Новый заказ листовок</h1>
+            <p>Заказ с калькулятора печати</p>
+        </div>
+        
+        <div class="content">
+            <div class="section">
+                <h3>Информация о заказе</h3>
+                <table class="info-table">
+                    <tr><td>Продукт</td><td>' . htmlspecialchars($orderInfo['product'] ?? 'Листовки') . '</td></tr>
+                    <tr><td>Формат</td><td>' . htmlspecialchars($orderInfo['size'] ?? 'Не указан') . '</td></tr>
+                    <tr><td>Тип бумаги</td><td>' . htmlspecialchars($orderInfo['paperType'] ?? 'Не указан') . '</td></tr>
+                    <tr><td>Тип печати</td><td>' . htmlspecialchars($orderInfo['printType'] ?? 'Не указан') . '</td></tr>
+                    <tr><td>Тираж</td><td>' . number_format($orderInfo['quantity'] ?? 0, 0, ',', ' ') . ' шт.</td></tr>';
+        
+        // Добавляем информацию о ламинации если есть
+        if (!empty($orderInfo['laminationType'])) {
+            $laminationText = $orderInfo['laminationType'];
+            
+            // Преобразуем коды ламинации в понятные названия
+            $laminationTypes = [
+                '1+0' => 'Матовая односторонняя',
+                '1+1' => 'Матовая двусторонняя', 
+                '4+0' => 'Глянцевая односторонняя',
+                '4+4' => 'Глянцевая двусторонняя',
+                'matt' => 'Матовая',
+                'gloss' => 'Глянцевая',
+                'soft-touch' => 'Софт-тач'
+            ];
+            
+            if (isset($laminationTypes[$laminationText])) {
+                $laminationText = $laminationTypes[$laminationText];
+            }
+            
+            if (!empty($orderInfo['laminationThickness'])) {
+                $laminationText .= ' (' . $orderInfo['laminationThickness'] . ' мкм)';
+            }
+            $html .= '<tr><td>Ламинация</td><td>' . htmlspecialchars($laminationText) . '</td></tr>';
+        }
+        
+        // Добавляем дополнительные услуги если есть
+        if (!empty($orderInfo['additionalServices'])) {
+            $html .= '<tr><td>Дополнительные услуги</td><td>' . htmlspecialchars($orderInfo['additionalServices']) . '</td></tr>';
+        }
+        
+        $html .= '</table>
+                <div class="price">Итого: ' . number_format($orderInfo['totalPrice'] ?? 0, 0, ',', ' ') . ' руб.</div>
+            </div>
+            
+            <div class="section">
+                <h3>Информация о клиенте</h3>
+                <div class="client-info">
+                    <p><strong>Имя:</strong> ' . htmlspecialchars($name) . '</p>
+                    <p><strong>Телефон:</strong> <a href="tel:' . htmlspecialchars($phone) . '">' . htmlspecialchars($phone) . '</a></p>';
+        
+        if (!empty($email)) {
+            $html .= '<p><strong>E-mail:</strong> <a href="mailto:' . htmlspecialchars($email) . '">' . htmlspecialchars($email) . '</a></p>';
+        }
+        
+        if (!empty($callTime)) {
+            $callTimeFormatted = $callTime;
+            if (strpos($callTime, '.') === false && strtotime($callTime)) {
+                $callTimeFormatted = date('d.m.Y H:i', strtotime($callTime));
+            }
+            $html .= '<p><strong>Удобное время для звонка:</strong> ' . htmlspecialchars($callTimeFormatted) . '</p>';
+        }
+        
+        $html .= '<p><strong>Дата заказа:</strong> ' . date('d.m.Y H:i:s') . '</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>Заказ получен через калькулятор печати на сайте</p>
+            <p>Время получения: ' . date('d.m.Y H:i:s') . '</p>
+        </div>
+    </div>
+</body>
+</html>';
+        
+        return $html;
+    }
+
+    /**
      * Отправляет email уведомление через событие Битрикса
      */
     private function sendEmailNotification($message, $orderInfo, $name, $phone, $email)
@@ -1855,7 +1971,12 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
             return false;
         }
 
-        // Данные для отправки (соответствуют полям в почтовом шаблоне)
+        // Для листовок отправляем HTML-письмо напрямую через PHPMailer
+        if ($orderInfo['calcType'] === 'list') {
+            return $this->sendHtmlEmail($message, $orderInfo, $name, $phone, $email);
+        }
+
+        // Для остальных калькуляторов используем стандартный способ через события Bitrix
         $arEventFields = [
             "CALC_TYPE" => $orderInfo['calcType'] ?? 'list',
             "ORDER_INFO" => $message,
@@ -1889,6 +2010,57 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
         }
         
         return $result;
+    }
+
+    /**
+     * Отправляет HTML-письмо напрямую через PHPMailer для листовок
+     */
+    private function sendHtmlEmail($htmlMessage, $orderInfo, $name, $phone, $email)
+    {
+        try {
+            $this->debug("Отправка HTML-письма для листовок", [
+                'to' => 'matvey.turkin.97@mail.ru',
+                'subject' => 'Новый заказ листовок с калькулятора'
+            ]);
+
+            // Пробуем использовать встроенную в Bitrix функцию отправки почты
+            $to = "matvey.turkin.97@mail.ru";
+            $subject = "Новый заказ листовок с калькулятора - " . number_format($orderInfo['totalPrice'] ?? 0, 0, ',', ' ') . ' руб.';
+            $message = $htmlMessage;
+            
+            // Заголовки для HTML-письма
+            $headers = [
+                "MIME-Version: 1.0",
+                "Content-type: text/html; charset=UTF-8",
+                "From: info@mir-pechati.su",
+                "Reply-To: " . ($email ?: "info@mir-pechati.su")
+            ];
+            
+            // Отправляем через стандартную функцию Bitrix
+            $result = bxmail($to, $subject, $message, implode("\r\n", $headers));
+            
+            if ($result) {
+                $this->debug("HTML-письмо успешно отправлено через bxmail");
+                return true;
+            } else {
+                $this->debug("Ошибка отправки через bxmail, пробуем альтернативный способ");
+                
+                // Fallback: используем стандартный PHP mail()
+                $result = mail($to, $subject, $message, implode("\r\n", $headers));
+                
+                if ($result) {
+                    $this->debug("HTML-письмо успешно отправлено через mail()");
+                    return true;
+                } else {
+                    $this->debug("Ошибка отправки через mail()");
+                    return false;
+                }
+            }
+            
+        } catch (Exception $e) {
+            $this->debug("Исключение при отправке HTML-письма: " . $e->getMessage());
+            return false;
+        }
     }
 }
 ?>

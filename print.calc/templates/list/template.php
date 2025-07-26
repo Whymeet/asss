@@ -1106,7 +1106,7 @@ function openOrderModal() {
     
     // Формируем данные заказа для листовок (БСО)
     const orderData = {
-        product: 'БСО',
+        product: 'Листовки',
         paperType: formData.paperType || 'Не указан',
         size: formData.size || 'Не указан',
         printType: formData.printType === 'single' ? '1+0' : '1+1',
@@ -1126,6 +1126,14 @@ function openOrderModal() {
     if (formData.cornerRadius && formData.cornerRadius > 0) additionalServices.push(`Скругление ${formData.cornerRadius} углов`);
     if (additionalServices.length > 0) {
         orderData.additionalServices = additionalServices.join(', ');
+    }
+    
+    // Добавляем информацию о ламинации если выбрана
+    if (formData.laminationType) {
+        orderData.laminationType = formData.laminationType;
+        if (formData.laminationThickness) {
+            orderData.laminationThickness = formData.laminationThickness;
+        }
     }
     
     orderDataInput.value = JSON.stringify(orderData);

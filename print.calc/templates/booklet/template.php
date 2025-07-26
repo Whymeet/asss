@@ -167,8 +167,50 @@ $features = $arResult['FEATURES'] ?? [];
         <button id="calcBtn" type="button" class="calc-button">Рассчитать стоимость</button>
         
         <div id="calcResult" class="calc-result"></div>
+        
         <div class="calc-spacer"></div>
     </form>
+
+    <!-- Модальное окно для заказа -->
+    <div id="orderModal" class="order-modal" style="display: none;">
+        <div class="order-modal-content">
+            <span class="order-modal-close">&times;</span>
+            <h3>Оформить заказ</h3>
+            <form id="orderForm" class="order-form">
+                <div class="form-group">
+                    <label class="form-label" for="clientName">Имя <span class="required">*</span>:</label>
+                    <input type="text" id="clientName" name="clientName" class="form-control" required>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label" for="clientPhone">Телефон <span class="required">*</span>:</label>
+                    <input type="tel" id="clientPhone" name="clientPhone" class="form-control" required>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label" for="clientEmail">E-mail:</label>
+                    <input type="email" id="clientEmail" name="clientEmail" class="form-control">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label" for="callDate">Удобная дата для звонка:</label>
+                    <input type="date" id="callDate" name="callDate" class="form-control">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="callTime">Удобное время для звонка:</label>
+                    <input type="time" id="callTime" name="callTime" class="form-control">
+                </div>
+                
+                <div class="modal-buttons">
+                    <button type="button" class="calc-button calc-button-secondary" onclick="closeOrderModal()">Отмена</button>
+                    <button type="submit" class="calc-button calc-button-success">Отправить заказ</button>
+                </div>
+                
+                <input type="hidden" id="orderData" name="orderData">
+            </form>
+        </div>
+    </div>
 
     <div class="calc-thanks">
         <p>Спасибо, что Вы с нами!</p>
@@ -213,15 +255,6 @@ $features = $arResult['FEATURES'] ?? [];
     overflow: hidden;
 }
 
-.lamination-section::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 3px;
-    background: linear-gradient(90deg, #28a745, #20c997);
-}
 
 .lamination-section h3 {
     margin: 0 0 20px 0;
@@ -273,6 +306,159 @@ $features = $arResult['FEATURES'] ?? [];
 
 .calc-button-success:active {
     transform: translateY(0);
+}
+
+/* Стили для модального окна заказа */
+.order-modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.4);
+    backdrop-filter: blur(3px);
+}
+
+.order-modal-content {
+    background-color: #fefefe;
+    margin: 5% auto;
+    padding: 30px;
+    border: none;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 500px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    position: relative;
+    animation: modalSlideIn 0.3s ease-out;
+}
+
+@keyframes modalSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-50px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.order-modal-close {
+    color: #aaa;
+    float: right;
+    font-size: 28px;
+    font-weight: bold;
+    position: absolute;
+    top: 15px;
+    right: 20px;
+    cursor: pointer;
+    transition: color 0.3s;
+}
+
+.order-modal-close:hover,
+.order-modal-close:focus {
+    color: #000;
+}
+
+.order-form h3 {
+    margin: 0 0 25px 0;
+    color: #333;
+    font-size: 24px;
+    text-align: center;
+}
+
+.required {
+    color: #dc3545;
+}
+
+.modal-buttons {
+    display: flex;
+    gap: 15px;
+    margin-top: 25px;
+    justify-content: center;
+}
+
+/* Стили для формы заказа */
+.order-form {
+    background: linear-gradient(135deg, #e8f5e8 0%, #f0f8f0 100%);
+    border: 2px solid #28a745;
+    border-radius: 12px;
+    padding: 20px;
+    margin: 20px 0;
+    box-shadow: 0 4px 15px rgba(40, 167, 69, 0.1);
+    animation: slideDown 0.3s ease-out;
+}
+
+.order-form h3 {
+    color: #155724;
+    margin: 0 0 20px 0;
+    font-size: 22px;
+    font-weight: 600;
+    text-align: center;
+}
+
+.order-buttons {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    margin-top: 20px;
+    flex-wrap: wrap;
+}
+
+.calc-button-secondary {
+    background: #6c757d;
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 6px;
+    font-size: 16px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s;
+    min-width: 140px;
+}
+
+.calc-button-secondary:hover {
+    background: #5a6268;
+    transform: translateY(-2px);
+}
+
+.order-button {
+    background: linear-gradient(45deg, #28a745, #20c997);
+    color: white;
+    border: none;
+    padding: 15px 30px;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 15px;
+    width: 100%;
+    transition: all 0.3s;
+    box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);
+}
+
+.order-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(40, 167, 69, 0.4);
+    background: linear-gradient(45deg, #218838, #1ea085);
+}
+
+.order-button:active {
+    transform: translateY(0);
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 @keyframes fadeInUp {
@@ -340,6 +526,7 @@ const calcConfig = {
 // Сохраняем исходный результат без ламинации
 let originalResultWithoutLamination = null;
 let currentPrintingType = null;
+let currentOrderData = null; // Добавляем для сохранения данных заказа
 
 console.log('Конфигурация калькулятора:', calcConfig);
 
@@ -466,6 +653,18 @@ function handleResponse(response, resultDiv, isLaminationCalculation = false) {
 
 // Отображение результата
 function displayResult(result, resultDiv) {
+    // Сохраняем данные для заказа
+    currentOrderData = {
+        calcType: 'booklet',
+        product: 'Буклеты',
+        size: result.size || 'Не указан',
+        printType: result.printingType || 'Не указан',
+        quantity: result.quantity || 0,
+        totalPrice: result.totalPrice || 0,
+        paperType: result.paperType || 'Не указан',
+        foldingCount: result.foldingCount || 0
+    };
+    
     // Округляем все цены до десятых
     const totalPrice = Math.round((result.totalPrice || 0) * 10) / 10;
     const hasLamination = result.laminationCost && result.laminationCost > 0;
@@ -485,6 +684,10 @@ function displayResult(result, resultDiv) {
         html += '<p class="lamination-info" style="margin: 0;"><strong>Ламинация включена:</strong> ' + Math.round(result.laminationCost * 10) / 10 + ' ₽</p>';
         html += '<button type="button" class="remove-lamination-btn" onclick="removeLamination()">Убрать ламинацию</button>';
         html += '</div>';
+        
+        // Обновляем данные заказа с ламинацией
+        currentOrderData.laminationType = result.laminationType || '';
+        currentOrderData.laminationCost = result.laminationCost || 0;
     }
     
     html += '<details class="result-details">';
@@ -502,6 +705,10 @@ function displayResult(result, resultDiv) {
     html += '</ul>';
     html += '</div>';
     html += '</details>';
+    
+    // Добавляем кнопку заказа
+    html += '<button type="button" class="order-button" onclick="openOrderModal()">Заказать буклеты</button>';
+    
     html += '</div>';
     
     resultDiv.innerHTML = html;
@@ -687,5 +894,278 @@ console.log('Время запуска:', new Date().toLocaleTimeString());
 document.addEventListener('DOMContentLoaded', function() {
     console.log('DOM загружен, ждем BX...');
     waitForBX(initWithBX, initWithoutBX, 3000);
+    
+    // Инициализация модального окна
+    initOrderModal();
+});
+
+// Функции для работы с модальным окном заказа
+function openOrderModal() {
+    const modal = document.getElementById('orderModal');
+    const orderDataInput = document.getElementById('orderData');
+    
+    // Собираем данные расчета
+    const form = document.getElementById(calcConfig.type + 'CalcForm');
+    const formData = collectFormData(form);
+    
+    // Получаем результат расчета
+    const resultDiv = document.getElementById('calcResult');
+    const priceElement = resultDiv.querySelector('.result-price');
+    const totalPrice = priceElement ? priceElement.textContent.replace(/[^\d.,]/g, '') : '0';
+    
+    // Формируем данные заказа для буклетов
+    const orderData = {
+        calcType: 'booklet',
+        product: 'Буклеты',
+        quantity: formData.quantity || 0,
+        size: formData.size || 'Не указан',
+        paperType: formData.paperType || 'Не указан',
+        printType: formData.printType === 'single' ? 'Односторонняя' : 'Двусторонняя',
+        totalPrice: totalPrice,
+        foldingCount: formData.foldingCount || 0
+    };
+    
+    // Добавляем дополнительные услуги
+    let additionalServices = [];
+    if (formData.bigovka) additionalServices.push('Биговка');
+    if (formData.perforation) additionalServices.push('Перфорация');
+    if (formData.drill) additionalServices.push('Сверление');
+    if (formData.numbering) additionalServices.push('Нумерация');
+    if (additionalServices.length > 0) {
+        orderData.additionalServices = additionalServices.join(', ');
+    }
+    
+    orderDataInput.value = JSON.stringify(orderData);
+    modal.style.display = 'block';
+}
+
+function closeOrderModal() {
+    const modal = document.getElementById('orderModal');
+    modal.style.display = 'none';
+    
+    // Очищаем форму
+    const form = document.getElementById('orderForm');
+    form.reset();
+}
+
+function initOrderModal() {
+    const modal = document.getElementById('orderModal');
+    const closeBtn = modal.querySelector('.order-modal-close');
+    const form = document.getElementById('orderForm');
+    
+    // Закрытие по клику на X
+    closeBtn.onclick = closeOrderModal;
+    
+    // Закрытие по клику вне модального окна
+    window.onclick = function(event) {
+        if (event.target === modal) {
+            closeOrderModal();
+        }
+    };
+    
+    // Обработчик отправки формы
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const clientData = {
+            name: document.getElementById('clientName').value,
+            phone: document.getElementById('clientPhone').value,
+            email: document.getElementById('clientEmail').value,
+            callDate: document.getElementById('callDate').value,
+            callTime: document.getElementById('callTime').value,
+            orderData: document.getElementById('orderData').value
+        };
+        
+        sendOrderEmail(clientData);
+    });
+}
+
+function sendOrderEmail(clientData) {
+    const submitBtn = document.querySelector('#orderForm button[type="submit"]');
+    const originalText = submitBtn.textContent;
+    submitBtn.textContent = 'Отправляем...';
+    submitBtn.disabled = true;
+    
+    // Парсим данные заказа
+    const orderData = JSON.parse(clientData.orderData);
+    
+    // Формируем правильные данные для отправки на сервер
+    const serverData = {
+        name: clientData.name,
+        phone: clientData.phone,
+        email: clientData.email,
+        callDate: clientData.callDate,
+        callTime: clientData.callTime,
+        calcType: orderData.calcType,
+        product: orderData.product,
+        quantity: orderData.quantity,
+        size: orderData.size,
+        paperType: orderData.paperType,
+        printType: orderData.printType,
+        totalPrice: orderData.totalPrice,
+        foldingCount: orderData.foldingCount,
+        additionalServices: orderData.additionalServices || ''
+    };
+    
+    // Используем BX.ajax если доступен, иначе fetch
+    if (typeof BX !== 'undefined' && BX.ajax) {
+        BX.ajax.runComponentAction('my:print.calc', 'sendOrder', {
+            mode: 'class',
+            data: serverData
+        }).then(function(response) {
+            handleOrderResponse(response, submitBtn, originalText);
+        }).catch(function(error) {
+            console.error('Ошибка BX:', error);
+            handleOrderError(submitBtn, originalText);
+        });
+    } else {
+        fetch('<?= $componentPath ?>/class.php?action=sendOrder', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: new URLSearchParams(serverData)
+        })
+        .then(response => response.json())
+        .then(response => {
+            handleOrderResponse({data: response}, submitBtn, originalText);
+        })
+        .catch(error => {
+            console.error('Ошибка fetch:', error);
+            handleOrderError(submitBtn, originalText);
+        });
+    }
+}
+
+function handleOrderResponse(response, submitBtn, originalText) {
+    if (response && response.data && response.data.success) {
+        alert('Заказ успешно отправлен! Мы свяжемся с вами в ближайшее время.');
+        closeOrderModal();
+    } else {
+        alert('Ошибка при отправке заказа: ' + (response.data ? response.data.error : 'Неизвестная ошибка'));
+    }
+    
+    submitBtn.textContent = originalText;
+    submitBtn.disabled = false;
+}
+
+function handleOrderError(submitBtn, originalText) {
+    alert('Ошибка при отправке заказа. Попробуйте еще раз.');
+    submitBtn.textContent = originalText;
+    submitBtn.disabled = false;
+}
+
+// Функция для отображения формы заказа
+function showOrderForm() {
+    const overlay = document.getElementById('orderOverlay');
+    if (overlay) {
+        overlay.style.display = 'flex';
+        
+        // Заполняем сводку заказа
+        const orderSummary = document.getElementById('orderSummary');
+        if (orderSummary && currentOrderData) {
+            let summaryHTML = '<h4>Ваш заказ:</h4>';
+            summaryHTML += '<div class="order-summary-item"><strong>Продукт:</strong> ' + currentOrderData.product + '</div>';
+            summaryHTML += '<div class="order-summary-item"><strong>Размер:</strong> ' + currentOrderData.size + '</div>';
+            summaryHTML += '<div class="order-summary-item"><strong>Тип печати:</strong> ' + currentOrderData.printType + '</div>';
+            summaryHTML += '<div class="order-summary-item"><strong>Количество:</strong> ' + currentOrderData.quantity + ' шт.</div>';
+            summaryHTML += '<div class="order-summary-item"><strong>Тип бумаги:</strong> ' + currentOrderData.paperType + '</div>';
+            summaryHTML += '<div class="order-summary-item"><strong>Количество фальцев:</strong> ' + currentOrderData.foldingCount + '</div>';
+            
+            if (currentOrderData.laminationType && currentOrderData.laminationCost > 0) {
+                summaryHTML += '<div class="order-summary-item"><strong>Ламинация:</strong> ' + currentOrderData.laminationType + ' (+' + Math.round(currentOrderData.laminationCost * 10) / 10 + ' ₽)</div>';
+            }
+            
+            summaryHTML += '<div class="order-summary-total"><strong>Итого: ' + currentOrderData.totalPrice + ' ₽</strong></div>';
+            orderSummary.innerHTML = summaryHTML;
+        }
+    }
+}
+
+// Функция для скрытия формы заказа
+function hideOrderForm() {
+    const overlay = document.getElementById('orderOverlay');
+    if (overlay) {
+        overlay.style.display = 'none';
+    }
+}
+
+// Функция отправки заказа
+function submitOrder() {
+    const form = document.getElementById('orderForm');
+    const submitBtn = document.getElementById('orderSubmitBtn');
+    
+    if (!currentOrderData) {
+        alert('Ошибка: данные заказа не найдены');
+        return;
+    }
+    
+    // Получаем данные формы
+    const formData = new FormData(form);
+    
+    // Проверяем обязательные поля
+    const name = formData.get('name');
+    const phone = formData.get('phone');
+    
+    if (!name || !phone) {
+        alert('Пожалуйста, заполните все обязательные поля');
+        return;
+    }
+    
+    // Блокируем кнопку отправки
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Отправка...';
+    
+    // Добавляем данные заказа к форме
+    formData.append('calcType', currentOrderData.calcType);
+    formData.append('product', currentOrderData.product);
+    formData.append('size', currentOrderData.size);
+    formData.append('printType', currentOrderData.printType);
+    formData.append('quantity', currentOrderData.quantity);
+    formData.append('totalPrice', currentOrderData.totalPrice);
+    formData.append('paperType', currentOrderData.paperType);
+    formData.append('foldingCount', currentOrderData.foldingCount);
+    
+    if (currentOrderData.laminationType) {
+        formData.append('laminationType', currentOrderData.laminationType);
+        formData.append('laminationCost', currentOrderData.laminationCost);
+    }
+    
+    // Отправляем заказ
+    fetch('<?= $componentPath ?>/class.php?action=sendOrder', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Заказ успешно отправлен! Мы свяжемся с вами в ближайшее время.');
+            hideOrderForm();
+            form.reset();
+        } else {
+            alert('Ошибка при отправке заказа: ' + (data.error || 'Неизвестная ошибка'));
+        }
+    })
+    .catch(error => {
+        console.error('Ошибка:', error);
+        alert('Ошибка при отправке заказа. Попробуйте еще раз.');
+    })
+    .finally(() => {
+        // Разблокируем кнопку
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Отправить заказ';
+    });
+}
+
+// Обработчик для закрытия модального окна при клике вне формы
+document.addEventListener('DOMContentLoaded', function() {
+    const overlay = document.getElementById('orderOverlay');
+    if (overlay) {
+        overlay.addEventListener('click', function(e) {
+            if (e.target === overlay) {
+                hideOrderForm();
+            }
+        });
+    }
 });
 </script>

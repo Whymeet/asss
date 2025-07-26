@@ -151,6 +151,44 @@ $features = $arResult['FEATURES'] ?? [];
         </div>
         <?php endif; ?>
         <div id="calcResult" class="calc-result"></div>
+        
+        <!-- Форма заказа (скрыта по умолчанию) -->
+        <div id="orderForm" class="order-form" style="display: none;">
+            <h3>Заказать автовизитки</h3>
+            <form id="orderFormFields">
+                <div class="form-group">
+                    <label class="form-label" for="customerName">Ваше имя *:</label>
+                    <input type="text" id="customerName" name="customerName" class="form-control" required>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label" for="customerPhone">Телефон *:</label>
+                    <input type="tel" id="customerPhone" name="customerPhone" class="form-control" required 
+                           placeholder="+7 (___) ___-__-__">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label" for="customerEmail">E-mail:</label>
+                    <input type="email" id="customerEmail" name="customerEmail" class="form-control" 
+                           placeholder="your@email.com">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label" for="callTime">Удобное время для звонка:</label>
+                    <input type="datetime-local" id="callTime" name="callTime" class="form-control">
+                </div>
+                
+                <div class="order-buttons">
+                    <button type="button" id="submitOrder" class="calc-button calc-button-success">
+                        Отправить заказ
+                    </button>
+                    <button type="button" id="cancelOrder" class="calc-button calc-button-secondary">
+                        Отмена
+                    </button>
+                </div>
+            </form>
+        </div>
+        
         <div class="calc-spacer"></div>
     </form>
 
@@ -197,16 +235,6 @@ $features = $arResult['FEATURES'] ?? [];
     overflow: hidden;
 }
 
-/* .lamination-section::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 3px;
-    background: linear-gradient(90deg, #28a745, #20c997);
-} */
-
 .lamination-section h3 {
     margin: 0 0 10px 0;
     color: #495057;
@@ -234,6 +262,115 @@ $features = $arResult['FEATURES'] ?? [];
     border-top: 1px solid #dee2e6;
 }
 
+/* Стили для формы заказа */
+.order-form {
+    background: linear-gradient(135deg, #e8f5e8 0%, #f0f8f0 100%);
+    border: 2px solid #28a745;
+    border-radius: 12px;
+    padding: 20px;
+    margin: 20px 0;
+    box-shadow: 0 4px 15px rgba(40, 167, 69, 0.1);
+    animation: slideDown 0.3s ease-out;
+}
+
+.order-form h3 {
+    color: #155724;
+    margin: 0 0 20px 0;
+    font-size: 22px;
+    font-weight: 600;
+    text-align: center;
+}
+
+.order-buttons {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    margin-top: 20px;
+    flex-wrap: wrap;
+}
+
+.calc-button-success {
+    background: #28a745;
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 6px;
+    font-size: 16px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s;
+    min-width: 140px;
+}
+
+.calc-button-success:hover {
+    background: #218838;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
+}
+
+.calc-button-secondary {
+    background: #6c757d;
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 6px;
+    font-size: 16px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s;
+    min-width: 140px;
+}
+
+.calc-button-secondary:hover {
+    background: #5a6268;
+    transform: translateY(-2px);
+}
+
+.order-button {
+    background: #007bff;
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 6px;
+    font-size: 16px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s;
+    margin-top: 15px;
+    width: 100%;
+    max-width: 300px;
+    margin-left: auto;
+    margin-right: auto;
+    display: block;
+}
+
+.order-button:hover {
+    background: #0056b3;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3);
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
 </style>
 
 <script>
@@ -272,6 +409,7 @@ const calcConfig = {
 // Сохраняем исходный результат без ламинации
 let originalResultWithoutLamination = null;
 let currentPrintingType = null;
+let currentOrderData = null; // Добавляем для сохранения данных заказа
 
 console.log('Конфигурация калькулятора:', calcConfig);
 
@@ -398,6 +536,17 @@ function handleResponse(response, resultDiv, isLaminationCalculation = false) {
 
 // Отображение результата
 function displayResult(result, resultDiv) {
+    // Сохраняем данные для заказа
+    currentOrderData = {
+        calcType: 'avtoviz',
+        product: 'Автовизитки',
+        size: result.format || 'Евро (99×210 мм)',
+        printType: result.printingType || 'Не указан',
+        quantity: result.quantity || 0,
+        totalPrice: result.totalPrice || 0,
+        paperType: result.paperType || 'Не указан'
+    };
+    
     // Округляем все цены до десятых
     const totalPrice = Math.round((result.totalPrice || 0) * 10) / 10;
     const hasLamination = result.laminationCost && result.laminationCost > 0;
@@ -417,6 +566,10 @@ function displayResult(result, resultDiv) {
         html += '<p class="lamination-info" style="margin: 0;"><strong>Ламинация включена:</strong> ' + Math.round(result.laminationCost * 10) / 10 + ' ₽</p>';
         html += '<button type="button" class="remove-lamination-btn" onclick="removeLamination()">Убрать ламинацию</button>';
         html += '</div>'; 
+        
+        // Обновляем данные заказа с ламинацией
+        currentOrderData.laminationType = result.laminationType || '';
+        currentOrderData.laminationCost = result.laminationCost || 0;
     }
     
     html += '<details class="result-details">';
@@ -434,6 +587,10 @@ function displayResult(result, resultDiv) {
     html += '</ul>';
     html += '</div>';
     html += '</details>';
+    
+    // Добавляем кнопку заказа
+    html += '<button type="button" class="order-button" onclick="showOrderForm()">Заказать автовизитки</button>';
+    
     html += '</div>';
     
     resultDiv.innerHTML = html;
@@ -604,6 +761,182 @@ function collectFormData(form) {
 
     console.log('Собранные данные формы:', data);
     return data;
+}
+
+// Функции для работы с заказами
+function showOrderForm() {
+    const orderForm = document.getElementById('orderForm');
+    const calcResult = document.getElementById('calcResult');
+    
+    if (orderForm && calcResult) {
+        orderForm.style.display = 'block';
+        
+        // Прокручиваем к форме заказа
+        orderForm.scrollIntoView({ 
+            behavior: 'smooth', 
+            block: 'start' 
+        });
+        
+        // Инициализируем обработчики формы заказа
+        initOrderFormHandlers();
+    }
+}
+
+function hideOrderForm() {
+    const orderForm = document.getElementById('orderForm');
+    if (orderForm) {
+        orderForm.style.display = 'none';
+    }
+}
+
+function initOrderFormHandlers() {
+    const submitBtn = document.getElementById('submitOrder');
+    const cancelBtn = document.getElementById('cancelOrder');
+    
+    // Удаляем старые обработчики
+    if (submitBtn) {
+        submitBtn.replaceWith(submitBtn.cloneNode(true));
+    }
+    if (cancelBtn) {
+        cancelBtn.replaceWith(cancelBtn.cloneNode(true));
+    }
+    
+    // Добавляем новые обработчики
+    const newSubmitBtn = document.getElementById('submitOrder');
+    const newCancelBtn = document.getElementById('cancelOrder');
+    
+    if (newSubmitBtn) {
+        newSubmitBtn.addEventListener('click', submitOrder);
+    }
+    
+    if (newCancelBtn) {
+        newCancelBtn.addEventListener('click', hideOrderForm);
+    }
+    
+    // Маска для телефона
+    const phoneInput = document.getElementById('customerPhone');
+    if (phoneInput) {
+        phoneInput.addEventListener('input', function(e) {
+            let value = e.target.value.replace(/\D/g, '');
+            if (value.length > 0) {
+                if (value[0] === '8') value = '7' + value.slice(1);
+                if (value[0] !== '7') value = '7' + value;
+                
+                let formatted = '+7';
+                if (value.length > 1) formatted += ' (' + value.slice(1, 4);
+                if (value.length > 4) formatted += ') ' + value.slice(4, 7);
+                if (value.length > 7) formatted += '-' + value.slice(7, 9);
+                if (value.length > 9) formatted += '-' + value.slice(9, 11);
+                
+                e.target.value = formatted;
+            }
+        });
+    }
+}
+
+function submitOrder() {
+    const form = document.getElementById('orderFormFields');
+    const submitBtn = document.getElementById('submitOrder');
+    
+    if (!form || !currentOrderData) {
+        alert('Ошибка: данные заказа не найдены');
+        return;
+    }
+    
+    // Собираем данные формы
+    const formData = new FormData(form);
+    const name = formData.get('customerName')?.trim();
+    const phone = formData.get('customerPhone')?.trim();
+    const email = formData.get('customerEmail')?.trim();
+    const callTime = formData.get('callTime')?.trim();
+    
+    // Валидация
+    if (!name || name.length < 2) {
+        alert('Пожалуйста, введите ваше имя (минимум 2 символа)');
+        return;
+    }
+    
+    if (!phone || phone.length < 10) {
+        alert('Пожалуйста, введите корректный номер телефона');
+        return;
+    }
+    
+    if (email && !isValidEmail(email)) {
+        alert('Пожалуйста, введите корректный email адрес');
+        return;
+    }
+    
+    // Блокируем кнопку
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Отправляем...';
+    
+    // Подготавливаем данные для отправки
+    const orderData = JSON.stringify(currentOrderData);
+    
+    const requestData = {
+        name: name,
+        phone: phone,
+        email: email,
+        callTime: callTime,
+        orderData: orderData,
+        sessid: document.querySelector('input[name="sessid"]')?.value || ''
+    };
+    
+    // Отправляем заказ
+    if (typeof BX !== 'undefined' && BX.ajax) {
+        BX.ajax.runComponentAction(calcConfig.component, 'sendOrder', {
+            mode: 'class',
+            data: requestData
+        }).then(function(response) {
+            handleOrderResponse(response, submitBtn);
+        }).catch(function(error) {
+            console.error('Ошибка отправки заказа:', error);
+            handleOrderError(error, submitBtn);
+        });
+    } else {
+        // Запасной вариант
+        fetch('/bitrix/services/main/ajax.php?c=' + calcConfig.component + '&action=sendOrder&mode=class', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: new URLSearchParams(requestData)
+        })
+        .then(response => response.json())
+        .then(response => handleOrderResponse(response, submitBtn))
+        .catch(error => handleOrderError(error, submitBtn));
+    }
+}
+
+function handleOrderResponse(response, submitBtn) {
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'Отправить заказ';
+    
+    if (response && response.data) {
+        if (response.data.success) {
+            alert('Заказ успешно отправлен! Мы свяжемся с вами в ближайшее время.');
+            hideOrderForm();
+            // Очищаем форму
+            document.getElementById('orderFormFields').reset();
+        } else {
+            alert('Ошибка: ' + (response.data.error || 'Неизвестная ошибка'));
+        }
+    } else {
+        alert('Ошибка: некорректный ответ сервера');
+    }
+}
+
+function handleOrderError(error, submitBtn) {
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'Отправить заказ';
+    
+    console.error('Ошибка отправки заказа:', error);
+    alert('Ошибка отправки заказа. Пожалуйста, попробуйте позже или свяжитесь с нами по телефону.');
+}
+
+function isValidEmail(email) {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
 }
 
 // Запуск инициализации

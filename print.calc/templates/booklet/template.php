@@ -382,17 +382,17 @@ $features = $arResult['FEATURES'] ?? [];
 
 /* Стили для формы заказа */
 .order-form {
-    background: linear-gradient(135deg, #e8f5e8 0%, #f0f8f0 100%);
-    border: 2px solid #28a745;
-    border-radius: 12px;
-    padding: 20px;
-    margin: 20px 0;
-    box-shadow: 0 4px 15px rgba(40, 167, 69, 0.1);
-    animation: slideDown 0.3s ease-out;
+    background: #ffffff; /* Чисто белый фон */
+    border: none; /* Убираем рамку */
+    border-radius: 0; /* Убираем скругления */
+    padding: 0; /* Убираем отступы */
+    margin: 0; /* Убираем внешние отступы */
+    box-shadow: none; /* Убираем тень */
+    animation: none; /* Убираем анимацию */
 }
 
 .order-form h3 {
-    color: #155724;
+    color: #333; /* Обычный черный цвет вместо зеленого */
     margin: 0 0 20px 0;
     font-size: 22px;
     font-weight: 600;

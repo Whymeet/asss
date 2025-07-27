@@ -352,11 +352,41 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
 
             switch ($calcType) {
                 case 'list':
-                    return $this->calculateList($paperType, $size, $quantity, $printType, $bigovka, $cornerRadius, $perforation, $drill, $numbering);
+                    $result = $this->calculateList($paperType, $size, $quantity, $printType, $bigovka, $cornerRadius, $perforation, $drill, $numbering);
+                    
+                    // Добавляем обработку ламинации если указана
+                    if (!empty($_POST['laminationType']) || !empty($_POST['lamination_type'])) {
+                        // Преобразуем данные ламинации в нужный формат
+                        $postData = $_POST;
+                        if (!empty($_POST['laminationType'])) {
+                            $postData['lamination_type'] = $_POST['laminationType'];
+                        }
+                        if (!empty($_POST['laminationThickness'])) {
+                            $postData['lamination_thickness'] = $_POST['laminationThickness'];
+                        }
+                        $result = $this->addLamination($result, $postData, $quantity);
+                    }
+                    
+                    return $result;
                     
                 case 'booklet':
                     $foldingCount = (int)($_POST['foldingCount'] ?? 0);
-                    return $this->calculateBooklet($paperType, $size, $quantity, $printType, $foldingCount, $bigovka, $cornerRadius, $perforation, $drill, $numbering);
+                    $result = $this->calculateBooklet($paperType, $size, $quantity, $printType, $foldingCount, $bigovka, $cornerRadius, $perforation, $drill, $numbering);
+                    
+                    // Добавляем обработку ламинации если указана
+                    if (!empty($_POST['laminationType']) || !empty($_POST['lamination_type'])) {
+                        // Преобразуем данные ламинации в нужный формат
+                        $postData = $_POST;
+                        if (!empty($_POST['laminationType'])) {
+                            $postData['lamination_type'] = $_POST['laminationType'];
+                        }
+                        if (!empty($_POST['laminationThickness'])) {
+                            $postData['lamination_thickness'] = $_POST['laminationThickness'];
+                        }
+                        $result = $this->addLamination($result, $postData, $quantity);
+                    }
+                    
+                    return $result;
                     
                 case 'rizo':
                     return $this->calculateRizo($paperType, $size, $quantity, $printType, $bigovka, $cornerRadius, $perforation, $drill, $numbering);

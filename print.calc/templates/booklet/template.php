@@ -810,20 +810,25 @@ function showLaminationSection(result) {
     // Используем сохраненный тип печати или текущий
     const printingType = currentPrintingType || result.printingType;
     
+    console.log('Тип печати для ламинации:', printingType); // Отладка
+    
     let html = '<div class="lamination-content">';
     html += '<p class="lamination-title">Добавить ламинацию к заказу:</p>';
     
-    if (printingType === 'Офсетная') {
+    // Временно всегда показываем блок с толщиной для цифровой печати
+    // if (printingType === 'Офсетная') {
+    if (false) { // Отключаем офсетный блок для тестирования
         html += '<div class="lamination-options">';
         html += '<div class="radio-group">';
-        html += '<label class="radio-label"><input type="radio" name="laminationType" value="Односторонняя"> Односторонняя (7 руб/лист)</label>';
-        html += '<label class="radio-label"><input type="radio" name="laminationType" value="Двусторонняя"> Двусторонняя (14 руб/лист)</label>';
+        html += '<label class="radio-label"><input type="radio" name="laminationType" value="1+0"> Односторонняя (7 руб/лист)</label>';
+        html += '<label class="radio-label"><input type="radio" name="laminationType" value="1+1"> Двусторонняя (14 руб/лист)</label>';
         html += '</div>';
         html += '</div>';
     } else {
+        // Цифровая печать: с выбором толщины (показываем всегда)
         html += '<div class="lamination-options">';
         html += '<div class="form-group">';
-        html += '<label class="form-label">Толщина:';
+        html += '<label class="form-label">Толщина ламинации:';
         html += '<select name="laminationThickness" class="form-control">';
         html += '<option value="32">32 мкм</option>';
         html += '<option value="75">75 мкм</option>';
@@ -832,8 +837,8 @@ function showLaminationSection(result) {
         html += '</select></label>';
         html += '</div>';
         html += '<div class="radio-group">';
-        html += '<label class="radio-label"><input type="radio" name="laminationType" value="Односторонняя"> Односторонняя (x1)</label>';
-        html += '<label class="radio-label"><input type="radio" name="laminationType" value="Двусторонняя"> Двусторонняя (x2)</label>';
+        html += '<label class="radio-label"><input type="radio" name="laminationType" value="1+0"> Односторонняя</label>';
+        html += '<label class="radio-label"><input type="radio" name="laminationType" value="1+1"> Двусторонняя</label>';
         html += '</div>';
         html += '</div>';
     }
@@ -893,25 +898,26 @@ function calculateLamination(originalResult) {
     
     if (printingType === 'Офсетная') {
         // Офсетная печать: простые тарифы
-        if (laminationType.value === 'Односторонняя') {
+        if (laminationType.value === '1+0') {
             laminationCost = quantity * 7;
-            laminationDescription = 'Односторонняя';
+            laminationDescription = 'Односторонняя (7 руб/лист)';
         } else {
             laminationCost = quantity * 14;
-            laminationDescription = 'Двусторонняя';
+            laminationDescription = 'Двусторонняя (14 руб/лист)';
         }
     } else {
         // Цифровая печать: зависит от толщины
         const thickness = laminationThickness ? laminationThickness.value : '32';
         const rates = {
-            '32': { 'Односторонняя': 40, 'Двусторонняя': 80 },
-            '75': { 'Односторонняя': 60, 'Двусторонняя': 120 },
-            '125': { 'Односторонняя': 80, 'Двусторонняя': 160 },
-            '250': { 'Односторонняя': 90, 'Двусторонняя': 180 }
+            '32': { '1+0': 40, '1+1': 80 },
+            '75': { '1+0': 60, '1+1': 120 },
+            '125': { '1+0': 80, '1+1': 160 },
+            '250': { '1+0': 90, '1+1': 180 }
         };
         
         laminationCost = quantity * rates[thickness][laminationType.value];
-        laminationDescription = `${laminationType.value} ${thickness} мкм (${rates[thickness][laminationType.value]} руб/лист)`;
+        const laminationName = laminationType.value === '1+0' ? 'Односторонняя' : 'Двусторонняя';
+        laminationDescription = `${laminationName} ${thickness} мкм (${rates[thickness][laminationType.value]} руб/лист)`;
     }
     
     // Создаем новый результат с ламинацией

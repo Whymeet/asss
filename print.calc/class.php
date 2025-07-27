@@ -3097,28 +3097,10 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
                         <td>' . ($orderInfo['width'] ?? 'Не указана') . ' м</td>
                     </tr>';
         
-        // Рассчитываем площадь если есть размеры
-        if (isset($orderInfo['length']) && isset($orderInfo['width'])) {
-            $singleArea = $orderInfo['length'] * $orderInfo['width'];
-            $html .= '<tr>
-                        <td>Площадь одной наклейки</td>
-                        <td>' . number_format($singleArea, 4, ',', ' ') . ' м²</td>
-                    </tr>';
-        }
-        
         $html .= '<tr>
                         <td>Количество</td>
                         <td>' . (isset($orderInfo['quantity']) ? number_format($orderInfo['quantity'], 0, ',', ' ') : 'Не указано') . ' шт</td>
                     </tr>';
-        
-        // Рассчитываем общую площадь если есть данные
-        if (isset($orderInfo['length']) && isset($orderInfo['width']) && isset($orderInfo['quantity'])) {
-            $totalArea = $orderInfo['length'] * $orderInfo['width'] * $orderInfo['quantity'];
-            $html .= '<tr>
-                        <td>Общая площадь</td>
-                        <td>' . number_format($totalArea, 4, ',', ' ') . ' м²</td>
-                    </tr>';
-        }
         
         $html .= '<tr>
                         <td>Тип наклейки</td>

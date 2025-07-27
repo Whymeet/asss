@@ -104,14 +104,6 @@ $stickerTypes = $arResult['sticker_types'] ?? [];
             </select>
         </div>
 
-        <!-- Предварительный расчет площади -->
-        <div class="form-group">
-            <div id="areaPreview" class="area-preview">
-                <strong>Площадь одной наклейки:</strong> <span id="singleArea">0.01</span> м²<br>
-                <strong>Общая площадь:</strong> <span id="totalArea">1</span> м²
-            </div>
-        </div>
-
         <input type="hidden" name="calcType" value="<?= $calcType ?>">
         <input type="hidden" name="sessid" value="<?= bitrix_sessid() ?>">
 
@@ -170,20 +162,6 @@ $stickerTypes = $arResult['sticker_types'] ?? [];
 </div>
 
 <style>
-.area-preview {
-    background: #f8f9fa;
-    border: 1px solid #dee2e6;
-    border-radius: 6px;
-    padding: 15px;
-    margin-top: 10px;
-    font-size: 14px;
-    color: #495057;
-}
-
-.area-preview strong {
-    color: #007bff;
-}
-
 .dimension-input {
     position: relative;
 }
@@ -462,29 +440,6 @@ const calcConfig = {
 const lengthInput = document.getElementById('length');
 const widthInput = document.getElementById('width');
 const quantityInput = document.getElementById('quantity');
-const singleAreaSpan = document.getElementById('singleArea');
-const totalAreaSpan = document.getElementById('totalArea');
-
-// Обновление предварительного расчета площади
-function updateAreaPreview() {
-    const length = parseFloat(lengthInput.value) || 0;
-    const width = parseFloat(widthInput.value) || 0;
-    const quantity = parseInt(quantityInput.value) || 0;
-    
-    const singleArea = length * width;
-    const totalArea = singleArea * quantity;
-    
-    singleAreaSpan.textContent = singleArea.toFixed(4);
-    totalAreaSpan.textContent = totalArea.toFixed(4);
-}
-
-// Добавляем обработчики для обновления предварительного расчета
-lengthInput.addEventListener('input', updateAreaPreview);
-widthInput.addEventListener('input', updateAreaPreview);
-quantityInput.addEventListener('input', updateAreaPreview);
-
-// Инициализируем предварительный расчет
-updateAreaPreview();
 
 // Функция ожидания BX
 function waitForBX(callback, fallbackCallback, timeout = 3000) {
@@ -600,36 +555,7 @@ function displayStickerResult(result, resultDiv) {
         };
         
         const typeName = stickerTypeNames[result.stickerType] || result.stickerType;
-        
-        html += '<div style="color: #007bff; background: #f8f9ff; padding: 10px; border-radius: 6px; border-left: 4px solid #007bff; margin-bottom: 15px;">';
-        html += '<strong>Тип наклейки:</strong> ' + typeName;
-        html += '</div>';
     }
-    
-    html += '<details class="result-details">';
-    html += '<summary class="result-summary">Подробности расчета</summary>';
-    html += '<div class="result-details-content">';
-    html += '<ul>';
-    
-    if (result.length && result.width) {
-        html += '<li>Размер одной наклейки: ' + result.length + ' × ' + result.width + ' м</li>';
-    }
-    if (result.quantity) {
-        html += '<li>Количество: ' + number_format(result.quantity, 0, '', ' ') + ' шт</li>';
-    }
-    if (result.areaPerSticker) {
-        html += '<li>Площадь одной наклейки: ' + Math.round(result.areaPerSticker * 10000) / 10000 + ' м²</li>';
-    }
-    if (result.totalArea) {
-        html += '<li>Общая площадь: ' + Math.round(result.totalArea * 10000) / 10000 + ' м²</li>';
-    }
-    if (result.pricePerM2) {
-        html += '<li>Стоимость за м²: ' + Math.round(result.pricePerM2 * 10) / 10 + ' ₽</li>';
-    }
-    
-    html += '</ul>';
-    html += '</div>';
-    html += '</details>';
     
     // Добавляем кнопку заказа
     html += '<button type="button" class="order-button" onclick="openOrderModal()">Заказать печать</button>';

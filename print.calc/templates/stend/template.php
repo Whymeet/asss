@@ -806,57 +806,13 @@ function displayStendResult(result, resultDiv) {
     html += '<h3 class="result-title">Результат расчета ПВХ стенда</h3>';
     html += '<div class="result-price">' + totalPrice + ' <small>₽</small></div>';
     
-    // Информация о типе ПВХ
-    if (result.pvcType) {
-        const pvcTypeNames = {
-            '3mm': '3 мм',
-            '5mm': '5 мм'
-        };
-        
-        const typeName = pvcTypeNames[result.pvcType] || result.pvcType;
-        
-        html += '<div style="color: #007bff; background: #f8f9ff; padding: 10px; border-radius: 6px; border-left: 4px solid #007bff; margin-bottom: 15px;">';
-        html += '<strong>Толщина ПВХ:</strong> ' + typeName;
-        html += '</div>';
-    }
-    
-    html += '<details class="result-details">';
-    html += '<summary class="result-summary">Подробности расчета</summary>';
-    html += '<div class="result-details-content">';
-    html += '<ul>';
-    
-    if (result.width && result.height) {
-        html += '<li>Размер стенда: ' + result.width + ' × ' + result.height + ' см</li>';
-    }
-    if (result.area) {
-        html += '<li>Площадь стенда: ' + Math.round(result.area * 100) / 100 + ' м²</li>';
-    }
-    if (result.pvcCost) {
-        html += '<li>Стоимость ПВХ: ' + Math.round(result.pvcCost * 10) / 10 + ' ₽</li>';
-    }
-    if (result.pocketsCost && result.pocketsCost > 0) {
-        html += '<li>Стоимость карманов: ' + Math.round(result.pocketsCost * 10) / 10 + ' ₽</li>';
-    }
-    
-    // Детали карманов
-    if (result.pockets) {
-        const pockets = result.pockets;
-        if (pockets.flatA4 > 0) html += '<li>Плоских карманов А4: ' + pockets.flatA4 + '</li>';
-        if (pockets.flatA5 > 0) html += '<li>Плоских карманов А5: ' + pockets.flatA5 + '</li>';
-        if (pockets.volumeA4 > 0) html += '<li>Объемных карманов А4: ' + pockets.volumeA4 + '</li>';
-        if (pockets.volumeA5 > 0) html += '<li>Объемных карманов А5: ' + pockets.volumeA5 + '</li>';
-    }
-
+    // Показываем информацию о ламинации если она была добавлена
     if (result.laminationCost && result.laminationCost > 0) {
-        html += '<div class="lamination-info-container">';
-        html += '<p class="lamination-info" style="margin: 0;"><strong>Ламинация включена:</strong> ' + Math.round(result.laminationCost * 10) / 10 + ' ₽</p>';
+        html += '<div class="lamination-info-container" style="color: #28a745; background: #f8fff8; padding: 10px; border-radius: 6px; border-left: 4px solid #28a745; margin-bottom: 15px;">';
+        html += '<div><strong>Ламинация добавлена:</strong> ' + Math.round(result.laminationCost * 10) / 10 + ' ₽</div>';
         html += '<button type="button" class="remove-lamination-btn" onclick="removeLamination()">Убрать ламинацию</button>';
         html += '</div>';
     }
-    
-    html += '</ul>';
-    html += '</div>';
-    html += '</details>';
     
     // Добавляем кнопку заказа
     html += '<button type="button" class="order-button" onclick="openOrderModal()">Заказать ПВХ стенд</button>';

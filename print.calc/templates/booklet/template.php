@@ -751,17 +751,6 @@ function displayResult(result, resultDiv) {
     html += '<h3 class="result-title">Результат расчета</h3>';
     html += '<div class="result-price">' + totalPrice + ' <small>₽</small></div>';
     
-    // Стандартное отображение для листовок и буклетов
-    if (result.printingType) {
-        html += '<p><strong>Тип печати:</strong> ' + result.printingType + '</p>';
-    }
-    
-    // Добавляем информацию о сложениях для буклетов
-    if (calcConfig.type === 'booklet') {
-        const foldingInfo = currentOrderData.foldingDescription;
-        html += '<p><strong>Данные сложений:</strong> ' + foldingInfo + '</p>';
-    }
-    
     // Информация о ламинации с кнопкой удаления
     if (hasLamination) {
         html += '<div class="lamination-info-container">';
@@ -773,22 +762,6 @@ function displayResult(result, resultDiv) {
         currentOrderData.laminationType = result.laminationType || '';
         currentOrderData.laminationCost = result.laminationCost || 0;
     }
-    
-    html += '<details class="result-details">';
-    html += '<summary class="result-summary">Подробности расчета</summary>';
-    html += '<div class="result-details-content">';
-    html += '<ul>';
-    
-    if (result.baseA3Sheets) html += '<li>Листов A3: ' + result.baseA3Sheets + '</li>';
-    if (result.printingCost) html += '<li>Стоимость печати: ' + Math.round(result.printingCost * 10) / 10 + ' ₽</li>';
-    if (result.paperCost) html += '<li>Стоимость бумаги: ' + Math.round(result.paperCost * 10) / 10 + ' ₽</li>';
-    if (result.plateCost && result.plateCost > 0) html += '<li>Стоимость пластин: ' + Math.round(result.plateCost * 10) / 10 + ' ₽</li>';
-    if (result.additionalCosts && result.additionalCosts > 0) html += '<li>Дополнительные услуги: ' + Math.round(result.additionalCosts * 10) / 10 + ' ₽</li>';
-    if (hasLamination) html += '<li class="lamination-info">Ламинация: ' + Math.round(result.laminationCost * 10) / 10 + ' ₽</li>';
-    
-    html += '</ul>';
-    html += '</div>';
-    html += '</details>';
     
     // Добавляем кнопку заказа
     html += '<button type="button" class="order-button" onclick="openOrderModal()">Заказать буклеты</button>';

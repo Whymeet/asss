@@ -565,41 +565,10 @@ function displayVizitResult(result, resultDiv) {
     html += '<h3 class="result-title">Результат расчета визиток</h3>';
     html += '<div class="result-price">' + totalPrice + ' <small>₽</small></div>';
     
-    // Информация о типе печати
-    if (result.printType) {
-        const isDigital = result.printType === 'Цифровая';
-        const color = isDigital ? '#007bff' : '#28a745';
-        const bgColor = isDigital ? '#f8f9ff' : '#f8fff8';
-        
-        html += '<div style="color: ' + color + '; background: ' + bgColor + '; padding: 10px; border-radius: 6px; border-left: 4px solid ' + color + '; margin-bottom: 15px;">';
-        html += '<strong>Тип печати:</strong> ' + result.printType;
-        if (isDigital) {
-            html += '<br><small>Быстрая печать малых тиражей</small>';
-        } else {
-            html += '<br><small>Экономичная печать больших тиражей</small>';
-        }
-        html += '</div>';
-    }
-    
     // Количество
     if (result.quantity) {
         html += '<p><strong>Количество:</strong> ' + number_format(result.quantity, 0, '', ' ') + ' шт</p>';
     }
-    
-    html += '<details class="result-details">';
-    html += '<summary class="result-summary">Подробности расчета</summary>';
-    html += '<div class="result-details-content">';
-    html += '<ul>';
-    
-    if (result.baseA3Sheets) html += '<li>Листов A3: ' + result.baseA3Sheets + '</li>';
-    if (result.printingCost) html += '<li>Стоимость печати: ' + Math.round(result.printingCost * 10) / 10 + ' ₽</li>';
-    if (result.paperCost) html += '<li>Стоимость бумаги: ' + Math.round(result.paperCost * 10) / 10 + ' ₽</li>';
-    if (result.plateCost && result.plateCost > 0) html += '<li>Стоимость пластин: ' + Math.round(result.plateCost * 10) / 10 + ' ₽</li>';
-    if (result.additionalCosts && result.additionalCosts > 0) html += '<li>Дополнительные услуги: ' + Math.round(result.additionalCosts * 10) / 10 + ' ₽</li>';
-    
-    html += '</ul>';
-    html += '</div>';
-    html += '</details>';
     
     // Добавляем кнопку заказа
     html += '<button type="button" class="order-button" onclick="openOrderModal()">Заказать печать</button>';

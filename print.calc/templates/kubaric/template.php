@@ -90,14 +90,7 @@ $printTypes = $arResult['print_types'] ?? [];
             </select>
         </div>
 
-        <!-- Предварительный расчет -->
-        <div class="form-group">
-            <div id="totalPreview" class="total-preview">
-                <strong>Общее количество листов:</strong> <span id="totalSheets">100</span> шт<br>
-                <strong>Формат:</strong> 9×9 см<br>
-                <strong>Плотность:</strong> 80 г/м²
-            </div>
-        </div>
+
 
         <input type="hidden" name="calcType" value="<?= $calcType ?>">
         <input type="hidden" name="sessid" value="<?= bitrix_sessid() ?>">
@@ -110,71 +103,261 @@ $printTypes = $arResult['print_types'] ?? [];
         <div class="calc-spacer"></div>
     </form>
 
+    <!-- Модальное окно для заказа -->
+    <div id="orderModal" class="order-modal" style="display: none;">
+        <div class="order-modal-content">
+            <span class="order-modal-close">&times;</span>
+            <h3>Оформить заказ</h3>
+            <form id="orderForm" class="order-form">
+                <div class="form-group">
+                    <label class="form-label" for="clientName">Имя <span class="required">*</span>:</label>
+                    <input type="text" id="clientName" name="clientName" class="form-control" required>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label" for="clientPhone">Телефон <span class="required">*</span>:</label>
+                    <input type="tel" id="clientPhone" name="clientPhone" class="form-control" required>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label" for="clientEmail">E-mail:</label>
+                    <input type="email" id="clientEmail" name="clientEmail" class="form-control">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label" for="callDate">Удобная дата для звонка:</label>
+                    <input type="date" id="callDate" name="callDate" class="form-control">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="callTime">Удобное время для звонка:</label>
+                    <input type="time" id="callTime" name="callTime" class="form-control">
+                </div>
+                
+                <div class="modal-buttons">
+                    <button type="button" class="calc-button calc-button-secondary" onclick="closeOrderModal()">Отмена</button>
+                    <button type="submit" class="calc-button calc-button-success">Отправить заказ</button>
+                </div>
+                
+                <input type="hidden" id="orderData" name="orderData">
+            </form>
+        </div>
+    </div>
+
     <div class="calc-thanks">
         <p>Спасибо, что Вы с нами!</p>
     </div>
 </div>
 
 <style>
-.total-preview {
-    background: #f8f9fa;
-    border: 1px solid #dee2e6;
-    border-radius: 6px;
-    padding: 15px;
-    margin-top: 10px;
-    font-size: 14px;
-    color: #495057;
+
+/* Стили для модального окна заказа */
+.order-modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.4);
+    backdrop-filter: blur(3px);
 }
 
-.total-preview strong {
-    color: #007bff;
+.order-modal-content {
+    background-color: #fefefe;
+    margin: 5% auto;
+    padding: 30px;
+    border: none;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 500px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    position: relative;
+    animation: modalSlideIn 0.3s ease-out;
 }
 
-.kubaric-info {
-    background: #e3f2fd;
-    border: 1px solid #2196f3;
-    border-radius: 6px;
-    padding: 15px;
-    margin: 20px 0;
-    color: #1565c0;
+@keyframes modalSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-50px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
-.kubaric-info h4 {
-    margin: 0 0 10px 0;
-    color: #0d47a1;
-}
-
-.price-breakdown {
-    background: #fff;
-    border: 1px solid #e0e0e0;
-    border-radius: 8px;
-    padding: 20px;
-    margin: 15px 0;
-}
-
-.price-step {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 8px 0;
-    border-bottom: 1px solid #f5f5f5;
-}
-
-.price-step:last-child {
-    border-bottom: none;
+.order-modal-close {
+    color: #aaa;
+    float: right;
+    font-size: 28px;
     font-weight: bold;
-    font-size: 16px;
-    color: #2e7d32;
+    position: absolute;
+    top: 15px;
+    right: 20px;
+    cursor: pointer;
+    transition: color 0.3s;
 }
 
-.multiplier-highlight {
-    background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%);
-    border: 1px solid #ff9800;
+.order-modal-close:hover,
+.order-modal-close:focus {
+    color: #000;
+}
+
+.order-form h3 {
+    margin: 0 0 25px 0;
+    color: #333;
+    font-size: 24px;
+    text-align: center;
+}
+
+.required {
+    color: #dc3545;
+}
+
+.modal-buttons {
+    display: flex;
+    gap: 15px;
+    margin-top: 25px;
+    justify-content: center;
+}
+
+.calc-button-secondary {
+    background: #6c757d;
+    color: white;
+    border: none;
+    padding: 12px 24px;
     border-radius: 6px;
-    padding: 10px;
-    margin: 10px 0;
-    color: #ef6c00;
+    cursor: pointer;
+    font-size: 16px;
+    transition: all 0.3s;
+}
+
+.calc-button-secondary:hover {
+    background: #5a6268;
+    transform: translateY(-1px);
+}
+
+.calc-button-success {
+    background: #28a745;
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 16px;
+    transition: all 0.3s;
+}
+
+.calc-button-success:hover {
+    background: #218838;
+    transform: translateY(-1px);
+}
+
+/* Кнопка заказа в результатах */
+.order-button {
+    background: linear-gradient(45deg, #28a745, #20c997);
+    color: white;
+    border: none;
+    padding: 15px 30px;
+    border-radius: 8px;
+    font-size: 16px;
     font-weight: 600;
+    cursor: pointer;
+    margin-top: 15px;
+    width: 100%;
+    transition: all 0.3s;
+    box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);
+}
+
+.order-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(40, 167, 69, 0.4);
+    background: linear-gradient(45deg, #218838, #1ea085);
+}
+
+.order-button:active {
+    transform: translateY(0);
+}
+
+/* Стили для полей даты и времени */
+.form-group input[type="date"],
+.form-group input[type="time"] {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+    box-sizing: border-box;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.form-group input[type="date"]:focus,
+.form-group input[type="time"]:focus {
+    border-color: #007bff;
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+/* Стили для ошибок валидации */
+.form-group.error input,
+.form-group.error select {
+    border-color: #dc3545 !important;
+    box-shadow: 0 0 0 2px rgba(220, 53, 69, 0.25) !important;
+    animation: shakeError 0.5s ease-in-out;
+}
+
+.error-message {
+    color: #dc3545;
+    font-size: 14px;
+    margin-top: 5px;
+    padding: 8px 12px;
+    background: rgba(220, 53, 69, 0.1);
+    border: 1px solid rgba(220, 53, 69, 0.3);
+    border-radius: 4px;
+    animation: slideDown 0.3s ease-out;
+    display: block;
+}
+
+@keyframes shakeError {
+    0%, 100% { transform: translateX(0); }
+    10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+    20%, 40%, 60%, 80% { transform: translateX(5px); }
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@media (max-width: 768px) {
+    .order-modal-content {
+        margin: 10% auto;
+        padding: 20px;
+        width: 95%;
+    }
+    
+    .modal-buttons {
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .calc-button-secondary,
+    .calc-button-success {
+        width: 100%;
+    }
+    
+    .form-group input[type="date"],
+    .form-group input[type="time"] {
+        font-size: 16px;
+    }
 }
 </style>
 
@@ -187,7 +370,9 @@ window.addEventListener('error', function(e) {
         e.message.includes('recaptcha') ||
         e.message.includes('mail.ru') ||
         e.message.includes('top-fwz1') ||
-        e.message.includes('code.js')
+        e.message.includes('code.js') ||
+        e.message.includes('yandex.com') ||
+        e.message.includes('mc.yandex.com')
     )) {
         e.preventDefault();
         e.stopPropagation();
@@ -212,23 +397,6 @@ const calcConfig = {
 // Элементы формы
 const sheetsPerPackSelect = document.getElementById('sheetsPerPack');
 const packsCountInput = document.getElementById('packsCount');
-const totalSheetsSpan = document.getElementById('totalSheets');
-
-// Обновление предварительного расчета
-function updateTotalPreview() {
-    const sheetsPerPack = parseInt(sheetsPerPackSelect.value) || 0;
-    const packsCount = parseInt(packsCountInput.value) || 0;
-    const totalSheets = sheetsPerPack * packsCount;
-    
-    totalSheetsSpan.textContent = totalSheets.toLocaleString();
-}
-
-// Добавляем обработчики для обновления предварительного расчета
-sheetsPerPackSelect.addEventListener('change', updateTotalPreview);
-packsCountInput.addEventListener('input', updateTotalPreview);
-
-// Инициализируем предварительный расчет
-updateTotalPreview();
 
 // Функция ожидания BX
 function waitForBX(callback, fallbackCallback, timeout = 3000) {
@@ -332,62 +500,9 @@ function displayKubaricResult(result, resultDiv) {
     html += '<h3 class="result-title">Результат расчета кубариков</h3>';
     html += '<div class="result-price">' + finalPrice + ' <small>₽</small></div>';
     
-    // Информация о кубариках
-    html += '<div class="kubaric-info">';
-    html += '<h4>Параметры заказа:</h4>';
-    html += '<p><strong>Формат:</strong> 9×9 см</p>';
-    html += '<p><strong>Плотность бумаги:</strong> 80 г/м²</p>';
-    if (result.sheetsPerPack && result.packsCount) {
-        html += '<p><strong>Упаковка:</strong> ' + result.packsCount + ' пачек по ' + result.sheetsPerPack + ' листов</p>';
-    }
-    if (result.totalSheets) {
-        html += '<p><strong>Общее количество:</strong> ' + result.totalSheets.toLocaleString() + ' листов</p>';
-    }
-    html += '</div>';
+    // Добавляем кнопку заказа
+    html += '<button type="button" class="order-button" onclick="openOrderModal()">Заказать печать</button>';
     
-    // Детализация расчета
-    html += '<div class="price-breakdown">';
-    html += '<h4>Детализация стоимости:</h4>';
-    
-    if (result.basePrice) {
-        html += '<div class="price-step">';
-        html += '<span>Базовая стоимость производства:</span>';
-        html += '<span>' + basePrice + ' ₽</span>';
-        html += '</div>';
-    }
-    
-    html += '<div class="price-step">';
-    html += '<span>Применяем коэффициент × ' + multiplier + ':</span>';
-    html += '<span>' + basePrice + ' × ' + multiplier + '</span>';
-    html += '</div>';
-    
-    html += '<div class="price-step">';
-    html += '<span>Итоговая стоимость:</span>';
-    html += '<span>' + finalPrice + ' ₽</span>';
-    html += '</div>';
-    
-    html += '</div>';
-    
-    // Дополнительная информация
-    if (result.printingType) {
-        html += '<div class="multiplier-highlight">';
-        html += '<strong>Тип печати:</strong> ' + result.printingType;
-        html += '</div>';
-    }
-    
-    html += '<details class="result-details">';
-    html += '<summary class="result-summary">Техническая информация</summary>';
-    html += '<div class="result-details-content">';
-    html += '<ul>';
-    
-    if (result.baseA3Sheets) html += '<li>Эквивалент листов A3: ' + result.baseA3Sheets + '</li>';
-    if (result.printingCost) html += '<li>Стоимость печати: ' + Math.round(result.printingCost * 10) / 10 + ' ₽</li>';
-    if (result.paperCost) html += '<li>Стоимость бумаги: ' + Math.round(result.paperCost * 10) / 10 + ' ₽</li>';
-    if (result.plateCost && result.plateCost > 0) html += '<li>Стоимость пластин: ' + Math.round(result.plateCost * 10) / 10 + ' ₽</li>';
-    
-    html += '</ul>';
-    html += '</div>';
-    html += '</details>';
     html += '</div>';
     
     resultDiv.innerHTML = html;
@@ -409,5 +524,385 @@ function collectFormData(form) {
 // Запуск инициализации
 document.addEventListener('DOMContentLoaded', function() {
     waitForBX(initWithBX, initWithoutBX, 3000);
+    
+    // Инициализация модального окна
+    initOrderModal();
+    
+    // Инициализация валидации даты и времени
+    initializeDateTimeValidation();
 });
+
+// Функция инициализации валидации даты и времени
+function initializeDateTimeValidation() {
+    const dateInput = document.getElementById('callDate');
+    const timeInput = document.getElementById('callTime');
+    
+    if (dateInput) {
+        // Устанавливаем минимальную дату как сегодня
+        const today = new Date().toISOString().split('T')[0];
+        dateInput.setAttribute('min', today);
+        
+        // Устанавливаем максимальную дату как год вперед
+        const maxDate = new Date();
+        maxDate.setFullYear(maxDate.getFullYear() + 1);
+        dateInput.setAttribute('max', maxDate.toISOString().split('T')[0]);
+        
+        dateInput.addEventListener('change', function() {
+            validateDateField(this);
+        });
+    }
+    
+    if (timeInput) {
+        timeInput.addEventListener('change', function() {
+            validateTimeField(this);
+        });
+    }
+}
+
+// Функция валидации поля даты
+function validateDateField(dateField) {
+    clearFieldError(dateField);
+    
+    const dateValue = dateField.value;
+    if (!dateValue) return true;
+    
+    const selectedDate = new Date(dateValue);
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const selectedDay = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate());
+    
+    if (isNaN(selectedDate.getTime())) {
+        showFieldError(dateField, 'Пожалуйста, введите корректную дату');
+        return false;
+    }
+    
+    if (selectedDay < today) {
+        showFieldError(dateField, 'Дата не может быть в прошлом');
+        return false;
+    }
+    
+    const oneYearFromNow = new Date();
+    oneYearFromNow.setFullYear(oneYearFromNow.getFullYear() + 1);
+    if (selectedDate > oneYearFromNow) {
+        showFieldError(dateField, 'Дата не может быть более чем на год вперед');
+        return false;
+    }
+    
+    return true;
+}
+
+// Функция валидации поля времени
+function validateTimeField(timeField) {
+    clearFieldError(timeField);
+    
+    const timeValue = timeField.value;
+    if (!timeValue) return true;
+    
+    const timeParts = timeValue.split(':');
+    const hours = parseInt(timeParts[0], 10);
+    const minutes = parseInt(timeParts[1], 10);
+    
+    if (isNaN(hours) || isNaN(minutes)) {
+        showFieldError(timeField, 'Пожалуйста, введите корректное время');
+        return false;
+    }
+    
+    if (hours < 9 || hours > 20 || (hours === 20 && minutes > 0)) {
+        showFieldError(timeField, 'Время должно быть в промежутке с 9:00 до 20:00');
+        return false;
+    }
+    
+    // Проверяем время для сегодняшнего дня
+    const dateField = document.getElementById('callDate');
+    if (dateField && dateField.value) {
+        const selectedDate = new Date(dateField.value);
+        const today = new Date();
+        
+        if (selectedDate.toDateString() === today.toDateString()) {
+            const currentTime = new Date();
+            const selectedTime = new Date(today.getFullYear(), today.getMonth(), today.getDate(), hours, minutes);
+            
+            if (selectedTime < currentTime) {
+                showFieldError(timeField, 'Время не может быть в прошлом для сегодняшнего дня');
+                return false;
+            }
+        }
+    }
+    
+    return true;
+}
+
+// Функция показа ошибки для конкретного поля
+function showFieldError(field, message) {
+    const formGroup = field.closest('.form-group');
+    if (!formGroup) return;
+    
+    formGroup.classList.add('error');
+    
+    const existingError = formGroup.querySelector('.error-message');
+    if (existingError) {
+        existingError.remove();
+    }
+    
+    const errorDiv = document.createElement('div');
+    errorDiv.className = 'error-message';
+    errorDiv.textContent = message;
+    
+    field.parentNode.insertBefore(errorDiv, field.nextSibling);
+    
+    setTimeout(() => {
+        clearFieldError(field);
+    }, 5000);
+}
+
+// Функция очистки ошибки для поля
+function clearFieldError(field) {
+    const formGroup = field.closest('.form-group');
+    if (!formGroup) return;
+    
+    formGroup.classList.remove('error');
+    
+    const errorMessage = formGroup.querySelector('.error-message');
+    if (errorMessage) {
+        errorMessage.style.animation = 'fadeOut 0.3s ease-out';
+        setTimeout(() => {
+            if (errorMessage.parentNode) {
+                errorMessage.remove();
+            }
+        }, 300);
+    }
+}
+
+// Функция валидации формы заказа
+function validateOrderForm() {
+    const nameField = document.getElementById('clientName');
+    const phoneField = document.getElementById('clientPhone');
+    const emailField = document.getElementById('clientEmail');
+    const dateField = document.getElementById('callDate');
+    const timeField = document.getElementById('callTime');
+    
+    const name = nameField.value.trim();
+    const phone = phoneField.value.trim();
+    const email = emailField.value.trim();
+    const date = dateField.value;
+    const time = timeField.value;
+    
+    let hasErrors = false;
+    
+    clearAllFieldErrors();
+    
+    if (!name) {
+        showFieldError(nameField, 'Пожалуйста, введите ваше имя');
+        hasErrors = true;
+    } else if (name.length < 2) {
+        showFieldError(nameField, 'Имя должно содержать не менее 2 символов');
+        hasErrors = true;
+    }
+    
+    if (!phone) {
+        showFieldError(phoneField, 'Пожалуйста, введите номер телефона');
+        hasErrors = true;
+    } else {
+        const phonePattern = /^[\+]?[0-9\s\-\(\)]{10,}$/;
+        if (!phonePattern.test(phone)) {
+            showFieldError(phoneField, 'Пожалуйста, введите корректный номер телефона');
+            hasErrors = true;
+        }
+    }
+    
+    if (email) {
+        const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailPattern.test(email)) {
+            showFieldError(emailField, 'Пожалуйста, введите корректный email адрес');
+            hasErrors = true;
+        }
+    }
+    
+    if (date || time) {
+        if (date && !validateDateField(dateField)) hasErrors = true;
+        if (time && !validateTimeField(timeField)) hasErrors = true;
+        
+        if ((date && !time) || (!date && time)) {
+            if (!time) showFieldError(timeField, 'Пожалуйста, укажите время звонка');
+            if (!date) showFieldError(dateField, 'Пожалуйста, укажите дату звонка');
+            hasErrors = true;
+        }
+    }
+    
+    return !hasErrors;
+}
+
+// Функция очистки всех ошибок в форме
+function clearAllFieldErrors() {
+    const formGroups = document.querySelectorAll('#orderForm .form-group');
+    formGroups.forEach(group => {
+        group.classList.remove('error');
+        const errorMessage = group.querySelector('.error-message');
+        if (errorMessage) {
+            errorMessage.remove();
+        }
+    });
+}
+
+// Функции для работы с модальным окном заказа
+function openOrderModal() {
+    const modal = document.getElementById('orderModal');
+    const orderDataInput = document.getElementById('orderData');
+    
+    if (!modal || !orderDataInput) {
+        console.error('Ошибка инициализации формы заказа');
+        return;
+    }
+    
+    // Собираем данные расчета
+    const form = document.getElementById(calcConfig.type + 'CalcForm');
+    if (!form) {
+        console.error('Форма калькулятора не найдена');
+        return;
+    }
+    
+    const formData = collectFormData(form);
+    
+    // Получаем результат расчета
+    const resultDiv = document.getElementById('calcResult');
+    const priceElement = resultDiv ? resultDiv.querySelector('.result-price') : null;
+    const totalPrice = priceElement ? priceElement.textContent.replace(/[^\d.,]/g, '') : '0';
+    
+    // Формируем данные заказа для кубариков
+    const orderData = {
+        calcType: 'kubaric', // Главный идентификатор типа калькулятора
+        type: 'kubaric',
+        description: 'Заказ печати кубариков',
+        sheetsPerPack: formData.sheetsPerPack || '',
+        packsCount: formData.packsCount || '',
+        totalSheets: (parseInt(formData.sheetsPerPack) || 0) * (parseInt(formData.packsCount) || 0),
+        printType: formData.printType || '',
+        format: '9×9 см',
+        paperDensity: '80 г/м²',
+        totalPrice: totalPrice,
+        timestamp: new Date().toLocaleString('ru-RU')
+    };
+    
+    orderDataInput.value = JSON.stringify(orderData);
+    modal.style.display = 'block';
+}
+
+function closeOrderModal() {
+    const modal = document.getElementById('orderModal');
+    modal.style.display = 'none';
+    
+    const form = document.getElementById('orderForm');
+    form.reset();
+    clearAllFieldErrors();
+}
+
+function initOrderModal() {
+    const modal = document.getElementById('orderModal');
+    const closeBtn = modal.querySelector('.order-modal-close');
+    const form = document.getElementById('orderForm');
+    
+    closeBtn.onclick = closeOrderModal;
+    
+    window.onclick = function(event) {
+        if (event.target == modal) {
+            closeOrderModal();
+        }
+    };
+    
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        if (!validateOrderForm()) {
+            return;
+        }
+        
+        const submitBtn = form.querySelector('button[type="submit"]');
+        const originalText = submitBtn.textContent;
+        submitBtn.textContent = 'Отправляем...';
+        submitBtn.disabled = true;
+        
+        const formData = new FormData(form);
+        const clientData = {};
+        for (let [key, value] of formData.entries()) {
+            clientData[key] = value;
+        }
+        
+        sendOrderEmail(clientData)
+            .then((response) => handleOrderResponse(response, submitBtn, originalText))
+            .catch((error) => handleOrderError(submitBtn, originalText, error));
+    });
+}
+
+function sendOrderEmail(clientData) {
+    const orderData = JSON.parse(clientData.orderData);
+    
+    // Безопасно получаем sessid
+    const sessidElement = document.querySelector('input[name="sessid"]');
+    const sessid = sessidElement ? sessidElement.value : '';
+    
+    const emailData = {
+        action: 'sendOrderEmail',
+        clientName: clientData.clientName || '',
+        clientPhone: clientData.clientPhone || '',
+        clientEmail: clientData.clientEmail || '',
+        callDate: clientData.callDate || '',
+        callTime: clientData.callTime || '',
+        clientComment: '', // Для кубариков комментарий не используется
+        orderDetails: JSON.stringify(orderData), // Преобразуем в строку для передачи
+        sessid: sessid
+    };
+    
+    if (typeof BX !== 'undefined' && BX.ajax) {
+        console.log('📧 Отправка заказа через BX.ajax:', emailData);
+        return BX.ajax.runComponentAction(calcConfig.component, 'sendOrderEmail', {
+            mode: 'class',
+            data: emailData
+        });
+    } else {
+        console.log('📧 Отправка заказа через fetch:', emailData);
+        return fetch('/bitrix/services/main/ajax.php?c=' + calcConfig.component + '&action=sendOrderEmail&mode=class', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: new URLSearchParams(emailData)
+        }).then(response => {
+            console.log('📧 Ответ сервера (raw):', response);
+            return response.json();
+        }).then(data => {
+            console.log('📧 Ответ сервера (parsed):', data);
+            return data;
+        });
+    }
+}
+
+function handleOrderResponse(response, submitBtn, originalText) {
+    console.log('📧 Обработка ответа заказа:', response);
+    
+    if (response && (response.success || (response.data && response.data.success))) {
+        console.log('✅ Заказ успешно отправлен');
+        closeOrderModal();
+    } else {
+        const errorMsg = response && response.data && response.data.error ? 
+            response.data.error : 
+            'Произошла ошибка при отправке заказа. Пожалуйста, свяжитесь с нами по телефону.';
+        console.error('❌ Ошибка отправки заказа:', errorMsg);
+        console.error('📧 Полный ответ сервера:', response);
+    }
+    
+    submitBtn.textContent = originalText;
+    submitBtn.disabled = false;
+}
+
+function handleOrderError(submitBtn, originalText, error) {
+    console.error('❌ Критическая ошибка отправки заказа:', error);
+    console.error('📧 Детали ошибки:', {
+        message: error.message,
+        stack: error.stack,
+        name: error.name
+    });
+    
+    submitBtn.textContent = originalText;
+    submitBtn.disabled = false;
+}
 </script>

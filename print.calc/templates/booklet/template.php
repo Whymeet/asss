@@ -188,18 +188,18 @@ $features = $arResult['FEATURES'] ?? [];
                 </div>
                 
                 <div class="form-group">
-                    <label class="form-label" for="clientEmail">E-mail <span class="required">*</span>:</label>
-                    <input type="email" id="clientEmail" name="clientEmail" class="form-control" required>
+                    <label class="form-label" for="clientEmail">E-mail:</label>
+                    <input type="email" id="clientEmail" name="clientEmail" class="form-control">
                 </div>
                 
                 <div class="form-group">
-                    <label class="form-label" for="callDate">Удобная дата для звонка <span class="required">*</span>:</label>
-                    <input type="date" id="callDate" name="callDate" class="form-control" required>
+                    <label class="form-label" for="callDate">Удобная дата для звонка:</label>
+                    <input type="date" id="callDate" name="callDate" class="form-control">
                 </div>
 
                 <div class="form-group">
-                    <label class="form-label" for="callTime">Удобное время для звонка <span class="required">*</span>:</label>
-                    <input type="time" id="callTime" name="callTime" class="form-control" required>
+                    <label class="form-label" for="callTime">Удобное время для звонка:</label>
+                    <input type="time" id="callTime" name="callTime" class="form-control">
                 </div>
                 
                 <div class="modal-buttons">

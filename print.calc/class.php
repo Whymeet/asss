@@ -38,6 +38,10 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
             'sendOrder' => [
                 'prefilters' => [],
                 'postfilters' => []
+            ],
+            'sendOrderEmail' => [
+                'prefilters' => [],
+                'postfilters' => []
             ]
         ];
     }
@@ -1806,7 +1810,7 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
             }
 
             // Формируем сообщение для email
-            $message = $this->formatOrderMessage($orderInfo, $name, $phone, $email, $callTime);
+            $message = $this->formatOrderMessage($orderInfo, $name, $phone, $email, $callTime, '');
             
             // Отправляем email через событие Битрикса
             $success = $this->sendEmailNotification($message, $orderInfo, $name, $phone, $email);
@@ -1826,36 +1830,133 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
     }
 
     /**
+     * Отправка заказа по email с улучшенной валидацией
+     */
+    public function sendOrderEmailAction($clientName = '', $clientPhone = '', $clientEmail = '', $callDate = '', $callTime = '', $clientComment = '', $orderDetails = '')
+    {
+        $this->debug("sendOrderEmailAction вызван", [
+            'clientName' => $clientName,
+            'clientPhone' => $clientPhone,
+            'clientEmail' => $clientEmail,
+            'callDate' => $callDate,
+            'callTime' => $callTime,
+            'clientComment' => $clientComment,
+            'orderDetails' => $orderDetails
+        ]);
+
+        // Валидация обязательных полей
+        if (empty($clientName) || empty($clientPhone)) {
+            return ['error' => 'Не заполнены обязательные поля: имя и телефон'];
+        }
+
+        // Дополнительная валидация
+        if (strlen($clientName) < 2) {
+            return ['error' => 'Имя должно содержать минимум 2 символа'];
+        }
+
+        // Валидация телефона
+        $cleanPhone = preg_replace('/[^\d+]/', '', $clientPhone);
+        if (strlen($cleanPhone) < 10) {
+            return ['error' => 'Некорректный номер телефона'];
+        }
+
+        // Валидация email (если указан)
+        if (!empty($clientEmail) && !filter_var($clientEmail, FILTER_VALIDATE_EMAIL)) {
+            return ['error' => 'Некорректный email адрес'];
+        }
+
+        try {
+            // Декодируем данные заказа
+            $orderInfo = json_decode($orderDetails, true);
+            if (!$orderInfo) {
+                return ['error' => 'Некорректные данные заказа'];
+            }
+
+            // Убеждаемся, что calcType правильно установлен
+            if (!isset($orderInfo['calcType']) && isset($orderInfo['type'])) {
+                $orderInfo['calcType'] = $orderInfo['type'];
+            }
+            
+            $this->debug("Обработка заказа", [
+                'calcType' => $orderInfo['calcType'] ?? 'не установлен',
+                'type' => $orderInfo['type'] ?? 'не установлен',
+                'orderData' => $orderInfo
+            ]);
+
+            // Формируем предпочтительное время звонка
+            $preferredCallTime = '';
+            if (!empty($callDate) && !empty($callTime)) {
+                $preferredCallTime = date('d.m.Y', strtotime($callDate)) . ' в ' . $callTime;
+            }
+
+            // Формируем сообщение для email
+            $message = $this->formatOrderMessage($orderInfo, $clientName, $clientPhone, $clientEmail, $preferredCallTime, $clientComment);
+            
+            // Отправляем email через событие Битрикса
+            $success = $this->sendEmailNotification($message, $orderInfo, $clientName, $clientPhone, $clientEmail);
+            
+            if ($success) {
+                $this->debug("Email успешно отправлен");
+                return ['success' => true, 'message' => 'Заказ успешно отправлен'];
+            } else {
+                $this->debug("Ошибка отправки email");
+                return ['error' => 'Ошибка при отправке заказа'];
+            }
+            
+        } catch (Exception $e) {
+            $this->debug("Исключение при отправке заказа: " . $e->getMessage());
+            return ['error' => 'Техническая ошибка при отправке заказа'];
+        }
+    }
+
+    /**
      * Форматирует сообщение для email
      */
-    private function formatOrderMessage($orderInfo, $name, $phone, $email, $callTime)
+    private function formatOrderMessage($orderInfo, $name, $phone, $email, $callTime, $clientComment = '')
     {
+        $this->debug("formatOrderMessage вызван", [
+            'calcType' => $orderInfo['calcType'] ?? 'не установлен',
+            'type' => $orderInfo['type'] ?? 'не установлен'
+        ]);
+        
         // Для листовок создаем красивое HTML-письмо
         if ($orderInfo['calcType'] === 'list') {
-            return $this->formatListOrderHTML($orderInfo, $name, $phone, $email, $callTime);
+            $this->debug("Выбран формат для листовок");
+            return $this->formatListOrderHTML($orderInfo, $name, $phone, $email, $callTime, $clientComment);
         }
         
         // Для буклетов создаем красивое HTML-письмо
         if ($orderInfo['calcType'] === 'booklet') {
-            return $this->formatBookletOrderHTML($orderInfo, $name, $phone, $email, $callTime);
+            $this->debug("Выбран формат для буклетов");
+            return $this->formatBookletOrderHTML($orderInfo, $name, $phone, $email, $callTime, $clientComment);
         }
         
         // Для визиток создаем красивое HTML-письмо
         if ($orderInfo['calcType'] === 'vizit') {
-            return $this->formatVizitOrderHTML($orderInfo, $name, $phone, $email, $callTime);
+            $this->debug("Выбран формат для визиток");
+            return $this->formatVizitOrderHTML($orderInfo, $name, $phone, $email, $callTime, $clientComment);
         }
         
         // Для ПВХ стендов создаем красивое HTML-письмо
         if ($orderInfo['calcType'] === 'stend') {
-            return $this->formatStendOrderHTML($orderInfo, $name, $phone, $email, $callTime);
+            $this->debug("Выбран формат для ПВХ стендов");
+            return $this->formatStendOrderHTML($orderInfo, $name, $phone, $email, $callTime, $clientComment);
         }
         
         // Для блокнотов создаем красивое HTML-письмо
         if ($orderInfo['calcType'] === 'note') {
-            return $this->formatNoteOrderHTML($orderInfo, $name, $phone, $email, $callTime);
+            $this->debug("Выбран формат для блокнотов");
+            return $this->formatNoteOrderHTML($orderInfo, $name, $phone, $email, $callTime, $clientComment);
+        }
+        
+        // Для кубариков создаем красивое HTML-письмо
+        if ($orderInfo['calcType'] === 'kubaric' || $orderInfo['type'] === 'kubaric') {
+            $this->debug("Выбран формат для кубариков");
+            return $this->formatKubaricOrderHTML($orderInfo, $name, $phone, $email, $callTime, $clientComment);
         }
         
         // Для остальных калькуляторов - старый текстовый формат
+        $this->debug("Используется стандартный текстовый формат для типа: " . ($orderInfo['calcType'] ?? 'неизвестен'));
         $message = "=== НОВЫЙ ЗАКАЗ ИЗ КАЛЬКУЛЯТОРА ===\n\n";
         
         $message .= "Информация о заказе:\n";
@@ -1904,7 +2005,7 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
     /**
      * Создает HTML-письмо для заказа листовок
      */
-    private function formatListOrderHTML($orderInfo, $name, $phone, $email, $callTime)
+    private function formatListOrderHTML($orderInfo, $name, $phone, $email, $callTime, $clientComment = '')
     {
         $html = '<!DOCTYPE html>
 <html>
@@ -2011,7 +2112,7 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
     /**
      * Создает HTML-письмо для заказа буклетов
      */
-    private function formatBookletOrderHTML($orderInfo, $name, $phone, $email, $callTime)
+    private function formatBookletOrderHTML($orderInfo, $name, $phone, $email, $callTime, $clientComment = '')
     {
         $html = '<!DOCTYPE html>
 <html>
@@ -2130,7 +2231,7 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
     /**
      * Форматирование HTML-письма для заказа визиток
      */
-    private function formatVizitOrderHTML($orderInfo, $name, $phone, $email, $callTime)
+    private function formatVizitOrderHTML($orderInfo, $name, $phone, $email, $callTime, $clientComment = '')
     {
         $html = '<!DOCTYPE html>
 <html>
@@ -2349,7 +2450,7 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
     /**
      * Создает HTML-письмо для заказа блокнотов
      */
-    private function formatNoteOrderHTML($orderInfo, $name, $phone, $email, $callTime)
+    private function formatNoteOrderHTML($orderInfo, $name, $phone, $email, $callTime, $clientComment = '')
     {
         $html = '<!DOCTYPE html>
 <html>
@@ -2473,8 +2574,8 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
             return false;
         }
 
-        // Для листовок, буклетов, визиток, стендов и блокнотов отправляем письмо напрямую
-        if (in_array($orderInfo['calcType'], ['list', 'booklet', 'vizit', 'stend', 'note'])) {
+        // Для листовок, буклетов, визиток, стендов, блокнотов и кубариков отправляем письмо напрямую
+        if (in_array($orderInfo['calcType'], ['list', 'booklet', 'vizit', 'stend', 'note', 'kubaric'])) {
             $this->debug("Отправляем HTML-письмо для типа: " . $orderInfo['calcType']);
             // Для стендов пока отправляем текстовую версию
             if ($orderInfo['calcType'] === 'stend') {
@@ -2545,6 +2646,9 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
                     break;
                 case 'note':
                     $productType = 'блокноты';
+                    break;
+                case 'kubaric':
+                    $productType = 'кубарики';
                     break;
                 default:
                     $productType = $orderInfo['product'] ?? 'заказ';
@@ -2650,7 +2754,7 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
     /**
      * Создает текстовое письмо для заказа ПВХ стендов
      */
-    private function formatStendOrderHTML($orderInfo, $name, $phone, $email, $callTime)
+    private function formatStendOrderHTML($orderInfo, $name, $phone, $email, $callTime, $clientComment = '')
     {
         $text = "=== НОВЫЙ ЗАКАЗ ПВХ СТЕНДА ===\n\n";
         
@@ -2815,6 +2919,108 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
             $this->debug("Исключение при отправке текстового письма: " . $e->getMessage());
             return false;
         }
+    }
+
+    /**
+     * Форматирует HTML письмо для заказа кубариков
+     */
+    private function formatKubaricOrderHTML($orderInfo, $name, $phone, $email, $callTime, $clientComment = '')
+    {
+        $html = '<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Новый заказ кубариков</title>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: linear-gradient(135deg, #ff9800, #f57c00); color: white; padding: 20px; border-radius: 8px 8px 0 0; text-align: center; }
+        .content { background: #f8f9fa; padding: 20px; border: 1px solid #dee2e6; }
+        .footer { background: #6c757d; color: white; padding: 15px; border-radius: 0 0 8px 8px; text-align: center; font-size: 14px; }
+        .section { margin-bottom: 20px; }
+        .section h3 { color: #ff9800; margin-bottom: 10px; border-bottom: 2px solid #ff9800; padding-bottom: 5px; }
+        .info-table { width: 100%; border-collapse: collapse; }
+        .info-table td { padding: 8px 12px; border-bottom: 1px solid #dee2e6; }
+        .info-table td:first-child { font-weight: bold; background: #fff3e0; width: 40%; }
+        .price { font-size: 24px; font-weight: bold; color: #ff9800; text-align: center; margin: 20px 0; }
+        .client-info { background: white; padding: 15px; border-radius: 6px; border-left: 4px solid #ff9800; }
+        .highlight { background: #fff3e0; padding: 10px; border-radius: 4px; border-left: 4px solid #ff9800; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Новый заказ кубариков</h1>
+            <p>Получен через калькулятор на сайте</p>
+        </div>
+        
+        <div class="content">
+            <div class="price">
+                ' . (isset($orderInfo['totalPrice']) ? number_format($orderInfo['totalPrice'], 2, ',', ' ') . ' ₽' : 'Цена не указана') . '
+            </div>
+            
+            <div class="section">
+                <h3>Параметры кубариков</h3>
+                <table class="info-table">
+                    <tr>
+                        <td>Формат</td>
+                        <td>' . ($orderInfo['format'] ?? '9×9 см') . '</td>
+                    </tr>
+                    <tr>
+                        <td>Листов в пачке</td>
+                        <td>' . ($orderInfo['sheetsPerPack'] ?? 'Не указано') . ' листов</td>
+                    </tr>
+                    <tr>
+                        <td>Количество пачек</td>
+                        <td>' . ($orderInfo['packsCount'] ?? 'Не указано') . ' шт</td>
+                    </tr>
+                    <tr>
+                        <td>Общее количество листов</td>
+                        <td>' . (isset($orderInfo['totalSheets']) ? number_format($orderInfo['totalSheets'], 0, ',', ' ') : 'Не указано') . ' листов</td>
+                    </tr>
+                    <tr>
+                        <td>Тип печати</td>
+                        <td>' . ($orderInfo['printType'] ?? 'Не указан') . '</td>
+                    </tr>
+                </table>
+            </div>
+            
+            <div class="section">
+                <h3>Информация о клиенте</h3>
+                <div class="client-info">
+                    <p><strong>Имя:</strong> ' . htmlspecialchars($name) . '</p>
+                    <p><strong>Телефон:</strong> <a href="tel:' . htmlspecialchars($phone) . '">' . htmlspecialchars($phone) . '</a></p>';
+        
+        if (!empty($email)) {
+            $html .= '<p><strong>E-mail:</strong> <a href="mailto:' . htmlspecialchars($email) . '">' . htmlspecialchars($email) . '</a></p>';
+        }
+        
+        if (!empty($callTime)) {
+            $callTimeFormatted = $callTime;
+            if (strpos($callTime, '.') === false && strtotime($callTime)) {
+                $callTimeFormatted = date('d.m.Y H:i', strtotime($callTime));
+            }
+            $html .= '<p><strong>Удобное время для звонка:</strong> ' . htmlspecialchars($callTimeFormatted) . '</p>';
+        }
+        
+        if (!empty($clientComment)) {
+            $html .= '<p><strong>Комментарий к заказу:</strong> ' . nl2br(htmlspecialchars($clientComment)) . '</p>';
+        }
+        
+        $html .= '<p><strong>Дата заказа:</strong> ' . date('d.m.Y H:i:s') . '</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>Заказ получен через калькулятор печати на сайте</p>
+            <p>Время получения: ' . date('d.m.Y H:i:s') . '</p>
+        </div>
+    </div>
+</body>
+</html>';
+        
+        return $html;
     }
 }
 ?>

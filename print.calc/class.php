@@ -1850,6 +1850,11 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
             return $this->formatStendOrderHTML($orderInfo, $name, $phone, $email, $callTime);
         }
         
+        // Для блокнотов создаем красивое HTML-письмо
+        if ($orderInfo['calcType'] === 'note') {
+            return $this->formatNoteOrderHTML($orderInfo, $name, $phone, $email, $callTime);
+        }
+        
         // Для остальных калькуляторов - старый текстовый формат
         $message = "=== НОВЫЙ ЗАКАЗ ИЗ КАЛЬКУЛЯТОРА ===\n\n";
         
@@ -2342,17 +2347,135 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
     }
 
     /**
+     * Создает HTML-письмо для заказа блокнотов
+     */
+    private function formatNoteOrderHTML($orderInfo, $name, $phone, $email, $callTime)
+    {
+        $html = '<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Новый заказ блокнотов</title>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: linear-gradient(135deg, #6f42c1, #e83e8c); color: white; padding: 20px; border-radius: 8px 8px 0 0; text-align: center; }
+        .content { background: #f8f9fa; padding: 20px; border: 1px solid #dee2e6; }
+        .footer { background: #6c757d; color: white; padding: 15px; border-radius: 0 0 8px 8px; text-align: center; font-size: 14px; }
+        .section { margin-bottom: 20px; }
+        .section h3 { color: #6f42c1; margin-bottom: 10px; border-bottom: 2px solid #6f42c1; padding-bottom: 5px; }
+        .info-table { width: 100%; border-collapse: collapse; }
+        .info-table td { padding: 8px 12px; border-bottom: 1px solid #dee2e6; }
+        .info-table td:first-child { font-weight: bold; background: #f3e8ff; width: 40%; }
+        .price { font-size: 24px; font-weight: bold; color: #6f42c1; text-align: center; margin: 20px 0; }
+        .client-info { background: white; padding: 15px; border-radius: 6px; border-left: 4px solid #6f42c1; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Новый заказ блокнотов</h1>
+            <p>Заказ с калькулятора печати</p>
+        </div>
+        
+        <div class="content">
+            <div class="section">
+                <h3>Информация о заказе</h3>
+                <table class="info-table">
+                    <tr><td>Продукт</td><td>' . htmlspecialchars($orderInfo['product'] ?? 'Блокноты') . '</td></tr>
+                    <tr><td>Формат</td><td>' . htmlspecialchars($orderInfo['size'] ?? 'Не указан') . '</td></tr>
+                    <tr><td>Тираж</td><td>' . number_format($orderInfo['quantity'] ?? 0, 0, ',', ' ') . ' шт.</td></tr>
+                    <tr><td>Листов в блоке</td><td>' . htmlspecialchars($orderInfo['inner_pages'] ?? 'Не указано') . '</td></tr>
+                    <tr><td>Печать обложки</td><td>' . htmlspecialchars($orderInfo['cover_print'] ?? 'Не указано') . '</td></tr>
+                    <tr><td>Печать задника</td><td>' . htmlspecialchars($orderInfo['back_print'] ?? 'Не указано') . '</td></tr>
+                    <tr><td>Печать внутреннего блока</td><td>' . htmlspecialchars($orderInfo['inner_print'] ?? 'Не указано') . '</td></tr>';
+        
+        // Добавляем информацию о ламинации если есть
+        if (!empty($orderInfo['laminationType'])) {
+            $laminationText = $orderInfo['laminationType'];
+            
+            // Преобразуем коды ламинации в понятные названия
+            $laminationTypes = [
+                '1+0' => 'Односторонняя',
+                '1+1' => 'Двусторонняя'
+            ];
+            
+            if (isset($laminationTypes[$laminationText])) {
+                $laminationText = $laminationTypes[$laminationText];
+            }
+            
+            // Добавляем толщину если указана
+            if (!empty($orderInfo['laminationThickness'])) {
+                $laminationText .= ' (' . $orderInfo['laminationThickness'] . ' мкм)';
+            }
+            
+            $html .= '<tr><td>Ламинация обложки</td><td>' . htmlspecialchars($laminationText) . '</td></tr>';
+        }
+        
+        // Добавляем дополнительные услуги если есть
+        if (!empty($orderInfo['additionalServices'])) {
+            $html .= '<tr><td>Дополнительные услуги</td><td>' . htmlspecialchars($orderInfo['additionalServices']) . '</td></tr>';
+        }
+        
+        $html .= '</table>
+                <div class="price">Итого: ' . number_format($orderInfo['totalPrice'] ?? 0, 0, ',', ' ') . ' руб.</div>
+            </div>
+            
+            <div class="section">
+                <h3>Информация о клиенте</h3>
+                <div class="client-info">
+                    <p><strong>Имя:</strong> ' . htmlspecialchars($name) . '</p>
+                    <p><strong>Телефон:</strong> <a href="tel:' . htmlspecialchars($phone) . '">' . htmlspecialchars($phone) . '</a></p>';
+        
+        if (!empty($email)) {
+            $html .= '<p><strong>E-mail:</strong> <a href="mailto:' . htmlspecialchars($email) . '">' . htmlspecialchars($email) . '</a></p>';
+        }
+        
+        if (!empty($callTime)) {
+            $callTimeFormatted = $callTime;
+            if (strpos($callTime, '.') === false && strtotime($callTime)) {
+                $callTimeFormatted = date('d.m.Y H:i', strtotime($callTime));
+            }
+            $html .= '<p><strong>Удобное время для звонка:</strong> ' . htmlspecialchars($callTimeFormatted) . '</p>';
+        }
+        
+        $html .= '<p><strong>Дата заказа:</strong> ' . date('d.m.Y H:i:s') . '</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>Заказ получен через калькулятор печати на сайте</p>
+            <p>Время получения: ' . date('d.m.Y H:i:s') . '</p>
+        </div>
+    </div>
+</body>
+</html>';
+        
+        return $html;
+    }
+
+    /**
      * Отправляет email уведомление через событие Битрикса
      */
     private function sendEmailNotification($message, $orderInfo, $name, $phone, $email)
     {
+        $this->debug("sendEmailNotification вызвана", [
+            'calcType' => $orderInfo['calcType'] ?? 'unknown',
+            'messageLength' => strlen($message),
+            'name' => $name,
+            'phone' => $phone,
+            'email' => $email
+        ]);
+        
         if (!CModule::IncludeModule("main")) {
             $this->debug("Модуль main не подключен");
             return false;
         }
 
-        // Для листовок, буклетов, визиток и стендов отправляем письмо напрямую
-        if (in_array($orderInfo['calcType'], ['list', 'booklet', 'vizit', 'stend'])) {
+        // Для листовок, буклетов, визиток, стендов и блокнотов отправляем письмо напрямую
+        if (in_array($orderInfo['calcType'], ['list', 'booklet', 'vizit', 'stend', 'note'])) {
+            $this->debug("Отправляем HTML-письмо для типа: " . $orderInfo['calcType']);
             // Для стендов пока отправляем текстовую версию
             if ($orderInfo['calcType'] === 'stend') {
                 return $this->sendTextEmail($message, $orderInfo, $name, $phone, $email);
@@ -2419,6 +2542,9 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
                     break;
                 case 'booklet':
                     $productType = 'буклеты';
+                    break;
+                case 'note':
+                    $productType = 'блокноты';
                     break;
                 default:
                     $productType = $orderInfo['product'] ?? 'заказ';

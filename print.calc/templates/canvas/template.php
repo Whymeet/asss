@@ -638,75 +638,10 @@ function handleResponse(response, resultDiv) {
 // Отображение результата холста
 function displayCanvasResult(result, resultDiv) {
     const totalPrice = Math.round((result.totalPrice || 0) * 10) / 10;
-    const canvasPrice = Math.round((result.canvasPrice || 0) * 10) / 10;
-    const podramnikPrice = Math.round((result.podramnikPrice || 0) * 10) / 10;
     
     let html = '<div class="result-success">';
     html += '<h3 class="result-title">Результат расчета холста</h3>';
     html += '<div class="result-price">' + totalPrice + ' <small>₽</small></div>';
-    
-    // Информация о размере
-    if (result.roundedWidth && result.roundedHeight) {
-        const isLarge = result.roundedWidth > maxStandardSize || result.roundedHeight > maxStandardSize;
-        const wasRounded = result.roundedWidth !== parseFloat(widthInput.value) || result.roundedHeight !== parseFloat(heightInput.value);
-        
-        if (isLarge) {
-            html += '<div class="large-size-info">';
-            html += '<strong>Большой размер:</strong> ' + result.roundedWidth + '×' + result.roundedHeight + ' см<br>';
-            if (result.area) {
-                html += 'Площадь: ' + Math.round(result.area * 10000) / 10000 + ' м²';
-            }
-            html += '</div>';
-        } else if (wasRounded) {
-            html += '<div class="rounded-info">';
-            html += '<strong>Размер округлен:</strong> ' + parseFloat(widthInput.value) + '×' + parseFloat(heightInput.value) + ' см → ' + result.roundedWidth + '×' + result.roundedHeight + ' см';
-            html += '</div>';
-        } else {
-            html += '<div class="canvas-info">';
-            html += '<strong>Размер холста:</strong> ' + result.roundedWidth + '×' + result.roundedHeight + ' см';
-            html += '</div>';
-        }
-    }
-    
-    // Детализация стоимости
-    html += '<div class="price-breakdown">';
-    html += '<h4>Детализация стоимости:</h4>';
-    
-    html += '<div class="price-item">';
-    html += '<span>Печать на холсте:</span>';
-    html += '<span>' + canvasPrice + ' ₽</span>';
-    html += '</div>';
-    
-    if (podramnikPrice > 0) {
-        html += '<div class="price-item">';
-        html += '<span>Подрамник:</span>';
-        html += '<span>' + podramnikPrice + ' ₽</span>';
-        html += '</div>';
-    }
-    
-    html += '<div class="price-item">';
-    html += '<span>Итого:</span>';
-    html += '<span>' + totalPrice + ' ₽</span>';
-    html += '</div>';
-    
-    html += '</div>';
-    
-    html += '<details class="result-details">';
-    html += '<summary class="result-summary">Техническая информация</summary>';
-    html += '<div class="result-details-content">';
-    html += '<ul>';
-    
-    if (result.roundedWidth && result.roundedHeight) {
-        html += '<li>Финальный размер: ' + result.roundedWidth + '×' + result.roundedHeight + ' см</li>';
-    }
-    if (result.area) {
-        html += '<li>Площадь: ' + Math.round(result.area * 10000) / 10000 + ' м²</li>';
-    }
-    html += '<li>Подрамник: ' + (podramnikPrice > 0 ? 'Включен' : 'Не включен') + '</li>';
-    
-    html += '</ul>';
-    html += '</div>';
-    html += '</details>';
     
     // Добавляем кнопку заказа
     html += '<button type="button" class="order-button" onclick="openOrderModal()">Заказать печать</button>';

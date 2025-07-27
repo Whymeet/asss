@@ -3193,96 +3193,52 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
 <body>
     <div class="container">
         <div class="header">
-            <h1>🎨 Новый заказ печати на холсте</h1>
-            <p>Заказ с калькулятора печати</p>
+            <h1>Новый заказ печати на холсте</h1>
         </div>
         
         <div class="content">
             <div class="section">
-                <h3>📏 Информация о заказе</h3>
+                <h3>Информация о заказе</h3>
                 <table class="info-table">
                     <tr><td>Продукт</td><td>Печать на холсте</td></tr>
                     <tr><td>Ширина</td><td>' . htmlspecialchars($width) . ' см</td></tr>
                     <tr><td>Высота</td><td>' . htmlspecialchars($height) . ' см</td></tr>
                     <tr><td>Подрамник</td><td>' . htmlspecialchars($includePodramnik) . '</td></tr>
                 </table>
-                
-                <div class="size-info">
-                    <strong>📐 Размер холста:</strong> ' . htmlspecialchars($width) . ' × ' . htmlspecialchars($height) . ' см<br>';
-                    
-        // Добавляем информацию о площади для больших размеров
-        if (is_numeric($width) && is_numeric($height)) {
-            $numWidth = floatval($width);
-            $numHeight = floatval($height);
-            $area = ($numWidth * $numHeight) / 10000; // см² в м²
-            
-            if ($numWidth > 100 || $numHeight > 100) {
-                $html .= '<strong>📊 Площадь:</strong> ' . number_format($area, 4) . ' м² (большой размер)<br>';
-            }
-        }
-        
-        $html .= '    <strong>🖼️ Материал:</strong> Холст для печати<br>
-                    <strong>🎯 Качество:</strong> Высокое разрешение печати
-                </div>';
-                
-        if ($includePodramnik === 'Да') {
-            $html .= '<div class="podramnik-info">
-                        <strong>🖼️ Подрамник включен:</strong> Деревянный подрамник для натяжки холста
-                      </div>';
-        }
-        
-        $html .= '</div>
+            </div>
             
             <div class="price">
-                💰 Итоговая стоимость: ' . htmlspecialchars($totalPrice) . ' ₽
+                Итоговая стоимость: ' . htmlspecialchars($totalPrice) . ' ₽
             </div>
             
             <div class="section">
-                <h3>👤 Информация о клиенте</h3>
+                <h3>Информация о клиенте</h3>
                 <div class="client-info">
-                    <p><strong>👤 Имя:</strong> ' . htmlspecialchars($name) . '</p>
-                    <p><strong>📞 Телефон:</strong> ' . htmlspecialchars($phone) . '</p>';
+                    <p><strong>Имя:</strong> ' . htmlspecialchars($name) . '</p>
+                    <p><strong>Телефон:</strong> ' . htmlspecialchars($phone) . '</p>';
                     
         if (!empty($email)) {
-            $html .= '<p><strong>📧 E-mail:</strong> ' . htmlspecialchars($email) . '</p>';
+            $html .= '<p><strong>E-mail:</strong> ' . htmlspecialchars($email) . '</p>';
         }
         
         if (!empty($callTime)) {
-            $html .= '<p><strong>⏰ Удобное время для звонка:</strong> ' . htmlspecialchars($callTime) . '</p>';
+            $html .= '<p><strong>Удобное время для звонка:</strong> ' . htmlspecialchars($callTime) . '</p>';
         }
         
         if (!empty($clientComment)) {
-            $html .= '<p><strong>💬 Комментарий:</strong> ' . nl2br(htmlspecialchars($clientComment)) . '</p>';
+            $html .= '<p><strong>Комментарий:</strong> ' . nl2br(htmlspecialchars($clientComment)) . '</p>';
         }
         
         $html .= '</div>
             </div>
-            
-            <div class="section">
-                <h3>📋 Техническая информация</h3>
-                <table class="info-table">
-                    <tr><td>Тип калькулятора</td><td>Печать на холсте</td></tr>
-                    <tr><td>Размеры (Ш×В)</td><td>' . htmlspecialchars($width) . ' × ' . htmlspecialchars($height) . ' см</td></tr>';
-                    
-        if (is_numeric($width) && is_numeric($height)) {
-            $area = (floatval($width) * floatval($height)) / 10000;
-            $html .= '<tr><td>Площадь</td><td>' . number_format($area, 4) . ' м²</td></tr>';
-        }
         
-        $html .= '    <tr><td>Подрамник</td><td>' . htmlspecialchars($includePodramnik) . '</td></tr>
-                    <tr><td>Статус</td><td>Новый заказ</td></tr>
-                </table>
-            </div>
-        
-        <p><strong>📅 Дата заказа:</strong> ' . date('d.m.Y H:i:s') . '</p>
+        <p><strong>Дата заказа:</strong> ' . date('d.m.Y H:i:s') . '</p>
                 </div>
             </div>
         </div>
         
         <div class="footer">
-            <p>🎨 Заказ получен через калькулятор печати на холсте</p>
-            <p>⏰ Время получения: ' . date('d.m.Y H:i:s') . '</p>
-            <p>📞 Для уточнения деталей заказа свяжитесь с клиентом</p>
+            <p>Заказ получен через калькулятор печати на холсте</p>
         </div>
     </div>
 </body>

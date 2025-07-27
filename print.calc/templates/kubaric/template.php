@@ -853,13 +853,13 @@ function sendOrderEmail(clientData) {
     };
     
     if (typeof BX !== 'undefined' && BX.ajax) {
-        console.log('📧 Отправка заказа через BX.ajax:', emailData);
+        console.log('Отправка заказа через BX.ajax:', emailData);
         return BX.ajax.runComponentAction(calcConfig.component, 'sendOrderEmail', {
             mode: 'class',
             data: emailData
         });
     } else {
-        console.log('📧 Отправка заказа через fetch:', emailData);
+        console.log('Отправка заказа через fetch:', emailData);
         return fetch('/bitrix/services/main/ajax.php?c=' + calcConfig.component + '&action=sendOrderEmail&mode=class', {
             method: 'POST',
             headers: {
@@ -867,27 +867,27 @@ function sendOrderEmail(clientData) {
             },
             body: new URLSearchParams(emailData)
         }).then(response => {
-            console.log('📧 Ответ сервера (raw):', response);
+            console.log('Ответ сервера (raw):', response);
             return response.json();
         }).then(data => {
-            console.log('📧 Ответ сервера (parsed):', data);
+            console.log('Ответ сервера (parsed):', data);
             return data;
         });
     }
 }
 
 function handleOrderResponse(response, submitBtn, originalText) {
-    console.log('📧 Обработка ответа заказа:', response);
+    console.log('Обработка ответа заказа:', response);
     
     if (response && (response.success || (response.data && response.data.success))) {
-        console.log('✅ Заказ успешно отправлен');
+        console.log('Заказ успешно отправлен');
         closeOrderModal();
     } else {
         const errorMsg = response && response.data && response.data.error ? 
             response.data.error : 
             'Произошла ошибка при отправке заказа. Пожалуйста, свяжитесь с нами по телефону.';
-        console.error('❌ Ошибка отправки заказа:', errorMsg);
-        console.error('📧 Полный ответ сервера:', response);
+        console.error('Ошибка отправки заказа:', errorMsg);
+        console.error('Полный ответ сервера:', response);
     }
     
     submitBtn.textContent = originalText;
@@ -895,8 +895,8 @@ function handleOrderResponse(response, submitBtn, originalText) {
 }
 
 function handleOrderError(submitBtn, originalText, error) {
-    console.error('❌ Критическая ошибка отправки заказа:', error);
-    console.error('📧 Детали ошибки:', {
+    console.error('Критическая ошибка отправки заказа:', error);
+    console.error('Детали ошибки:', {
         message: error.message,
         stack: error.stack,
         name: error.name

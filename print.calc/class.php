@@ -1840,6 +1840,11 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
             return $this->formatBookletOrderHTML($orderInfo, $name, $phone, $email, $callTime);
         }
         
+        // Для визиток создаем красивое HTML-письмо
+        if ($orderInfo['calcType'] === 'vizit') {
+            return $this->formatVizitOrderHTML($orderInfo, $name, $phone, $email, $callTime);
+        }
+        
         // Для остальных калькуляторов - старый текстовый формат
         $message = "=== НОВЫЙ ЗАКАЗ ИЗ КАЛЬКУЛЯТОРА ===\n\n";
         
@@ -2113,6 +2118,225 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
     }
 
     /**
+     * Форматирование HTML-письма для заказа визиток
+     */
+    private function formatVizitOrderHTML($orderInfo, $name, $phone, $email, $callTime)
+    {
+        $html = '<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Новый заказ визиток</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f8f9fa;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+        }
+        .header {
+            background: linear-gradient(135deg, #007bff, #0056b3);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+        }
+        .section {
+            margin-bottom: 25px;
+            padding: 20px;
+            background: #f8f9ff;
+            border-radius: 8px;
+            border-left: 4px solid #007bff;
+        }
+        .section h2 {
+            color: #007bff;
+            margin-top: 0;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+        .info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        .info-item {
+            background: white;
+            padding: 15px;
+            border-radius: 6px;
+            border: 1px solid #e3f2fd;
+        }
+        .info-item strong {
+            color: #0056b3;
+            display: block;
+            margin-bottom: 5px;
+        }
+        .price-highlight {
+            background: linear-gradient(135deg, #28a745, #20c997);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+            font-size: 24px;
+            font-weight: bold;
+            margin: 20px 0;
+        }
+        .client-info {
+            background: #fff3cd;
+            border-left-color: #ffc107;
+        }
+        .client-info h2 {
+            color: #856404;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #dee2e6;
+            color: #6c757d;
+            font-size: 14px;
+        }
+        @media (max-width: 600px) {
+            .info-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📇 Новый заказ визиток</h1>
+        </div>
+        
+        <div class="section">
+            <h2>📋 Параметры заказа</h2>
+            <div class="info-grid">';
+        
+        // Тип печати
+        if (!empty($orderInfo['printType'])) {
+            $printTypeDisplay = '';
+            if ($orderInfo['printType'] === 'digital') {
+                $printTypeDisplay = '🖨️ Цифровая печать';
+            } elseif ($orderInfo['printType'] === 'offset') {
+                $printTypeDisplay = '⚙️ Офсетная печать';
+            } else {
+                $printTypeDisplay = htmlspecialchars($orderInfo['printType']);
+            }
+            
+            $html .= '<div class="info-item">
+                        <strong>Тип печати:</strong>
+                        ' . $printTypeDisplay . '
+                      </div>';
+        }
+        
+        // Количество
+        if (!empty($orderInfo['quantity'])) {
+            $html .= '<div class="info-item">
+                        <strong>Тираж:</strong>
+                        ' . number_format($orderInfo['quantity'], 0, '', ' ') . ' шт
+                      </div>';
+        }
+        
+        // Тип печати (односторонняя/двусторонняя)
+        if (!empty($orderInfo['sideType'])) {
+            $sideTypeDisplay = '';
+            if ($orderInfo['sideType'] === 'single') {
+                $sideTypeDisplay = '📄 Односторонняя (4+0)';
+            } elseif ($orderInfo['sideType'] === 'double') {
+                $sideTypeDisplay = '📄📄 Двусторонняя (4+4)';
+            } else {
+                $sideTypeDisplay = htmlspecialchars($orderInfo['sideType']);
+            }
+            
+            $html .= '<div class="info-item">
+                        <strong>Печать:</strong>
+                        ' . $sideTypeDisplay . '
+                      </div>';
+        }
+        
+        // Размер (стандартный для визиток)
+        $html .= '<div class="info-item">
+                    <strong>Размер:</strong>
+                    90x50 мм (стандартный)
+                  </div>';
+        
+        $html .= '</div>';
+        
+        // Стоимость
+        if (!empty($orderInfo['totalPrice'])) {
+            $html .= '<div class="price-highlight">
+                        💰 Стоимость: ' . number_format($orderInfo['totalPrice'], 2, ',', ' ') . ' ₽
+                      </div>';
+        }
+        
+        $html .= '</div>';
+        
+        // Информация о клиенте
+        $html .= '<div class="section client-info">
+                    <h2>👤 Информация о клиенте</h2>
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <strong>Имя:</strong>
+                            ' . htmlspecialchars($name) . '
+                        </div>
+                        <div class="info-item">
+                            <strong>Телефон:</strong>
+                            <a href="tel:' . htmlspecialchars($phone) . '">' . htmlspecialchars($phone) . '</a>
+                        </div>';
+        
+        if (!empty($email)) {
+            $html .= '<div class="info-item">
+                        <strong>Email:</strong>
+                        <a href="mailto:' . htmlspecialchars($email) . '">' . htmlspecialchars($email) . '</a>
+                      </div>';
+        }
+        
+        $html .= '</div>';
+        
+        // Предпочтительное время звонка
+        if (!empty($callTime)) {
+            $callTimeFormatted = $callTime;
+            try {
+                $dateTime = new DateTime($callTime);
+                $callTimeFormatted = $dateTime->format('d.m.Y в H:i');
+            } catch (Exception $e) {
+                // Если не удалось распарсить дату, оставляем как есть
+            }
+            $html .= '<p><strong>⏰ Удобное время для звонка:</strong> ' . htmlspecialchars($callTimeFormatted) . '</p>';
+        }
+        
+        $html .= '<p><strong>📅 Дата заказа:</strong> ' . date('d.m.Y H:i:s') . '</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>🌐 Заказ получен через калькулятор визиток на сайте</p>
+            <p>⏰ Время получения: ' . date('d.m.Y H:i:s') . '</p>
+        </div>
+    </div>
+</body>
+</html>';
+        
+        return $html;
+    }
+
+    /**
      * Отправляет email уведомление через событие Битрикса
      */
     private function sendEmailNotification($message, $orderInfo, $name, $phone, $email)
@@ -2122,8 +2346,8 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
             return false;
         }
 
-        // Для листовок и буклетов отправляем HTML-письмо напрямую через PHPMailer
-        if ($orderInfo['calcType'] === 'list' || $orderInfo['calcType'] === 'booklet') {
+        // Для листовок, буклетов и визиток отправляем HTML-письмо напрямую через PHPMailer
+        if ($orderInfo['calcType'] === 'list' || $orderInfo['calcType'] === 'booklet' || $orderInfo['calcType'] === 'vizit') {
             return $this->sendHtmlEmail($message, $orderInfo, $name, $phone, $email);
         }
 

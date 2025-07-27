@@ -1008,20 +1008,126 @@ function initializeDateTimeValidation() {
     const timeInput = document.getElementById('callTime');
     
     if (dateInput) {
-        // Устанавливаем минимальную дату - сегодня
+        // Устанавливаем минимальную дату как сегодня
         const today = new Date().toISOString().split('T')[0];
         dateInput.setAttribute('min', today);
         
+        // Устанавливаем максимальную дату как год вперед (динамически)
+        const maxDate = new Date();
+        maxDate.setFullYear(maxDate.getFullYear() + 1);
+        const maxDateString = maxDate.toISOString().split('T')[0];
+        dateInput.setAttribute('max', maxDateString);
+        
+        dateInput.addEventListener('change', function() {
+            validateDateField(this);
+        });
+        
         dateInput.addEventListener('input', function() {
-            clearFieldError(this);
+            validateDateField(this);
+        });
+        
+        dateInput.addEventListener('blur', function() {
+            validateDateField(this);
         });
     }
     
     if (timeInput) {
+        // Устанавливаем ограничения на время (9:00 - 20:00)
+        timeInput.setAttribute('min', '09:00');
+        timeInput.setAttribute('max', '20:00');
+        timeInput.setAttribute('step', '300'); // 5 минут
+        
+        timeInput.addEventListener('change', function() {
+            validateTimeField(this);
+        });
+        
         timeInput.addEventListener('input', function() {
-            clearFieldError(this);
+            validateTimeField(this);
+        });
+        
+        timeInput.addEventListener('blur', function() {
+            validateTimeField(this);
         });
     }
+}
+
+// Функция валидации поля даты
+function validateDateField(dateField) {
+    // Сначала очищаем предыдущие ошибки
+    clearFieldError(dateField);
+    
+    const dateValue = dateField.value;
+    if (!dateValue) return true;
+    
+    const selectedDate = new Date(dateValue);
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const selectedDay = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate());
+    
+    // Проверяем корректность даты
+    if (isNaN(selectedDate.getTime())) {
+        showFieldError(dateField, 'Введите корректную дату');
+        return false;
+    }
+    
+    // Проверяем, что дата не в прошлом
+    if (selectedDay < today) {
+        showFieldError(dateField, 'Нельзя выбрать дату в прошлом');
+        return false;
+    }
+    
+    // Проверяем, что дата не более чем на год вперед (динамически)
+    const oneYearFromNow = new Date();
+    oneYearFromNow.setFullYear(oneYearFromNow.getFullYear() + 1);
+    if (selectedDate > oneYearFromNow) {
+        showFieldError(dateField, 'Нельзя выбрать дату более чем на год вперед');
+        return false;
+    }
+    
+    return true;
+}
+
+// Функция валидации поля времени
+function validateTimeField(timeField) {
+    // Сначала очищаем предыдущие ошибки
+    clearFieldError(timeField);
+    
+    const timeValue = timeField.value;
+    if (!timeValue) return true;
+    
+    const timeParts = timeValue.split(':');
+    const hours = parseInt(timeParts[0], 10);
+    const minutes = parseInt(timeParts[1], 10);
+    
+    // Проверяем корректность времени
+    if (isNaN(hours) || isNaN(minutes)) {
+        showFieldError(timeField, 'Введите корректное время');
+        return false;
+    }
+    
+    if (hours < 9 || hours > 20 || (hours === 20 && minutes > 0)) {
+        showFieldError(timeField, 'Время должно быть между 9:00 и 20:00');
+        return false;
+    }
+    
+    // Проверяем время для сегодняшнего дня
+    const dateField = document.getElementById('callDate');
+    if (dateField && dateField.value) {
+        const selectedDate = new Date(dateField.value);
+        const now = new Date();
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const selectedDay = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate());
+        
+        if (selectedDay.getTime() === today.getTime()) {
+            const selectedDateTime = new Date(dateField.value + 'T' + timeValue);
+            if (selectedDateTime < now) {
+                showFieldError(timeField, 'Нельзя выбрать время в прошлом');
+                return false;
+            }
+        }
+    }
+    
+    return true;
 }
 
 // Функция показа ошибки для конкретного поля
@@ -1126,11 +1232,21 @@ function validateOrderForm() {
         hasErrors = true;
     } else {
         const selectedDate = new Date(date);
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
+        const now = new Date();
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const selectedDay = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate());
         
-        if (selectedDate < today) {
-            showFieldError(dateField, 'Дата не может быть в прошлом');
+        // Проверяем, что дата не в прошлом
+        if (selectedDay < today) {
+            showFieldError(dateField, 'Нельзя выбрать дату в прошлом');
+            hasErrors = true;
+        }
+        
+        // Проверяем, что дата не более чем на год вперед (динамически)
+        const oneYearFromNow = new Date();
+        oneYearFromNow.setFullYear(oneYearFromNow.getFullYear() + 1);
+        if (selectedDate > oneYearFromNow) {
+            showFieldError(dateField, 'Нельзя выбрать дату более чем на год вперед');
             hasErrors = true;
         }
     }
@@ -1139,6 +1255,32 @@ function validateOrderForm() {
     if (!time) {
         showFieldError(timeField, 'Выберите удобное время для звонка');
         hasErrors = true;
+    } else {
+        // Валидация времени (с 9:00 до 20:00)
+        const timeParts = time.split(':');
+        const hours = parseInt(timeParts[0], 10);
+        const minutes = parseInt(timeParts[1], 10);
+        
+        if (hours < 9 || hours > 20 || (hours === 20 && minutes > 0)) {
+            showFieldError(timeField, 'Время должно быть между 9:00 и 20:00');
+            hasErrors = true;
+        }
+        
+        // Проверяем, что дата и время не в прошлом (для сегодняшнего дня)
+        if (date) {
+            const selectedDate = new Date(date);
+            const now = new Date();
+            const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            const selectedDay = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate());
+            
+            if (selectedDay.getTime() === today.getTime()) {
+                const selectedDateTime = new Date(date + 'T' + time);
+                if (selectedDateTime < now) {
+                    showFieldError(timeField, 'Нельзя выбрать время в прошлом');
+                    hasErrors = true;
+                }
+            }
+        }
     }
     
     return !hasErrors;

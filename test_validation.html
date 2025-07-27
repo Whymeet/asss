@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Тест валидации даты и времени</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 500px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        
+        .form-control {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+        
+        .form-group.error .form-control {
+            border-color: #dc3545 !important;
+            box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.1) !important;
+            animation: shake 0.5s ease-in-out;
+        }
+        
+        .error-message {
+            display: block;
+            margin-top: 5px;
+            font-size: 14px;
+            color: #dc3545;
+            font-weight: 500;
+            background: rgba(220, 53, 69, 0.1);
+            padding: 8px 12px;
+            border-radius: 4px;
+            border: 1px solid rgba(220, 53, 69, 0.3);
+            animation: slideDown 0.3s ease-out;
+        }
+        
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+        
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .btn {
+            background: #007bff;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        
+        .btn:hover {
+            background: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <h1>Тест валидации даты и времени</h1>
+    
+    <form id="testForm">
+        <div class="form-group">
+            <label class="form-label" for="callDate">Удобная дата для звонка:</label>
+            <input type="date" id="callDate" name="callDate" class="form-control">
+            <small style="color: #666; font-size: 12px;">
+                Можно выбрать дату от сегодня до года вперед
+            </small>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label" for="callTime">Удобное время для звонка:</label>
+            <input type="time" id="callTime" name="callTime" class="form-control" min="09:00" max="20:00" step="300">
+            <small style="color: #666; font-size: 12px;">
+                Время работы: с 9:00 до 20:00
+            </small>
+        </div>
+        
+        <button type="button" class="btn" onclick="testValidation()">Проверить валидацию</button>
+    </form>
+
+    <script>
+        // Инициализация полей
+        function initializeDateTimeValidation() {
+            const dateInput = document.getElementById('callDate');
+            const timeInput = document.getElementById('callTime');
+            
+            if (dateInput) {
+                // Устанавливаем минимальную дату как сегодня
+                const today = new Date().toISOString().split('T')[0];
+                dateInput.setAttribute('min', today);
+                
+                // Устанавливаем максимальную дату как год вперед (динамически)
+                const maxDate = new Date();
+                maxDate.setFullYear(maxDate.getFullYear() + 1);
+                const maxDateString = maxDate.toISOString().split('T')[0];
+                dateInput.setAttribute('max', maxDateString);
+                
+                dateInput.addEventListener('change', function() {
+                    clearFieldError(this);
+                    validateDateField(this);
+                });
+                
+                dateInput.addEventListener('input', function() {
+                    clearFieldError(this);
+                    validateDateField(this);
+                });
+            }
+            
+            if (timeInput) {
+                timeInput.addEventListener('change', function() {
+                    clearFieldError(this);
+                    validateTimeField(this);
+                });
+                
+                timeInput.addEventListener('input', function() {
+                    clearFieldError(this);
+                    validateTimeField(this);
+                });
+            }
+        }
+
+        // Функция валидации поля даты
+        function validateDateField(dateField) {
+            const dateValue = dateField.value;
+            if (!dateValue) return true;
+            
+            const selectedDate = new Date(dateValue);
+            const now = new Date();
+            const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            const selectedDay = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate());
+            
+            // Проверяем, что дата не в прошлом
+            if (selectedDay < today) {
+                showFieldError(dateField, 'Нельзя выбрать дату в прошлом');
+                return false;
+            }
+            
+            // Проверяем, что дата не более чем на год вперед (динамически)
+            const oneYearFromNow = new Date();
+            oneYearFromNow.setFullYear(oneYearFromNow.getFullYear() + 1);
+            if (selectedDate > oneYearFromNow) {
+                showFieldError(dateField, 'Нельзя выбрать дату более чем на год вперед');
+                return false;
+            }
+            
+            return true;
+        }
+
+        // Функция валидации поля времени
+        function validateTimeField(timeField) {
+            const timeValue = timeField.value;
+            if (!timeValue) return true;
+            
+            const timeParts = timeValue.split(':');
+            const hours = parseInt(timeParts[0], 10);
+            const minutes = parseInt(timeParts[1], 10);
+            
+            if (hours < 9 || hours > 20 || (hours === 20 && minutes > 0)) {
+                showFieldError(timeField, 'Время должно быть между 9:00 и 20:00');
+                return false;
+            }
+            
+            // Проверяем время для сегодняшнего дня
+            const dateField = document.getElementById('callDate');
+            if (dateField && dateField.value) {
+                const selectedDate = new Date(dateField.value);
+                const now = new Date();
+                const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                const selectedDay = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate());
+                
+                if (selectedDay.getTime() === today.getTime()) {
+                    const selectedDateTime = new Date(dateField.value + 'T' + timeValue);
+                    if (selectedDateTime < now) {
+                        showFieldError(timeField, 'Нельзя выбрать время в прошлом');
+                        return false;
+                    }
+                }
+            }
+            
+            return true;
+        }
+
+        // Функция показа ошибки для конкретного поля
+        function showFieldError(field, message) {
+            const formGroup = field.closest('.form-group');
+            if (!formGroup) return;
+            
+            // Добавляем класс ошибки
+            formGroup.classList.add('error');
+            
+            // Удаляем предыдущее сообщение об ошибке, если есть
+            const existingError = formGroup.querySelector('.error-message');
+            if (existingError) {
+                existingError.remove();
+            }
+            
+            // Создаем новое сообщение об ошибке
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'error-message';
+            errorDiv.textContent = message;
+            
+            // Добавляем сообщение после поля
+            field.parentNode.insertBefore(errorDiv, field.nextSibling);
+            
+            // Автоматически убираем ошибку через 5 секунд
+            setTimeout(() => {
+                clearFieldError(field);
+            }, 5000);
+        }
+
+        // Функция очистки ошибки для поля
+        function clearFieldError(field) {
+            const formGroup = field.closest('.form-group');
+            if (!formGroup) return;
+            
+            formGroup.classList.remove('error');
+            
+            const errorMessage = formGroup.querySelector('.error-message');
+            if (errorMessage) {
+                errorMessage.remove();
+            }
+        }
+
+        function testValidation() {
+            const dateField = document.getElementById('callDate');
+            const timeField = document.getElementById('callTime');
+            
+            const dateValid = validateDateField(dateField);
+            const timeValid = validateTimeField(timeField);
+            
+            if (dateValid && timeValid) {
+                alert('Валидация прошла успешно!');
+            } else {
+                alert('Обнаружены ошибки валидации. Проверьте поля.');
+            }
+        }
+
+        // Инициализация при загрузке страницы
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeDateTimeValidation();
+        });
+    </script>
+</body>
+</html>

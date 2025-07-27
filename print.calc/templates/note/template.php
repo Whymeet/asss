@@ -281,6 +281,9 @@ const calcConfig = {
     component: 'my:print.calc'
 };
 
+// Сохраняем исходный результат без ламинации
+let originalResultWithoutLamination = null;
+
 console.log('Конфигурация калькулятора:', calcConfig);
 
 // Функция ожидания BX с таймаутом
@@ -379,12 +382,17 @@ function initWithoutBX() {
 }
 
 // Обработка ответа сервера
-function handleResponse(response, resultDiv) {
+function handleResponse(response, resultDiv, isLaminationCalculation = false) {
     if (response && response.data) {
         if (response.data.error) {
             resultDiv.innerHTML = '<div class="result-error">Ошибка: ' + 
                 response.data.error + '</div>';
         } else {
+            // Сохраняем оригинальный результат без ламинации, если это не расчет с ламинацией
+            if (!isLaminationCalculation && !response.data.laminationCost) {
+                originalResultWithoutLamination = JSON.parse(JSON.stringify(response.data));
+            }
+            
             displayNoteResult(response.data, resultDiv);
             // Показываем секцию ламинации если доступна и еще не добавлена
             if (calcConfig.features.lamination && response.data.components && !response.data.laminationCost) {
@@ -407,60 +415,15 @@ function displayNoteResult(result, resultDiv) {
     
     // Показываем информацию о ламинации если она была добавлена
     if (result.laminationCost && result.laminationCost > 0) {
-        html += '<div style="color: #28a745; background: #f8fff8; padding: 10px; border-radius: 6px; border-left: 4px solid #28a745; margin-bottom: 15px;">';
-        html += '<strong>Ламинация обложки добавлена:</strong> ' + Math.round(result.laminationCost * 10) / 10 + ' ₽';
+        html += '<div class="lamination-info-container" style="color: #28a745; background: #f8fff8; padding: 10px; border-radius: 6px; border-left: 4px solid #28a745; margin-bottom: 15px;">';
+        html += '<div><strong>Ламинация обложки добавлена:</strong> ' + Math.round(result.laminationCost * 10) / 10 + ' ₽</div>';
+        html += '<button type="button" class="remove-lamination-btn" onclick="removeLamination()">Убрать ламинацию</button>';
         html += '</div>';
     }
     
     // Добавляем кнопку заказа
     html += '<button type="button" class="order-button" onclick="openOrderModal()">Заказать печать</button>';
     
-    html += '<details class="result-details">';
-    html += '<summary class="result-summary">Подробности расчета</summary>';
-    html += '<div class="result-details-content">';
-    html += '<ul>';
-    
-    // Детали расчета
-    if (result.details) {
-        html += '<li>Формат: ' + result.details.size + '</li>';
-        html += '<li>Тираж: ' + result.details.quantity + ' шт</li>';
-        html += '<li>Листов в блоке: ' + result.details.inner_pages + '</li>';
-    }
-    
-    // Детализация по компонентам
-    if (result.components) {
-        if (result.components.cover) {
-            html += '<li>Обложка: ' + Math.round(result.components.cover.total * 10) / 10 + ' ₽</li>';
-        }
-        if (result.components.back) {
-            html += '<li>Задник: ' + Math.round(result.components.back.total * 10) / 10 + ' ₽</li>';
-        }
-        if (result.components.inner) {
-            html += '<li>Внутренний блок: ' + Math.round(result.components.inner.total * 10) / 10 + ' ₽</li>';
-        }
-    }
-    
-    if (result.binding) {
-        html += '<li>Спиральная сборка: ' + Math.round(result.binding * 10) / 10 + ' ₽</li>';
-    }
-    
-    if (result.laminationCost && result.laminationCost > 0) {
-        html += '<li class="lamination-info">Ламинация обложки: ' + Math.round(result.laminationCost * 10) / 10 + ' ₽</li>';
-    }
-    
-    // Дополнительные услуги
-    if (result.details && result.details.services) {
-        const services = result.details.services;
-        if (services.bigovka) html += '<li>Биговка: включена</li>';
-        if (services.perforation) html += '<li>Перфорация: включена</li>';
-        if (services.drill) html += '<li>Сверление: включено</li>';
-        if (services.numbering) html += '<li>Нумерация: включена</li>';
-        if (services.cornerRadius > 0) html += '<li>Скругленных углов: ' + services.cornerRadius + '</li>';
-    }
-    
-    html += '</ul>';
-    html += '</div>';
-    html += '</details>';
     html += '</div>';
     
     resultDiv.innerHTML = html;
@@ -493,8 +456,8 @@ function showLaminationSection(result) {
     if (coverPrintingType === 'Офсетная') {
         html += '<div class="lamination-options">';
         html += '<div class="radio-group">';
-        html += '<label class="radio-label"><input type="radio" name="laminationType" value="1+0"> 1+0 (7 руб/лист)</label>';
-        html += '<label class="radio-label"><input type="radio" name="laminationType" value="1+1"> 1+1 (14 руб/лист)</label>';
+        html += '<label class="radio-label"><input type="radio" name="laminationType" value="1+0"> Односторонняя (7 руб/лист)</label>';
+        html += '<label class="radio-label"><input type="radio" name="laminationType" value="1+1"> Двусторонняя (14 руб/лист)</label>';
         html += '</div>';
         html += '</div>';
     } else {
@@ -509,8 +472,8 @@ function showLaminationSection(result) {
         html += '</select></label>';
         html += '</div>';
         html += '<div class="radio-group">';
-        html += '<label class="radio-label"><input type="radio" name="laminationType" value="1+0"> 1+0 (x1)</label>';
-        html += '<label class="radio-label"><input type="radio" name="laminationType" value="1+1"> 1+1 (x2)</label>';
+        html += '<label class="radio-label"><input type="radio" name="laminationType" value="1+0"> Односторонняя</label>';
+        html += '<label class="radio-label"><input type="radio" name="laminationType" value="1+1"> Двусторонняя</label>';
         html += '</div>';
         html += '</div>';
     }
@@ -571,7 +534,7 @@ function calculateWithLamination() {
             mode: 'class',
             data: data
         }).then(function(response) {
-            handleResponse(response, resultDiv);
+            handleResponse(response, resultDiv, true);
         }).catch(function(error) {
             console.error('Ошибка BX:', error);
             resultDiv.innerHTML = '<div class="result-error">Ошибка соединения: ' + error.message + '</div>';
@@ -586,12 +549,30 @@ function calculateWithLamination() {
         })
         .then(response => response.json())
         .then(response => {
-            handleResponse(response, resultDiv);
+            handleResponse(response, resultDiv, true);
         })
         .catch(error => {
             console.error('Ошибка fetch:', error);
             resultDiv.innerHTML = '<div class="result-error">Ошибка соединения: ' + error.message + '</div>';
         });
+    }
+}
+
+// Функция удаления ламинации
+function removeLamination() {
+    const resultDiv = document.getElementById('calcResult');
+    
+    if (originalResultWithoutLamination) {
+        displayNoteResult(originalResultWithoutLamination, resultDiv);
+        // Сбрасываем выбор ламинации
+        const laminationRadios = document.querySelectorAll('input[name="laminationType"]');
+        laminationRadios.forEach(radio => radio.checked = false);
+        
+        // Очищаем результат секции ламинации
+        const laminationResult = document.getElementById('laminationResult');
+        if (laminationResult) {
+            laminationResult.innerHTML = '';
+        }
     }
 }
 
@@ -1094,6 +1075,32 @@ function handleOrderError(submitBtn, originalText) {
     gap: 10px;
 }
 
+<style>
+.remove-lamination-btn {
+    background: #dc3545;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    font-size: 14px;
+    cursor: pointer;
+    margin-left: 10px;
+    transition: all 0.3s;
+}
+
+.remove-lamination-btn:hover {
+    background: #c82333;
+    transform: translateY(-1px);
+}
+
+.lamination-info-container {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+    
 /* Улучшенные стили для секции ламинации */
 .lamination-section {
     background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);

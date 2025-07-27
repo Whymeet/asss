@@ -1961,6 +1961,12 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
             return $this->formatStickerOrderHTML($orderInfo, $name, $phone, $email, $callTime, $clientComment);
         }
         
+        // Для холстов создаем красивое HTML-письмо
+        if ($orderInfo['calcType'] === 'canvas') {
+            $this->debug("Выбран формат для холстов");
+            return $this->formatCanvasOrderHTML($orderInfo, $name, $phone, $email, $callTime, $clientComment);
+        }
+        
         // Для остальных калькуляторов - старый текстовый формат
         $this->debug("Используется стандартный текстовый формат для типа: " . ($orderInfo['calcType'] ?? 'неизвестен'));
         $message = "=== НОВЫЙ ЗАКАЗ ИЗ КАЛЬКУЛЯТОРА ===\n\n";
@@ -2580,8 +2586,8 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
             return false;
         }
 
-        // Для листовок, буклетов, визиток, стендов, блокнотов, кубариков и наклеек отправляем письмо напрямую
-        if (in_array($orderInfo['calcType'], ['list', 'booklet', 'vizit', 'stend', 'note', 'kubaric', 'sticker'])) {
+        // Для листовок, буклетов, визиток, стендов, блокнотов, кубариков, наклеек и холстов отправляем письмо напрямую
+        if (in_array($orderInfo['calcType'], ['list', 'booklet', 'vizit', 'stend', 'note', 'kubaric', 'sticker', 'canvas'])) {
             $this->debug("Отправляем HTML-письмо для типа: " . $orderInfo['calcType']);
             // Для стендов пока отправляем текстовую версию
             if ($orderInfo['calcType'] === 'stend') {
@@ -2658,6 +2664,9 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
                     break;
                 case 'sticker':
                     $productType = 'наклейки';
+                    break;
+                case 'canvas':
+                    $productType = 'печать на холсте';
                     break;
                 default:
                     $productType = $orderInfo['product'] ?? 'заказ';
@@ -3140,6 +3149,140 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
         <div class="footer">
             <p>Заказ получен через калькулятор печати на сайте</p>
             <p>Время получения: ' . date('d.m.Y H:i:s') . '</p>
+        </div>
+    </div>
+</body>
+</html>';
+        
+        return $html;
+    }
+    
+    /**
+     * Создает HTML-письмо для заказа холстов
+     */
+    private function formatCanvasOrderHTML($orderInfo, $name, $phone, $email, $callTime, $clientComment = '')
+    {
+        // Извлекаем данные для холстов
+        $width = $orderInfo['width'] ?? 'Не указана';
+        $height = $orderInfo['height'] ?? 'Не указана';
+        $includePodramnik = isset($orderInfo['includePodramnik']) && $orderInfo['includePodramnik'] ? 'Да' : 'Нет';
+        $totalPrice = $orderInfo['totalPrice'] ?? '0';
+        
+        $html = '<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Новый заказ печати на холсте</title>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: linear-gradient(135deg, #6f42c1, #e83e8c); color: white; padding: 20px; border-radius: 8px 8px 0 0; text-align: center; }
+        .content { background: #f8f9fa; padding: 20px; border: 1px solid #dee2e6; }
+        .footer { background: #6c757d; color: white; padding: 15px; border-radius: 0 0 8px 8px; text-align: center; font-size: 14px; }
+        .section { margin-bottom: 20px; }
+        .section h3 { color: #6f42c1; margin-bottom: 10px; border-bottom: 2px solid #6f42c1; padding-bottom: 5px; }
+        .info-table { width: 100%; border-collapse: collapse; }
+        .info-table td { padding: 8px 12px; border-bottom: 1px solid #dee2e6; }
+        .info-table td:first-child { font-weight: bold; background: #f3e5f5; width: 40%; }
+        .price { font-size: 24px; font-weight: bold; color: #6f42c1; text-align: center; margin: 20px 0; }
+        .client-info { background: white; padding: 15px; border-radius: 6px; border-left: 4px solid #6f42c1; }
+        .size-info { background: #e3f2fd; border: 1px solid #2196f3; border-radius: 6px; padding: 10px; margin: 10px 0; color: #1565c0; }
+        .podramnik-info { background: #f3e5f5; border: 1px solid #9c27b0; border-radius: 6px; padding: 10px; margin: 10px 0; color: #7b1fa2; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎨 Новый заказ печати на холсте</h1>
+            <p>Заказ с калькулятора печати</p>
+        </div>
+        
+        <div class="content">
+            <div class="section">
+                <h3>📏 Информация о заказе</h3>
+                <table class="info-table">
+                    <tr><td>Продукт</td><td>Печать на холсте</td></tr>
+                    <tr><td>Ширина</td><td>' . htmlspecialchars($width) . ' см</td></tr>
+                    <tr><td>Высота</td><td>' . htmlspecialchars($height) . ' см</td></tr>
+                    <tr><td>Подрамник</td><td>' . htmlspecialchars($includePodramnik) . '</td></tr>
+                </table>
+                
+                <div class="size-info">
+                    <strong>📐 Размер холста:</strong> ' . htmlspecialchars($width) . ' × ' . htmlspecialchars($height) . ' см<br>';
+                    
+        // Добавляем информацию о площади для больших размеров
+        if (is_numeric($width) && is_numeric($height)) {
+            $numWidth = floatval($width);
+            $numHeight = floatval($height);
+            $area = ($numWidth * $numHeight) / 10000; // см² в м²
+            
+            if ($numWidth > 100 || $numHeight > 100) {
+                $html .= '<strong>📊 Площадь:</strong> ' . number_format($area, 4) . ' м² (большой размер)<br>';
+            }
+        }
+        
+        $html .= '    <strong>🖼️ Материал:</strong> Холст для печати<br>
+                    <strong>🎯 Качество:</strong> Высокое разрешение печати
+                </div>';
+                
+        if ($includePodramnik === 'Да') {
+            $html .= '<div class="podramnik-info">
+                        <strong>🖼️ Подрамник включен:</strong> Деревянный подрамник для натяжки холста
+                      </div>';
+        }
+        
+        $html .= '</div>
+            
+            <div class="price">
+                💰 Итоговая стоимость: ' . htmlspecialchars($totalPrice) . ' ₽
+            </div>
+            
+            <div class="section">
+                <h3>👤 Информация о клиенте</h3>
+                <div class="client-info">
+                    <p><strong>👤 Имя:</strong> ' . htmlspecialchars($name) . '</p>
+                    <p><strong>📞 Телефон:</strong> ' . htmlspecialchars($phone) . '</p>';
+                    
+        if (!empty($email)) {
+            $html .= '<p><strong>📧 E-mail:</strong> ' . htmlspecialchars($email) . '</p>';
+        }
+        
+        if (!empty($callTime)) {
+            $html .= '<p><strong>⏰ Удобное время для звонка:</strong> ' . htmlspecialchars($callTime) . '</p>';
+        }
+        
+        if (!empty($clientComment)) {
+            $html .= '<p><strong>💬 Комментарий:</strong> ' . nl2br(htmlspecialchars($clientComment)) . '</p>';
+        }
+        
+        $html .= '</div>
+            </div>
+            
+            <div class="section">
+                <h3>📋 Техническая информация</h3>
+                <table class="info-table">
+                    <tr><td>Тип калькулятора</td><td>Печать на холсте</td></tr>
+                    <tr><td>Размеры (Ш×В)</td><td>' . htmlspecialchars($width) . ' × ' . htmlspecialchars($height) . ' см</td></tr>';
+                    
+        if (is_numeric($width) && is_numeric($height)) {
+            $area = (floatval($width) * floatval($height)) / 10000;
+            $html .= '<tr><td>Площадь</td><td>' . number_format($area, 4) . ' м²</td></tr>';
+        }
+        
+        $html .= '    <tr><td>Подрамник</td><td>' . htmlspecialchars($includePodramnik) . '</td></tr>
+                    <tr><td>Статус</td><td>Новый заказ</td></tr>
+                </table>
+            </div>
+        
+        <p><strong>📅 Дата заказа:</strong> ' . date('d.m.Y H:i:s') . '</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>🎨 Заказ получен через калькулятор печати на холсте</p>
+            <p>⏰ Время получения: ' . date('d.m.Y H:i:s') . '</p>
+            <p>📞 Для уточнения деталей заказа свяжитесь с клиентом</p>
         </div>
     </div>
 </body>

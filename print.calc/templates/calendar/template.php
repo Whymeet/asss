@@ -572,41 +572,6 @@ function displayCalendarResult(result, resultDiv) {
     html += '<h3 class="result-title">Результат расчета календаря</h3>';
     html += '<div class="result-price">' + totalPrice + ' <small>₽</small></div>';
     
-    html += '<details class="result-details">';
-    html += '<summary class="result-summary">Подробности расчета</summary>';
-    html += '<div class="result-details-content">';
-    html += '<ul>';
-    
-    // Детали расчета
-    if (result.details) {
-        html += '<li>Тип календаря: ' + result.details.type + '</li>';
-        if (result.details.size) {
-            html += '<li>Размер: ' + result.details.size + '</li>';
-        }
-        html += '<li>Тираж: ' + result.details.quantity + ' шт</li>';
-        if (result.details.printType) {
-            html += '<li>Тип печати: ' + result.details.printType + '</li>';
-        }
-    }
-    
-    // Компоненты стоимости
-    if (result.printingCost) {
-        html += '<li>Стоимость печати: ' + Math.round(result.printingCost * 10) / 10 + ' ₽</li>';
-    }
-    if (result.assemblyCost) {
-        html += '<li>Стоимость сборки: ' + Math.round(result.assemblyCost * 10) / 10 + ' ₽</li>';
-    }
-    if (result.bigovkaCost) {
-        html += '<li>Стоимость биговки: ' + Math.round(result.bigovkaCost * 10) / 10 + ' ₽</li>';
-    }
-    if (result.cornersCost) {
-        html += '<li>Скругление углов: ' + Math.round(result.cornersCost * 10) / 10 + ' ₽</li>';
-    }
-    
-    html += '</ul>';
-    html += '</div>';
-    html += '</details>';
-    
     // Добавляем кнопку заказа
     html += '<button type="button" class="order-button" onclick="openOrderModal()">Заказать календарь</button>';
     
@@ -696,7 +661,6 @@ function openOrderModal() {
         console.log('Данные для отправки в JSON:', JSON.stringify(orderData));
     } catch (error) {
         console.error('Ошибка при открытии модального окна:', error);
-        alert('Ошибка при открытии формы заказа. Пожалуйста, обновите страницу.');
     }
 }
 
@@ -1034,12 +998,12 @@ function sendOrderEmail(clientData) {
 function handleOrderResponse(response, submitBtn, originalText) {
     if (response && (response.success || (response.data && response.data.success))) {
         closeOrderModal();
-        alert('Заказ успешно отправлен! Мы свяжемся с вами в ближайшее время.');
+        console.log('Заказ успешно отправлен!');
     } else {
         const errorMsg = response && response.data && response.data.error ? 
             response.data.error : 
             'Произошла ошибка при отправке заказа. Пожалуйста, свяжитесь с нами по телефону.';
-        alert(errorMsg);
+        console.error('Ошибка заказа:', errorMsg);
     }
     
     submitBtn.textContent = originalText;
@@ -1048,7 +1012,6 @@ function handleOrderResponse(response, submitBtn, originalText) {
 
 function handleOrderError(submitBtn, originalText, error) {
     console.error('Ошибка отправки заказа:', error);
-    alert('Произошла ошибка при отправке заказа. Пожалуйста, свяжитесь с нами по телефону.');
     
     submitBtn.textContent = originalText;
     submitBtn.disabled = false;

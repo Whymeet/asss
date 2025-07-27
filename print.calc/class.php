@@ -1955,6 +1955,12 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
             return $this->formatKubaricOrderHTML($orderInfo, $name, $phone, $email, $callTime, $clientComment);
         }
         
+        // Для наклеек создаем красивое HTML-письмо
+        if ($orderInfo['calcType'] === 'sticker') {
+            $this->debug("Выбран формат для наклеек");
+            return $this->formatStickerOrderHTML($orderInfo, $name, $phone, $email, $callTime, $clientComment);
+        }
+        
         // Для остальных калькуляторов - старый текстовый формат
         $this->debug("Используется стандартный текстовый формат для типа: " . ($orderInfo['calcType'] ?? 'неизвестен'));
         $message = "=== НОВЫЙ ЗАКАЗ ИЗ КАЛЬКУЛЯТОРА ===\n\n";
@@ -2574,8 +2580,8 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
             return false;
         }
 
-        // Для листовок, буклетов, визиток, стендов, блокнотов и кубариков отправляем письмо напрямую
-        if (in_array($orderInfo['calcType'], ['list', 'booklet', 'vizit', 'stend', 'note', 'kubaric'])) {
+        // Для листовок, буклетов, визиток, стендов, блокнотов, кубариков и наклеек отправляем письмо напрямую
+        if (in_array($orderInfo['calcType'], ['list', 'booklet', 'vizit', 'stend', 'note', 'kubaric', 'sticker'])) {
             $this->debug("Отправляем HTML-письмо для типа: " . $orderInfo['calcType']);
             // Для стендов пока отправляем текстовую версию
             if ($orderInfo['calcType'] === 'stend') {
@@ -2649,6 +2655,9 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
                     break;
                 case 'kubaric':
                     $productType = 'кубарики';
+                    break;
+                case 'sticker':
+                    $productType = 'наклейки';
                     break;
                 default:
                     $productType = $orderInfo['product'] ?? 'заказ';
@@ -2983,6 +2992,140 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
                         <td>' . ($orderInfo['printType'] ?? 'Не указан') . '</td>
                     </tr>
                 </table>
+            </div>
+            
+            <div class="section">
+                <h3>Информация о клиенте</h3>
+                <div class="client-info">
+                    <p><strong>Имя:</strong> ' . htmlspecialchars($name) . '</p>
+                    <p><strong>Телефон:</strong> <a href="tel:' . htmlspecialchars($phone) . '">' . htmlspecialchars($phone) . '</a></p>';
+        
+        if (!empty($email)) {
+            $html .= '<p><strong>E-mail:</strong> <a href="mailto:' . htmlspecialchars($email) . '">' . htmlspecialchars($email) . '</a></p>';
+        }
+        
+        if (!empty($callTime)) {
+            $callTimeFormatted = $callTime;
+            if (strpos($callTime, '.') === false && strtotime($callTime)) {
+                $callTimeFormatted = date('d.m.Y H:i', strtotime($callTime));
+            }
+            $html .= '<p><strong>Удобное время для звонка:</strong> ' . htmlspecialchars($callTimeFormatted) . '</p>';
+        }
+        
+        if (!empty($clientComment)) {
+            $html .= '<p><strong>Комментарий к заказу:</strong> ' . nl2br(htmlspecialchars($clientComment)) . '</p>';
+        }
+        
+        $html .= '<p><strong>Дата заказа:</strong> ' . date('d.m.Y H:i:s') . '</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>Заказ получен через калькулятор печати на сайте</p>
+            <p>Время получения: ' . date('d.m.Y H:i:s') . '</p>
+        </div>
+    </div>
+</body>
+</html>';
+        
+        return $html;
+    }
+
+    /**
+     * Создает HTML-письмо для заказа наклеек
+     */
+    private function formatStickerOrderHTML($orderInfo, $name, $phone, $email, $callTime, $clientComment = '')
+    {
+        // Преобразуем коды типов наклеек в понятные названия
+        $stickerTypeNames = [
+            'simple_print' => 'Просто печать СМУК',
+            'print_cut' => 'Печать + контурная резка',
+            'print_white' => 'Печать смук + белый',
+            'print_white_cut' => 'Печать смук + белый + контурная резка',
+            'print_white_varnish' => 'Печать смук + белый + лак',
+            'print_white_varnish_cut' => 'Печать смук + белый + лак + контурная резка',
+            'print_varnish' => 'Печать смук+лак',
+            'print_varnish_cut' => 'Печать смук+лак+резка'
+        ];
+        
+        $stickerType = $orderInfo['stickerType'] ?? 'simple_print';
+        $stickerTypeName = $stickerTypeNames[$stickerType] ?? $stickerType;
+        
+        $html = '<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Новый заказ наклеек</title>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: linear-gradient(135deg, #007bff, #0056b3); color: white; padding: 20px; border-radius: 8px 8px 0 0; text-align: center; }
+        .content { background: #f8f9fa; padding: 20px; border: 1px solid #dee2e6; }
+        .footer { background: #6c757d; color: white; padding: 15px; border-radius: 0 0 8px 8px; text-align: center; font-size: 14px; }
+        .section { margin-bottom: 20px; }
+        .section h3 { color: #007bff; margin-bottom: 10px; border-bottom: 2px solid #007bff; padding-bottom: 5px; }
+        .info-table { width: 100%; border-collapse: collapse; }
+        .info-table td { padding: 8px 12px; border-bottom: 1px solid #dee2e6; }
+        .info-table td:first-child { font-weight: bold; background: #e3f2fd; width: 40%; }
+        .price { font-size: 24px; font-weight: bold; color: #007bff; text-align: center; margin: 20px 0; }
+        .client-info { background: white; padding: 15px; border-radius: 6px; border-left: 4px solid #007bff; }
+        .highlight { background: #e3f2fd; padding: 10px; border-radius: 4px; border-left: 4px solid #007bff; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Новый заказ наклеек</h1>
+            <p>Получен через калькулятор на сайте</p>
+        </div>
+        
+        <div class="content">
+            <div class="price">
+                ' . (isset($orderInfo['totalPrice']) ? number_format($orderInfo['totalPrice'], 2, ',', ' ') . ' ₽' : 'Цена не указана') . '
+            </div>
+            
+            <div class="section">
+                <h3>Параметры наклеек</h3>
+                <table class="info-table">
+                    <tr>
+                        <td>Длина одной наклейки</td>
+                        <td>' . ($orderInfo['length'] ?? 'Не указана') . ' м</td>
+                    </tr>
+                    <tr>
+                        <td>Ширина одной наклейки</td>
+                        <td>' . ($orderInfo['width'] ?? 'Не указана') . ' м</td>
+                    </tr>';
+        
+        // Рассчитываем площадь если есть размеры
+        if (isset($orderInfo['length']) && isset($orderInfo['width'])) {
+            $singleArea = $orderInfo['length'] * $orderInfo['width'];
+            $html .= '<tr>
+                        <td>Площадь одной наклейки</td>
+                        <td>' . number_format($singleArea, 4, ',', ' ') . ' м²</td>
+                    </tr>';
+        }
+        
+        $html .= '<tr>
+                        <td>Количество</td>
+                        <td>' . (isset($orderInfo['quantity']) ? number_format($orderInfo['quantity'], 0, ',', ' ') : 'Не указано') . ' шт</td>
+                    </tr>';
+        
+        // Рассчитываем общую площадь если есть данные
+        if (isset($orderInfo['length']) && isset($orderInfo['width']) && isset($orderInfo['quantity'])) {
+            $totalArea = $orderInfo['length'] * $orderInfo['width'] * $orderInfo['quantity'];
+            $html .= '<tr>
+                        <td>Общая площадь</td>
+                        <td>' . number_format($totalArea, 4, ',', ' ') . ' м²</td>
+                    </tr>';
+        }
+        
+        $html .= '<tr>
+                        <td>Тип наклейки</td>
+                        <td>' . htmlspecialchars($stickerTypeName) . '</td>
+                    </tr>';
+        
+        $html .= '</table>
             </div>
             
             <div class="section">

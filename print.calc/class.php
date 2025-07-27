@@ -1967,6 +1967,12 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
             return $this->formatCanvasOrderHTML($orderInfo, $name, $phone, $email, $callTime, $clientComment);
         }
         
+        // Для календарей создаем красивое HTML-письмо
+        if ($orderInfo['calcType'] === 'calendar') {
+            $this->debug("Выбран формат для календарей");
+            return $this->formatCalendarOrderHTML($orderInfo, $name, $phone, $email, $callTime, $clientComment);
+        }
+        
         // Для остальных калькуляторов - старый текстовый формат
         $this->debug("Используется стандартный текстовый формат для типа: " . ($orderInfo['calcType'] ?? 'неизвестен'));
         $message = "=== НОВЫЙ ЗАКАЗ ИЗ КАЛЬКУЛЯТОРА ===\n\n";
@@ -2586,8 +2592,8 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
             return false;
         }
 
-        // Для листовок, буклетов, визиток, стендов, блокнотов, кубариков, наклеек и холстов отправляем письмо напрямую
-        if (in_array($orderInfo['calcType'], ['list', 'booklet', 'vizit', 'stend', 'note', 'kubaric', 'sticker', 'canvas'])) {
+        // Для листовок, буклетов, визиток, стендов, блокнотов, кубариков, наклеек, холстов и календарей отправляем письмо напрямую
+        if (in_array($orderInfo['calcType'], ['list', 'booklet', 'vizit', 'stend', 'note', 'kubaric', 'sticker', 'canvas', 'calendar'])) {
             $this->debug("Отправляем HTML-письмо для типа: " . $orderInfo['calcType']);
             // Для стендов пока отправляем текстовую версию
             if ($orderInfo['calcType'] === 'stend') {
@@ -2667,6 +2673,9 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
                     break;
                 case 'canvas':
                     $productType = 'печать на холсте';
+                    break;
+                case 'calendar':
+                    $productType = 'календари';
                     break;
                 default:
                     $productType = $orderInfo['product'] ?? 'заказ';
@@ -3239,6 +3248,124 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
         
         <div class="footer">
             <p>Заказ получен через калькулятор печати на холсте</p>
+        </div>
+    </div>
+</body>
+</html>';
+        
+        return $html;
+    }
+
+    /**
+     * Создает HTML-письмо для заказа календарей
+     */
+    private function formatCalendarOrderHTML($orderInfo, $name, $phone, $email, $callTime, $clientComment = '')
+    {
+        $calendarType = $orderInfo['calendarType'] ?? 'Не указан';
+        $size = $orderInfo['size'] ?? '';
+        $printType = $orderInfo['printType'] ?? 'Не указан';
+        $quantity = $orderInfo['quantity'] ?? 0;
+        $totalPrice = $orderInfo['totalPrice'] ?? '0';
+
+        // Преобразуем коды типов календарей в понятные названия
+        $calendarTypes = [
+            'wall' => 'Настенный',
+            'desktop' => 'Настольный',
+            'pocket' => 'Карманный'
+        ];
+        
+        if (isset($calendarTypes[$calendarType])) {
+            $calendarType = $calendarTypes[$calendarType];
+        }
+
+        $html = '<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Новый заказ календарей</title>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: linear-gradient(135deg, #2c5aa0, #6a4c93); color: white; padding: 20px; border-radius: 8px 8px 0 0; text-align: center; }
+        .content { background: #f8f9fa; padding: 20px; border: 1px solid #dee2e6; }
+        .footer { background: #6c757d; color: white; padding: 15px; border-radius: 0 0 8px 8px; text-align: center; font-size: 14px; }
+        .section { margin-bottom: 20px; }
+        .section h3 { color: #2c5aa0; margin-bottom: 10px; border-bottom: 2px solid #2c5aa0; padding-bottom: 5px; }
+        .info-table { width: 100%; border-collapse: collapse; }
+        .info-table td { padding: 8px 12px; border-bottom: 1px solid #dee2e6; }
+        .info-table td:first-child { font-weight: bold; background: #e8f0ff; width: 40%; }
+        .price { font-size: 24px; font-weight: bold; color: #2c5aa0; text-align: center; margin: 20px 0; }
+        .client-info { background: white; padding: 15px; border-radius: 6px; border-left: 4px solid #2c5aa0; }
+        .badge { background: #6a4c93; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🗓️ Новый заказ календарей</h1>
+            <p>Заказ с калькулятора печати</p>
+        </div>
+        
+        <div class="content">
+            <div class="section">
+                <h3>Информация о заказе</h3>
+                <table class="info-table">
+                    <tr><td>Продукт</td><td>Календари</td></tr>
+                    <tr><td>Тип календаря</td><td>' . htmlspecialchars($calendarType) . '</td></tr>';
+        
+        if (!empty($size)) {
+            $html .= '<tr><td>Размер</td><td>' . htmlspecialchars($size) . '</td></tr>';
+        }
+        
+        $html .= '<tr><td>Тип печати</td><td>' . htmlspecialchars($printType) . '</td></tr>
+                    <tr><td>Тираж</td><td>' . number_format($quantity, 0, ',', ' ') . ' шт.</td></tr>
+                </table>
+            </div>
+            
+            <div class="price">
+                Итоговая стоимость: ' . htmlspecialchars($totalPrice) . ' ₽
+            </div>
+            
+            <div class="section">
+                <h3>Информация о клиенте</h3>
+                <div class="client-info">
+                    <p><strong>Имя:</strong> ' . htmlspecialchars($name) . '</p>
+                    <p><strong>Телефон:</strong> ' . htmlspecialchars($phone) . '</p>';
+                    
+        if (!empty($email)) {
+            $html .= '<p><strong>E-mail:</strong> ' . htmlspecialchars($email) . '</p>';
+        }
+        
+        if (!empty($callTime)) {
+            $html .= '<p><strong>Удобное время для звонка:</strong> ' . htmlspecialchars($callTime) . '</p>';
+        }
+        
+        if (!empty($clientComment)) {
+            $html .= '<p><strong>Комментарий:</strong> ' . nl2br(htmlspecialchars($clientComment)) . '</p>';
+        }
+        
+        $html .= '</div>
+            </div>
+            
+            <div class="section">
+                <h3>Дополнительная информация</h3>
+                <p><span class="badge">КАЛЕНДАРИ</span> Сборка включена в стоимость</p>';
+        
+        if ($calendarType === 'Настольный') {
+            $html .= '<p><span class="badge">БИГОВКА</span> Для настольных календарей включена биговка</p>';
+        }
+        
+        if ($calendarType === 'Карманный') {
+            $html .= '<p><span class="badge">УГЛЫ</span> Возможно скругление углов</p>';
+        }
+        
+        $html .= '<p><strong>Дата заказа:</strong> ' . date('d.m.Y H:i:s') . '</p>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>Заказ получен через калькулятор календарей</p>
+            <p>Тел: +7 (846) 206-00-68</p>
         </div>
     </div>
 </body>

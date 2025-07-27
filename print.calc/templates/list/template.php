@@ -933,21 +933,6 @@ function initializeDateTimeValidation() {
     }
     
     if (timeInput) {
-        // Устанавливаем рабочие часы (например, с 9:00 до 18:00)
-        timeInput.min = "09:00";
-        timeInput.max = "18:00";
-        
-        // Валидация времени
-        timeInput.addEventListener('change', function() {
-            const selectedTime = this.value;
-            clearFieldError(this);
-            
-            if (selectedTime && (selectedTime < '09:00' || selectedTime > '18:00')) {
-                showFieldError(this, 'Пожалуйста, выберите время в рабочие часы (с 9:00 до 18:00)');
-                this.value = '';
-            }
-        });
-        
         // Очищаем ошибку при фокусе
         timeInput.addEventListener('focus', function() {
             clearFieldError(this);

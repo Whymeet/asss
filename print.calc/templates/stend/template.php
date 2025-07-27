@@ -161,6 +161,46 @@ $pocketTypes = $arResult['pocket_types'] ?? [];
         <div class="calc-spacer"></div>
     </form>
 
+    <!-- Модальное окно для заказа -->
+ <div id="orderModal" class="order-modal" style="display: none;">
+        <div class="order-modal-content">
+            <span class="order-modal-close">&times;</span>
+            <h3>Оформить заказ</h3>
+            <form id="orderForm" class="order-form">
+                <div class="form-group">
+                    <label class="form-label" for="clientName">Имя <span class="required">*</span>:</label>
+                    <input type="text" id="clientName" name="clientName" class="form-control" required>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label" for="clientPhone">Телефон <span class="required">*</span>:</label>
+                    <input type="tel" id="clientPhone" name="clientPhone" class="form-control" required>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label" for="clientEmail">E-mail:</label>
+                    <input type="email" id="clientEmail" name="clientEmail" class="form-control">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label" for="callDate">Удобная дата для звонка:</label>
+                    <input type="date" id="callDate" name="callDate" class="form-control">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="callTime">Удобное время для звонка:</label>
+                    <input type="time" id="callTime" name="callTime" class="form-control">
+                </div>
+                
+                <div class="modal-buttons">
+                    <button type="button" class="calc-button calc-button-secondary" onclick="closeOrderModal()">Отмена</button>
+                    <button type="submit" class="calc-button calc-button-success">Отправить заказ</button>
+                </div>
+                
+                <input type="hidden" id="orderData" name="orderData">
+            </form>
+        </div>
+    </div>
     <div class="calc-thanks">
         <p>Спасибо, что Вы с нами!</p>
     </div>
@@ -245,6 +285,99 @@ $pocketTypes = $arResult['pocket_types'] ?? [];
         gap: 10px;
     }
 }
+
+/* Стили для модального окна заказа */
+.order-form {
+    background: #ffffff; /* Чисто белый фон */
+    border: none; /* Убираем рамку */
+    border-radius: 0; /* Убираем скругления */
+    padding: 0; /* Убираем отступы */
+    margin: 0; /* Убираем внешние отступы */
+    box-shadow: none; /* Убираем тень */
+    animation: none; /* Убираем анимацию */
+}
+
+.order-form h3 {
+    color: #333; /* Обычный черный цвет вместо зеленого */
+    margin: 0 0 20px 0;
+    font-size: 22px;
+    font-weight: 600;
+    text-align: center;
+}
+
+.order-buttons {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    margin-top: 20px;
+    flex-wrap: wrap;
+}
+
+.calc-button-secondary {
+    background: #6c757d;
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 6px;
+    font-size: 16px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s;
+    min-width: 140px;
+}
+
+.calc-button-secondary:hover {
+    background: #5a6268;
+    transform: translateY(-2px);
+}
+
+.order-button {
+    background: linear-gradient(45deg, #28a745, #20c997);
+    color: white;
+    border: none;
+    padding: 15px 30px;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 15px;
+    width: 100%;
+    transition: all 0.3s;
+    box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);
+}
+
+.order-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(40, 167, 69, 0.4);
+    background: linear-gradient(45deg, #218838, #1ea085);
+}
+
+.order-button:active {
+    transform: translateY(0);
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
 </style>
 
 <script>
@@ -472,6 +605,10 @@ function displayStendResult(result, resultDiv) {
     html += '</ul>';
     html += '</div>';
     html += '</details>';
+    
+    // Добавляем кнопку заказа
+    html += '<button type="button" class="order-button" onclick="openOrderModal()">Заказать ПВХ стенд</button>';
+    
     html += '</div>';
     
     resultDiv.innerHTML = html;
@@ -493,6 +630,8 @@ function collectFormData(form) {
 // Запуск инициализации
 document.addEventListener('DOMContentLoaded', function() {
     waitForBX(initWithBX, initWithoutBX, 3000);
+    // Инициализация модального окна
+    initOrderModal();
 });
 
 function removeLamination() {
@@ -529,5 +668,251 @@ function removeLamination() {
         resultDiv.innerHTML = '<div class="result-error">Ошибка соединения: ' + 
             (error.message || 'Неизвестная ошибка') + '</div>';
     });
+}
+
+// Функции для работы с модальным окном заказа
+function openOrderModal() {
+    const modal = document.getElementById('orderModal');
+    const orderDataInput = document.getElementById('orderData');
+    
+    // Собираем данные расчета
+    const form = document.getElementById(calcConfig.type + 'CalcForm');
+    const formData = collectFormData(form);
+    
+    // Получаем результат расчета
+    const resultDiv = document.getElementById('calcResult');
+    const priceElement = resultDiv.querySelector('.result-price');
+    const totalPrice = priceElement ? priceElement.textContent.replace(/[^\d.,]/g, '') : '0';
+    
+    // Формируем данные заказа для ПВХ стендов
+    const orderData = {
+        product: 'ПВХ стенд',
+        width: formData.width || 'Не указан',
+        height: formData.height || 'Не указан',
+        pvcType: formData.pvcType || 'Не указан',
+        flatA4: formData.flatA4 || '0',
+        flatA5: formData.flatA5 || '0',
+        volumeA4: formData.volumeA4 || '0',
+        volumeA5: formData.volumeA5 || '0',
+        totalPrice: totalPrice,
+        calcType: 'stend'
+    };
+    
+    // Добавляем информацию о ламинации если выбрана
+    if (formData.laminationType) {
+        orderData.laminationType = formData.laminationType;
+        if (formData.laminationThickness) {
+            orderData.laminationThickness = formData.laminationThickness;
+        }
+    }
+    
+    orderDataInput.value = JSON.stringify(orderData);
+    modal.style.display = 'block';
+}
+
+function closeOrderModal() {
+    const modal = document.getElementById('orderModal');
+    modal.style.display = 'none';
+    
+    // Очищаем форму и все ошибки
+    const form = document.getElementById('orderForm');
+    form.reset();
+    clearAllFieldErrors();
+}
+
+function initOrderModal() {
+    const modal = document.getElementById('orderModal');
+    const closeBtn = modal.querySelector('.order-modal-close');
+    const form = document.getElementById('orderForm');
+    
+    if (!modal || !closeBtn || !form) {
+        return; // Элементы не найдены
+    }
+    
+    // Закрытие по клику на X
+    closeBtn.onclick = closeOrderModal;
+    
+    // Закрытие по клику вне модального окна
+    window.onclick = function(event) {
+        if (event.target === modal) {
+            closeOrderModal();
+        }
+    };
+    
+    // Обработчик отправки формы
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        // Сначала валидируем форму
+        if (!validateOrderForm()) {
+            return;
+        }
+        
+        const formData = new FormData(form);
+        const date = formData.get('callDate');
+        const time = formData.get('callTime');
+        
+        // Формируем строку времени для отправки
+        let callTimeString = '';
+        if (date && time) {
+            const dateObj = new Date(date + 'T' + time);
+            callTimeString = dateObj.toLocaleString('ru-RU', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+        
+        const clientData = {
+            name: formData.get('clientName'),
+            phone: formData.get('clientPhone'),
+            email: formData.get('clientEmail'),
+            callTime: callTimeString,
+            orderData: formData.get('orderData')
+        };
+        
+        // Отправляем данные на сервер
+        sendOrderEmail(clientData);
+    });
+}
+
+function validateOrderForm() {
+    const form = document.getElementById('orderForm');
+    const name = form.querySelector('#clientName').value.trim();
+    const phone = form.querySelector('#clientPhone').value.trim();
+    
+    let isValid = true;
+    
+    // Проверяем имя
+    if (name.length < 2) {
+        showFieldError(form.querySelector('#clientName'), 'Имя должно содержать минимум 2 символа');
+        isValid = false;
+    }
+    
+    // Проверяем телефон
+    const phoneRegex = /^[\d\s\+\-\(\)]{10,}$/;
+    if (!phoneRegex.test(phone)) {
+        showFieldError(form.querySelector('#clientPhone'), 'Введите корректный номер телефона');
+        isValid = false;
+    }
+    
+    return isValid;
+}
+
+function showFieldError(field, message) {
+    clearFieldError(field);
+    
+    const errorDiv = document.createElement('div');
+    errorDiv.className = 'field-error';
+    errorDiv.textContent = message;
+    errorDiv.style.color = '#dc3545';
+    errorDiv.style.fontSize = '12px';
+    errorDiv.style.marginTop = '5px';
+    
+    field.style.borderColor = '#dc3545';
+    field.parentNode.appendChild(errorDiv);
+}
+
+function clearFieldError(field) {
+    const parent = field.parentNode;
+    const existingError = parent.querySelector('.field-error');
+    if (existingError) {
+        existingError.remove();
+    }
+    field.style.borderColor = '';
+}
+
+function clearAllFieldErrors() {
+    const form = document.getElementById('orderForm');
+    const errorDivs = form.querySelectorAll('.field-error');
+    errorDivs.forEach(div => div.remove());
+    
+    const fields = form.querySelectorAll('input');
+    fields.forEach(field => field.style.borderColor = '');
+}
+
+function sendOrderEmail(clientData) {
+    const submitBtn = document.querySelector('#orderForm button[type="submit"]');
+    const originalText = submitBtn.textContent;
+    submitBtn.textContent = 'Отправляем...';
+    submitBtn.disabled = true;
+    
+    // Парсим данные заказа
+    const orderData = JSON.parse(clientData.orderData);
+    
+    // Формируем правильные данные для отправки на сервер
+    const serverData = {
+        name: clientData.name,
+        phone: clientData.phone,
+        email: clientData.email || '',
+        callTime: clientData.callTime || '',
+        orderData: clientData.orderData
+    };
+    
+    // Используем BX.ajax если доступен, иначе fetch
+    if (typeof BX !== 'undefined' && BX.ajax) {
+        BX.ajax.runComponentAction(calcConfig.component, 'sendOrder', {
+            mode: 'class',
+            data: serverData
+        }).then(function(response) {
+            handleOrderResponse(response, submitBtn, originalText);
+        }).catch(function(error) {
+            console.error('Ошибка отправки заказа:', error);
+            handleOrderError(submitBtn, originalText);
+        });
+    } else {
+        fetch('/bitrix/services/main/ajax.php?c=' + calcConfig.component + '&action=sendOrder&mode=class', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: new URLSearchParams(serverData)
+        })
+        .then(response => response.json())
+        .then(response => {
+            handleOrderResponse(response, submitBtn, originalText);
+        })
+        .catch(error => {
+            console.error('Ошибка отправки заказа:', error);
+            handleOrderError(submitBtn, originalText);
+        });
+    }
+}
+
+function handleOrderResponse(response, submitBtn, originalText) {
+    if (response && response.data && response.data.success) {
+        closeOrderModal();
+        
+        // Показываем уведомление об успешной отправке
+        const resultDiv = document.getElementById('calcResult');
+        if (resultDiv) {
+            const successMessage = document.createElement('div');
+            successMessage.className = 'result-success';
+            successMessage.style.marginTop = '20px';
+            successMessage.innerHTML = '<h3>Заказ отправлен!</h3><p>Спасибо за заказ! Наш менеджер свяжется с вами в ближайшее время.</p>';
+            resultDiv.appendChild(successMessage);
+            
+            // Удаляем сообщение через 5 секунд
+            setTimeout(() => {
+                if (successMessage.parentNode) {
+                    successMessage.parentNode.removeChild(successMessage);
+                }
+            }, 5000);
+        }
+    } else {
+        alert('Ошибка при отправке заказа. Пожалуйста, попробуйте еще раз или свяжитесь с нами по телефону.');
+    }
+    
+    submitBtn.textContent = originalText;
+    submitBtn.disabled = false;
+}
+
+function handleOrderError(submitBtn, originalText) {
+    alert('Произошла ошибка при отправке заказа. Пожалуйста, попробуйте еще раз или свяжитесь с нами по телефону: +7 (846) 206-00-68');
+    
+    submitBtn.textContent = originalText;
+    submitBtn.disabled = false;
 }
 </script>

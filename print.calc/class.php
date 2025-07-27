@@ -1845,6 +1845,11 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
             return $this->formatVizitOrderHTML($orderInfo, $name, $phone, $email, $callTime);
         }
         
+        // Для ПВХ стендов создаем красивое HTML-письмо
+        if ($orderInfo['calcType'] === 'stend') {
+            return $this->formatStendOrderHTML($orderInfo, $name, $phone, $email, $callTime);
+        }
+        
         // Для остальных калькуляторов - старый текстовый формат
         $message = "=== НОВЫЙ ЗАКАЗ ИЗ КАЛЬКУЛЯТОРА ===\n\n";
         
@@ -2346,8 +2351,13 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
             return false;
         }
 
-        // Для листовок, буклетов и визиток отправляем HTML-письмо напрямую через PHPMailer
-        if ($orderInfo['calcType'] === 'list' || $orderInfo['calcType'] === 'booklet' || $orderInfo['calcType'] === 'vizit') {
+        // Для листовок, буклетов, визиток и стендов отправляем письмо напрямую
+        if (in_array($orderInfo['calcType'], ['list', 'booklet', 'vizit', 'stend'])) {
+            // Для стендов пока отправляем текстовую версию
+            if ($orderInfo['calcType'] === 'stend') {
+                return $this->sendTextEmail($message, $orderInfo, $name, $phone, $email);
+            }
+            // Для остальных HTML
             return $this->sendHtmlEmail($message, $orderInfo, $name, $phone, $email);
         }
 
@@ -2388,31 +2398,78 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
     }
 
     /**
-     * Отправляет HTML-письмо напрямую через PHPMailer для листовок
+     * Отправляет HTML-письмо
      */
     private function sendHtmlEmail($htmlMessage, $orderInfo, $name, $phone, $email)
     {
         try {
-            $this->debug("Отправка HTML-письма для листовок", [
+            // Определяем тип заказа для темы письма
+            $productType = 'заказ';
+            $calcType = $orderInfo['calcType'] ?? '';
+            
+            switch ($calcType) {
+                case 'list':
+                    $productType = 'листовки';
+                    break;
+                case 'stend':
+                    $productType = 'ПВХ стенд';
+                    break;
+                case 'vizit':
+                    $productType = 'визитки';
+                    break;
+                case 'booklet':
+                    $productType = 'буклеты';
+                    break;
+                default:
+                    $productType = $orderInfo['product'] ?? 'заказ';
+                    break;
+            }
+            
+            $this->debug("Отправка HTML-письма", [
                 'to' => 'matvey.turkin.97@mail.ru',
-                'subject' => 'Новый заказ листовок с калькулятора'
+                'subject' => "Новый заказ: {$productType}",
+                'calcType' => $calcType,
+                'messageLength' => strlen($htmlMessage),
+                'messagePreview' => substr(strip_tags($htmlMessage), 0, 100) . '...'
             ]);
 
             // Пробуем использовать встроенную в Bitrix функцию отправки почты
             $to = "matvey.turkin.97@mail.ru";
-            $subject = "Новый заказ листовок с калькулятора - " . number_format($orderInfo['totalPrice'] ?? 0, 0, ',', ' ') . ' руб.';
+            $subject = "Новый заказ: {$productType} - " . number_format($orderInfo['totalPrice'] ?? 0, 0, ',', ' ') . ' руб.';
             $message = $htmlMessage;
             
-            // Заголовки для HTML-письма
+            // Создаем текстовую версию письма для совместимости
+            $textMessage = $this->htmlToText($htmlMessage);
+            
+            // Генерируем boundary для multipart
+            $boundary = "boundary_" . md5(uniqid(time()));
+            
+            // Заголовки для multipart HTML-письма
             $headers = [
                 "MIME-Version: 1.0",
-                "Content-type: text/html; charset=UTF-8",
+                "Content-Type: multipart/alternative; boundary=\"{$boundary}\"",
                 "From: info@mir-pechati.su",
-                "Reply-To: " . ($email ?: "info@mir-pechati.su")
+                "Reply-To: " . ($email ?: "info@mir-pechati.su"),
+                "X-Mailer: PHP/" . phpversion()
             ];
             
+            // Создаем multipart сообщение
+            $multipartMessage = "--{$boundary}\r\n";
+            $multipartMessage .= "Content-Type: text/plain; charset=UTF-8\r\n";
+            $multipartMessage .= "Content-Transfer-Encoding: 8bit\r\n\r\n";
+            $multipartMessage .= $textMessage . "\r\n\r\n";
+            
+            $multipartMessage .= "--{$boundary}\r\n";
+            $multipartMessage .= "Content-Type: text/html; charset=UTF-8\r\n";
+            $multipartMessage .= "Content-Transfer-Encoding: 8bit\r\n\r\n";
+            $multipartMessage .= $htmlMessage . "\r\n\r\n";
+            
+            $multipartMessage .= "--{$boundary}--";
+            
+            $this->debug("Заголовки письма", $headers);
+            
             // Отправляем через стандартную функцию Bitrix
-            $result = bxmail($to, $subject, $message, implode("\r\n", $headers));
+            $result = bxmail($to, $subject, $multipartMessage, implode("\r\n", $headers));
             
             if ($result) {
                 $this->debug("HTML-письмо успешно отправлено через bxmail");
@@ -2421,7 +2478,7 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
                 $this->debug("Ошибка отправки через bxmail, пробуем альтернативный способ");
                 
                 // Fallback: используем стандартный PHP mail()
-                $result = mail($to, $subject, $message, implode("\r\n", $headers));
+                $result = mail($to, $subject, $multipartMessage, implode("\r\n", $headers));
                 
                 if ($result) {
                     $this->debug("HTML-письмо успешно отправлено через mail()");
@@ -2434,6 +2491,202 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
             
         } catch (Exception $e) {
             $this->debug("Исключение при отправке HTML-письма: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Конвертирует HTML в простой текст для текстовой версии письма
+     */
+    private function htmlToText($html)
+    {
+        // Убираем теги стилей и скриптов
+        $html = preg_replace('/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/mi', '', $html);
+        $html = preg_replace('/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/mi', '', $html);
+        
+        // Заменяем основные HTML теги на текстовые эквиваленты
+        $html = str_replace(['<br>', '<br/>', '<br />'], "\n", $html);
+        $html = str_replace(['</p>', '</div>', '</h1>', '</h2>', '</h3>', '</h4>', '</h5>', '</h6>'], "\n\n", $html);
+        $html = str_replace(['</tr>'], "\n", $html);
+        $html = str_replace(['</td>'], " | ", $html);
+        $html = str_replace(['</li>'], "\n- ", $html);
+        
+        // Убираем все остальные HTML теги
+        $html = strip_tags($html);
+        
+        // Убираем лишние пробелы и переносы строк
+        $html = preg_replace('/\n\s*\n/', "\n\n", $html);
+        $html = trim($html);
+        
+        return $html;
+    }
+
+    /**
+     * Создает текстовое письмо для заказа ПВХ стендов
+     */
+    private function formatStendOrderHTML($orderInfo, $name, $phone, $email, $callTime)
+    {
+        $text = "=== НОВЫЙ ЗАКАЗ ПВХ СТЕНДА ===\n\n";
+        
+        $text .= "Информация о заказе:\n";
+        $text .= "Продукт: " . ($orderInfo['product'] ?? 'ПВХ стенд') . "\n";
+        $text .= "Ширина стенда: " . ($orderInfo['width'] ?? 'Не указана') . " см\n";
+        $text .= "Высота стенда: " . ($orderInfo['height'] ?? 'Не указана') . " см\n";
+        
+        // Рассчитываем площадь если есть размеры
+        if (!empty($orderInfo['width']) && !empty($orderInfo['height'])) {
+            $area = ((float)$orderInfo['width'] * (float)$orderInfo['height']) / 10000;
+            $text .= "Площадь стенда: " . number_format($area, 2, ',', ' ') . " м²\n";
+        }
+        
+        // Тип ПВХ
+        $pvcTypeText = $orderInfo['pvcType'] ?? 'Не указан';
+        if ($pvcTypeText === '3mm') $pvcTypeText = '3 мм';
+        if ($pvcTypeText === '5mm') $pvcTypeText = '5 мм';
+        $text .= "Толщина ПВХ: " . $pvcTypeText . "\n";
+        
+        // Карманы
+        $text .= "\nКарманы для документов:\n";
+        $hasAnyPockets = false;
+        
+        if (!empty($orderInfo['flatA4']) && (int)$orderInfo['flatA4'] > 0) {
+            $text .= "- Плоских карманов А4: " . (int)$orderInfo['flatA4'] . "\n";
+            $hasAnyPockets = true;
+        }
+        if (!empty($orderInfo['flatA5']) && (int)$orderInfo['flatA5'] > 0) {
+            $text .= "- Плоских карманов А5: " . (int)$orderInfo['flatA5'] . "\n";
+            $hasAnyPockets = true;
+        }
+        if (!empty($orderInfo['volumeA4']) && (int)$orderInfo['volumeA4'] > 0) {
+            $text .= "- Объемных карманов А4: " . (int)$orderInfo['volumeA4'] . "\n";
+            $hasAnyPockets = true;
+        }
+        if (!empty($orderInfo['volumeA5']) && (int)$orderInfo['volumeA5'] > 0) {
+            $text .= "- Объемных карманов А5: " . (int)$orderInfo['volumeA5'] . "\n";
+            $hasAnyPockets = true;
+        }
+        
+        if (!$hasAnyPockets) {
+            $text .= "- Без карманов\n";
+        }
+        
+        // Ламинация если есть
+        if (!empty($orderInfo['laminationType'])) {
+            $laminationText = $orderInfo['laminationType'];
+            
+            // Преобразуем коды ламинации в понятные названия
+            $laminationTypes = [
+                '1+0' => 'Односторонняя',
+                '1+1' => 'Двусторонняя'
+            ];
+            
+            if (isset($laminationTypes[$laminationText])) {
+                $laminationText = $laminationTypes[$laminationText];
+            }
+            
+            // Добавляем толщину если указана
+            if (!empty($orderInfo['laminationThickness'])) {
+                $thicknessNames = [
+                    '80' => '80 мкм',
+                    '125' => '125 мкм',
+                    '175' => '175 мкм'
+                ];
+                
+                $thicknessText = $thicknessNames[$orderInfo['laminationThickness']] ?? $orderInfo['laminationThickness'];
+                $laminationText .= ' (' . $thicknessText . ')';
+            }
+            
+            $text .= "\nЛаминация: " . $laminationText . "\n";
+        }
+        
+        // Цена
+        $text .= "\nИТОГО: " . ($orderInfo['totalPrice'] ?? '0') . " руб.\n";
+        
+        // Информация о клиенте
+        $text .= "\n=== КОНТАКТНАЯ ИНФОРМАЦИЯ ===\n";
+        $text .= "Имя: " . $name . "\n";
+        $text .= "Телефон: " . $phone . "\n";
+        
+        if (!empty($email)) {
+            $text .= "E-mail: " . $email . "\n";
+        }
+        
+        if (!empty($callTime)) {
+            $text .= "Удобное время для звонка: " . $callTime . "\n";
+        }
+        
+        $text .= "\nДата заказа: " . date('d.m.Y H:i:s') . "\n";
+        $text .= "Автоматическое уведомление от калькулятора печати\n";
+        
+        return $text;
+    }
+
+    /**
+     * Отправляет обычное текстовое письмо
+     */
+    private function sendTextEmail($textMessage, $orderInfo, $name, $phone, $email)
+    {
+        try {
+            // Определяем тип заказа для темы письма
+            $productType = 'заказ';
+            $calcType = $orderInfo['calcType'] ?? '';
+            
+            switch ($calcType) {
+                case 'stend':
+                    $productType = 'ПВХ стенд';
+                    break;
+                default:
+                    $productType = $orderInfo['product'] ?? 'заказ';
+                    break;
+            }
+            
+            $this->debug("Отправка текстового письма", [
+                'to' => 'matvey.turkin.97@mail.ru',
+                'subject' => "Новый заказ: {$productType}",
+                'calcType' => $calcType
+            ]);
+
+            // Пробуем использовать встроенную в Bitrix функцию отправки почты
+            $to = "matvey.turkin.97@mail.ru";
+            $subject = "Новый заказ: {$productType} - " . number_format($orderInfo['totalPrice'] ?? 0, 0, ',', ' ') . ' руб.';
+            
+            // Конвертируем HTML в текст если нужно
+            $message = strip_tags($textMessage);
+            $message = html_entity_decode($message, ENT_QUOTES, 'UTF-8');
+            
+            // Заголовки для текстового письма
+            $headers = [
+                "Content-Type: text/plain; charset=UTF-8",
+                "From: info@mir-pechati.su",
+                "Reply-To: " . ($email ?: "info@mir-pechati.su")
+            ];
+            
+            $this->debug("Заголовки письма", $headers);
+            $this->debug("Содержимое письма", substr($message, 0, 200) . '...');
+            
+            // Отправляем через стандартную функцию Bitrix
+            $result = bxmail($to, $subject, $message, implode("\r\n", $headers));
+            
+            if ($result) {
+                $this->debug("Текстовое письмо успешно отправлено через bxmail");
+                return true;
+            } else {
+                $this->debug("Ошибка отправки через bxmail, пробуем альтернативный способ");
+                
+                // Fallback: используем стандартный PHP mail()
+                $result = mail($to, $subject, $message, implode("\r\n", $headers));
+                
+                if ($result) {
+                    $this->debug("Текстовое письмо успешно отправлено через mail()");
+                    return true;
+                } else {
+                    $this->debug("Ошибка отправки через mail()");
+                    return false;
+                }
+            }
+            
+        } catch (Exception $e) {
+            $this->debug("Исключение при отправке текстового письма: " . $e->getMessage());
             return false;
         }
     }

@@ -2220,20 +2220,20 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
 <body>
     <div class="container">
         <div class="header">
-            <h1>📇 Новый заказ визиток</h1>
+            <h1>Новый заказ визиток</h1>
         </div>
         
         <div class="section">
-            <h2>📋 Параметры заказа</h2>
+            <h2>Параметры заказа</h2>
             <div class="info-grid">';
         
         // Тип печати
         if (!empty($orderInfo['printType'])) {
             $printTypeDisplay = '';
             if ($orderInfo['printType'] === 'digital') {
-                $printTypeDisplay = '🖨️ Цифровая печать';
+                $printTypeDisplay = 'Цифровая печать';
             } elseif ($orderInfo['printType'] === 'offset') {
-                $printTypeDisplay = '⚙️ Офсетная печать';
+                $printTypeDisplay = 'Офсетная печать';
             } else {
                 $printTypeDisplay = htmlspecialchars($orderInfo['printType']);
             }
@@ -2256,9 +2256,9 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
         if (!empty($orderInfo['sideType'])) {
             $sideTypeDisplay = '';
             if ($orderInfo['sideType'] === 'single') {
-                $sideTypeDisplay = '📄 Односторонняя (4+0)';
+                $sideTypeDisplay = 'Односторонняя (4+0)';
             } elseif ($orderInfo['sideType'] === 'double') {
-                $sideTypeDisplay = '📄📄 Двусторонняя (4+4)';
+                $sideTypeDisplay = 'Двусторонняя (4+4)';
             } else {
                 $sideTypeDisplay = htmlspecialchars($orderInfo['sideType']);
             }
@@ -2280,7 +2280,7 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
         // Стоимость
         if (!empty($orderInfo['totalPrice'])) {
             $html .= '<div class="price-highlight">
-                        💰 Стоимость: ' . number_format($orderInfo['totalPrice'], 2, ',', ' ') . ' ₽
+                        Стоимость: ' . number_format($orderInfo['totalPrice'], 2, ',', ' ') . ' ₽
                       </div>';
         }
         
@@ -2288,7 +2288,7 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
         
         // Информация о клиенте
         $html .= '<div class="section client-info">
-                    <h2>👤 Информация о клиенте</h2>
+                    <h2>Информация о клиенте</h2>
                     <div class="info-grid">
                         <div class="info-item">
                             <strong>Имя:</strong>
@@ -2317,17 +2317,17 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
             } catch (Exception $e) {
                 // Если не удалось распарсить дату, оставляем как есть
             }
-            $html .= '<p><strong>⏰ Удобное время для звонка:</strong> ' . htmlspecialchars($callTimeFormatted) . '</p>';
+            $html .= '<p><strong>Удобное время для звонка:</strong> ' . htmlspecialchars($callTimeFormatted) . '</p>';
         }
         
-        $html .= '<p><strong>📅 Дата заказа:</strong> ' . date('d.m.Y H:i:s') . '</p>
+        $html .= '<p><strong>Дата заказа:</strong> ' . date('d.m.Y H:i:s') . '</p>
                 </div>
             </div>
         </div>
         
         <div class="footer">
-            <p>🌐 Заказ получен через калькулятор визиток на сайте</p>
-            <p>⏰ Время получения: ' . date('d.m.Y H:i:s') . '</p>
+            <p>Заказ получен через калькулятор визиток на сайте</p>
+            <p>Время получения: ' . date('d.m.Y H:i:s') . '</p>
         </div>
     </div>
 </body>

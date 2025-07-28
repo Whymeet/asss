@@ -305,6 +305,11 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
                 // Специфичные данные для календарей уже добавлены через additional
                 // Дополнительная обработка не требуется, все данные передаются через конфигурацию
                 break;
+                
+            case 'banner':
+                // Специфичные данные для баннеров уже добавлены через additional
+                // Дополнительная обработка не требуется, все данные передаются через конфигурацию
+                break;
         }
         
         // Добавляем дополнительные параметры из конфигурации
@@ -1973,6 +1978,12 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
             return $this->formatCalendarOrderHTML($orderInfo, $name, $phone, $email, $callTime, $clientComment);
         }
         
+        // Для баннеров создаем красивое HTML-письмо
+        if ($orderInfo['calcType'] === 'banner') {
+            $this->debug("Выбран формат для баннеров");
+            return $this->formatBannerOrderHTML($orderInfo, $name, $phone, $email, $callTime, $clientComment);
+        }
+        
         // Для остальных калькуляторов - старый текстовый формат
         $this->debug("Используется стандартный текстовый формат для типа: " . ($orderInfo['calcType'] ?? 'неизвестен'));
         $message = "=== НОВЫЙ ЗАКАЗ ИЗ КАЛЬКУЛЯТОРА ===\n\n";
@@ -2592,8 +2603,8 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
             return false;
         }
 
-        // Для листовок, буклетов, визиток, стендов, блокнотов, кубариков, наклеек, холстов и календарей отправляем письмо напрямую
-        if (in_array($orderInfo['calcType'], ['list', 'booklet', 'vizit', 'stend', 'note', 'kubaric', 'sticker', 'canvas', 'calendar'])) {
+        // Для листовок, буклетов, визиток, стендов, блокнотов, кубариков, наклеек, холстов, календарей и баннеров отправляем письмо напрямую
+        if (in_array($orderInfo['calcType'], ['list', 'booklet', 'vizit', 'stend', 'note', 'kubaric', 'sticker', 'canvas', 'calendar', 'banner'])) {
             $this->debug("Отправляем HTML-письмо для типа: " . $orderInfo['calcType']);
             // Для стендов пока отправляем текстовую версию
             if ($orderInfo['calcType'] === 'stend') {
@@ -2676,6 +2687,9 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
                     break;
                 case 'calendar':
                     $productType = 'календари';
+                    break;
+                case 'banner':
+                    $productType = 'баннеры';
                     break;
                 default:
                     $productType = $orderInfo['product'] ?? 'заказ';
@@ -3366,6 +3380,130 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
         <div class="footer">
             <p>Заказ получен через калькулятор календарей</p>
             <p>Тел: +7 (846) 206-00-68</p>
+        </div>
+    </div>
+</body>
+</html>';
+        
+        return $html;
+    }
+
+    /**
+     * Создает HTML-письмо для заказа баннеров
+     */
+    private function formatBannerOrderHTML($orderInfo, $name, $phone, $email, $callTime, $clientComment = '')
+    {
+        $html = '<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Новый заказ баннеров</title>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: linear-gradient(135deg, #dc3545, #fd7e14); color: white; padding: 20px; border-radius: 8px 8px 0 0; text-align: center; }
+        .content { background: #f8f9fa; padding: 20px; border: 1px solid #dee2e6; }
+        .footer { background: #6c757d; color: white; padding: 15px; border-radius: 0 0 8px 8px; text-align: center; font-size: 14px; }
+        .section { margin-bottom: 20px; }
+        .section h3 { color: #dc3545; margin-bottom: 10px; border-bottom: 2px solid #dc3545; padding-bottom: 5px; }
+        .info-table { width: 100%; border-collapse: collapse; }
+        .info-table td { padding: 8px 12px; border-bottom: 1px solid #dee2e6; }
+        .info-table td:first-child { font-weight: bold; background: #ffeaea; width: 40%; }
+        .price { font-size: 24px; font-weight: bold; color: #dc3545; text-align: center; margin: 20px 0; }
+        .client-info { background: white; padding: 15px; border-radius: 6px; border-left: 4px solid #dc3545; }
+        .badge { background: #dc3545; color: white; padding: 3px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; }
+        .services-list { background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px; padding: 10px; margin: 10px 0; }
+        .services-list ul { margin: 0; padding-left: 20px; }
+        .services-list li { margin: 5px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎯 Новый заказ баннеров</h1>
+            <p>Заказ с калькулятора печати баннеров</p>
+        </div>
+        
+        <div class="content">
+            <div class="section">
+                <h3>Информация о заказе</h3>
+                <table class="info-table">
+                    <tr><td>Продукт</td><td>' . htmlspecialchars($orderInfo['product'] ?? 'Баннер') . '</td></tr>';
+        
+        // Размеры баннера
+        if (!empty($orderInfo['width']) && !empty($orderInfo['length'])) {
+            $width = $orderInfo['width'];
+            $length = $orderInfo['length'];
+            $area = round($width * $length, 2);
+            
+            $html .= '<tr><td>Размеры</td><td>' . $width . ' × ' . $length . ' м</td></tr>';
+            $html .= '<tr><td>Площадь</td><td>' . $area . ' м²</td></tr>';
+        }
+        
+        // Тип баннера
+        if (!empty($orderInfo['bannerType'])) {
+            $html .= '<tr><td>Тип материала</td><td>' . htmlspecialchars($orderInfo['bannerType']) . '</td></tr>';
+        }
+        
+        // Дополнительные услуги
+        $additionalServices = [];
+        
+        if (!empty($orderInfo['hemming']) && $orderInfo['hemming'] === true) {
+            $additionalServices[] = 'Проклейка краев';
+        }
+        
+        if (!empty($orderInfo['grommets']) && $orderInfo['grommets'] === true) {
+            $grommetStep = !empty($orderInfo['grommetStep']) ? $orderInfo['grommetStep'] : '50';
+            $additionalServices[] = 'Люверсы (шаг ' . htmlspecialchars($grommetStep) . ' см)';
+        }
+        
+        if (!empty($additionalServices)) {
+            $html .= '<tr><td>Дополнительные услуги</td><td>';
+            $html .= '<div class="services-list">';
+            $html .= '<ul>';
+            foreach ($additionalServices as $service) {
+                $html .= '<li>' . htmlspecialchars($service) . '</li>';
+            }
+            $html .= '</ul>';
+            $html .= '</div>';
+            $html .= '</td></tr>';
+        }
+        
+        $html .= '</table>
+                <div class="price">Итого: ' . number_format($orderInfo['totalPrice'] ?? 0, 2, ',', ' ') . ' руб.</div>
+            </div>
+            
+            <div class="section">
+                <h3>Информация о клиенте</h3>
+                <div class="client-info">
+                    <p><strong>Имя:</strong> ' . htmlspecialchars($name) . '</p>
+                    <p><strong>Телефон:</strong> <a href="tel:' . htmlspecialchars($phone) . '">' . htmlspecialchars($phone) . '</a></p>';
+        
+        if (!empty($email)) {
+            $html .= '<p><strong>E-mail:</strong> <a href="mailto:' . htmlspecialchars($email) . '">' . htmlspecialchars($email) . '</a></p>';
+        }
+        
+        if (!empty($callTime)) {
+            $callTimeFormatted = $callTime;
+            if (strpos($callTime, '.') === false && strtotime($callTime)) {
+                $callTimeFormatted = date('d.m.Y H:i', strtotime($callTime));
+            }
+            $html .= '<p><strong>Удобное время для звонка:</strong> ' . htmlspecialchars($callTimeFormatted) . '</p>';
+        }
+        
+        if (!empty($clientComment)) {
+            $html .= '<p><strong>Комментарий:</strong> ' . nl2br(htmlspecialchars($clientComment)) . '</p>';
+        }
+        
+        $html .= '<p><strong>Дата заказа:</strong> ' . date('d.m.Y H:i:s') . '</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>Тел: +7 (846) 206-00-68</p>
+            <p>Email: matvey.turkin.97@mail.ru</p>
+            <p>Время получения: ' . date('d.m.Y H:i:s') . '</p>
         </div>
     </div>
 </body>

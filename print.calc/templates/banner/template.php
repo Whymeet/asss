@@ -699,115 +699,33 @@ function formatPrice(price) {
     });
 }
 
-// Функции для работы с модальным окном заказа
-function openOrderModal() {
-    const modal = document.getElementById('orderModal');
-    const orderDataInput = document.getElementById('orderData');
+// Сбор данных формы
+function collectFormData(form) {
+    const data = {};
+    const formData = new FormData(form);
     
-    if (!modal || !orderDataInput) {
-        console.error('Ошибка инициализации формы заказа');
-        return;
+    for (let [key, value] of formData.entries()) {
+        if (form.elements[key] && form.elements[key].type === 'checkbox') {
+            data[key] = form.elements[key].checked;
+        } else {
+            data[key] = value;
+        }
     }
     
-    // Собираем данные расчета
-    const form = document.getElementById(calcConfig.type + 'CalcForm');
-    if (!form) {
-        console.error('Форма калькулятора не найдена');
-        return;
-    }
-    
-    const formData = collectFormData(form);
-    
-    // Получаем результат расчета
-    const resultDiv = document.getElementById('calcResult');
-    const priceElement = resultDiv ? resultDiv.querySelector('.total-price span:last-child') : null;
-    const totalPrice = priceElement ? priceElement.textContent.replace(/[^\d.,]/g, '') : '0';
-    
-    // Формируем данные заказа для баннеров
-    const orderData = {
-        calcType: 'banner',
-        type: 'banner',
-        description: 'Заказ печати баннера',
-        length: formData.length || '',
-        width: formData.width || '',
-        area: ((parseFloat(formData.length) || 0) * (parseFloat(formData.width) || 0)).toFixed(2),
-        bannerType: formData.bannerType || '',
-        hemming: formData.hemming ? 'Да' : 'Нет',
-        grommets: formData.grommets ? 'Да' : 'Нет',
-        grommetStep: formData.grommetStep || '',
-        totalPrice: totalPrice,
-        timestamp: new Date().toLocaleString('ru-RU')
-    };
-    
-    orderDataInput.value = JSON.stringify(orderData);
-    modal.style.display = 'block';
+    return data;
 }
 
-function closeOrderModal() {
-    const modal = document.getElementById('orderModal');
-    modal.style.display = 'none';
-    
-    const form = document.getElementById('orderForm');
-    form.reset();
-    clearAllFieldErrors();
-}
-
-function initOrderModal() {
-    const modal = document.getElementById('orderModal');
-    const closeBtn = modal.querySelector('.order-modal-close');
-    const form = document.getElementById('orderForm');
-    
-    if (!modal || !closeBtn || !form) {
-        console.error('Элементы модального окна не найдены');
-        return;
-    }
-    
-    closeBtn.onclick = closeOrderModal;
-    
-    window.onclick = function(event) {
-        if (event.target == modal) {
-            closeOrderModal();
-        }
-    };
-    
-    form.addEventListener('submit', function(e) {
-        e.preventDefault();
-        
-        if (!validateOrderForm()) {
-            return;
-        }
-        
-        const submitBtn = form.querySelector('button[type="submit"]');
-        const originalText = submitBtn.textContent;
-        submitBtn.textContent = 'Отправляем...';
-        submitBtn.disabled = true;
-        
-        const formData = new FormData(form);
-        const clientData = {};
-        for (let [key, value] of formData.entries()) {
-            clientData[key] = value;
-        }
-        
-        sendOrderEmail(clientData)
-            .then((response) => handleOrderResponse(response, submitBtn, originalText))
-            .catch((error) => handleOrderError(submitBtn, originalText, error));
-    });
-}
-
-// Инициализация валидации даты и времени
+// Функция инициализации валидации даты и времени
 function initializeDateTimeValidation() {
     const dateInput = document.getElementById('callDate');
     const timeInput = document.getElementById('callTime');
     
     if (dateInput) {
-        const today = new Date().toISOString().split('T')[0];
-        dateInput.setAttribute('min', today);
-        
-        const maxDate = new Date();
-        maxDate.setFullYear(maxDate.getFullYear() + 1);
-        dateInput.setAttribute('max', maxDate.toISOString().split('T')[0]);
-        
         dateInput.addEventListener('change', function() {
+            validateDateField(this);
+        });
+        
+        dateInput.addEventListener('blur', function() {
             validateDateField(this);
         });
     }
@@ -816,11 +734,16 @@ function initializeDateTimeValidation() {
         timeInput.addEventListener('change', function() {
             validateTimeField(this);
         });
+        
+        timeInput.addEventListener('blur', function() {
+            validateTimeField(this);
+        });
     }
 }
 
-// Валидация полей
+// Функция валидации поля даты
 function validateDateField(dateField) {
+    // Сначала очищаем предыдущие ошибки
     clearFieldError(dateField);
     
     const dateValue = dateField.value;
@@ -831,16 +754,19 @@ function validateDateField(dateField) {
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const selectedDay = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate());
     
+    // Проверяем корректность даты
     if (isNaN(selectedDate.getTime())) {
-        showFieldError(dateField, 'Пожалуйста, введите корректную дату');
+        showFieldError(dateField, 'Некорректный формат даты');
         return false;
     }
     
+    // Проверяем, что дата не в прошлом
     if (selectedDay < today) {
         showFieldError(dateField, 'Дата не может быть в прошлом');
         return false;
     }
     
+    // Проверяем, что дата не более чем на год вперед
     const oneYearFromNow = new Date();
     oneYearFromNow.setFullYear(oneYearFromNow.getFullYear() + 1);
     if (selectedDate > oneYearFromNow) {
@@ -851,7 +777,9 @@ function validateDateField(dateField) {
     return true;
 }
 
+// Функция валидации поля времени
 function validateTimeField(timeField) {
+    // Сначала очищаем предыдущие ошибки
     clearFieldError(timeField);
     
     const timeValue = timeField.value;
@@ -861,27 +789,31 @@ function validateTimeField(timeField) {
     const hours = parseInt(timeParts[0], 10);
     const minutes = parseInt(timeParts[1], 10);
     
+    // Проверяем корректность времени
     if (isNaN(hours) || isNaN(minutes)) {
-        showFieldError(timeField, 'Пожалуйста, введите корректное время');
+        showFieldError(timeField, 'Некорректный формат времени');
         return false;
     }
     
     if (hours < 9 || hours > 20 || (hours === 20 && minutes > 0)) {
-        showFieldError(timeField, 'Время должно быть в промежутке с 9:00 до 20:00');
+        showFieldError(timeField, 'Время звонка с 09:00 до 20:00');
         return false;
     }
     
+    // Проверяем время для сегодняшнего дня
     const dateField = document.getElementById('callDate');
     if (dateField && dateField.value) {
         const selectedDate = new Date(dateField.value);
-        const today = new Date();
+        const now = new Date();
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const selectedDay = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate());
         
-        if (selectedDate.toDateString() === today.toDateString()) {
-            const currentTime = new Date();
-            const selectedTime = new Date(today.getFullYear(), today.getMonth(), today.getDate(), hours, minutes);
+        if (selectedDay.getTime() === today.getTime()) {
+            const currentHours = now.getHours();
+            const currentMinutes = now.getMinutes();
             
-            if (selectedTime < currentTime) {
-                showFieldError(timeField, 'Время не может быть в прошлом для сегодняшнего дня');
+            if (hours < currentHours || (hours === currentHours && minutes <= currentMinutes)) {
+                showFieldError(timeField, 'Время должно быть позже текущего');
                 return false;
             }
         }
@@ -890,6 +822,48 @@ function validateTimeField(timeField) {
     return true;
 }
 
+// Функция показа ошибки для конкретного поля
+function showFieldError(field, message) {
+    const formGroup = field.closest('.form-group');
+    if (!formGroup) return;
+    
+    // Добавляем класс ошибки
+    formGroup.classList.add('error');
+    
+    // Удаляем предыдущее сообщение об ошибке, если есть
+    const existingError = formGroup.querySelector('.error-message');
+    if (existingError) {
+        existingError.remove();
+    }
+    
+    // Создаем новое сообщение об ошибке
+    const errorDiv = document.createElement('div');
+    errorDiv.className = 'error-message';
+    errorDiv.textContent = message;
+    
+    // Добавляем сообщение после поля
+    field.parentNode.insertBefore(errorDiv, field.nextSibling);
+    
+    // Автоматически убираем ошибку через 5 секунд
+    setTimeout(() => {
+        clearFieldError(field);
+    }, 5000);
+}
+
+// Функция очистки ошибки для поля
+function clearFieldError(field) {
+    const formGroup = field.closest('.form-group');
+    if (!formGroup) return;
+    
+    formGroup.classList.remove('error');
+    
+    const errorMessage = formGroup.querySelector('.error-message');
+    if (errorMessage) {
+        errorMessage.remove();
+    }
+}
+
+// Функция валидации формы заказа
 function validateOrderForm() {
     const nameField = document.getElementById('clientName');
     const phoneField = document.getElementById('clientPhone');
@@ -905,88 +879,77 @@ function validateOrderForm() {
     
     let hasErrors = false;
     
+    // Очищаем все предыдущие ошибки
     clearAllFieldErrors();
     
+    // Валидация имени
     if (!name) {
-        showFieldError(nameField, 'Пожалуйста, введите ваше имя');
+        showFieldError(nameField, 'Имя обязательно для заполнения');
         hasErrors = true;
     } else if (name.length < 2) {
-        showFieldError(nameField, 'Имя должно содержать не менее 2 символов');
+        showFieldError(nameField, 'Имя должно содержать минимум 2 символа');
         hasErrors = true;
     }
     
+    // Валидация телефона
     if (!phone) {
-        showFieldError(phoneField, 'Пожалуйста, введите номер телефона');
+        showFieldError(phoneField, 'Телефон обязателен для заполнения');
         hasErrors = true;
     } else {
-        const phonePattern = /^[\+]?[0-9\s\-\(\)]{10,}$/;
-        if (!phonePattern.test(phone)) {
-            showFieldError(phoneField, 'Пожалуйста, введите корректный номер телефона');
+        const cleanPhone = phone.replace(/[^\d+]/g, '');
+        if (cleanPhone.length < 10) {
+            showFieldError(phoneField, 'Некорректный номер телефона');
             hasErrors = true;
         }
     }
     
+    // Валидация email (если указан)
     if (email) {
-        const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailPattern.test(email)) {
-            showFieldError(emailField, 'Пожалуйста, введите корректный email адрес');
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+            showFieldError(emailField, 'Некорректный email адрес');
             hasErrors = true;
         }
     }
     
+    // Валидация даты и времени (если указаны)
     if (date || time) {
-        if (date && !validateDateField(dateField)) hasErrors = true;
-        if (time && !validateTimeField(timeField)) hasErrors = true;
-        
-        if ((date && !time) || (!date && time)) {
-            if (!time) showFieldError(timeField, 'Пожалуйста, укажите время звонка');
-            if (!date) showFieldError(dateField, 'Пожалуйста, укажите дату звонка');
+        if (date && !validateDateField(dateField)) {
             hasErrors = true;
+        }
+        if (time && !validateTimeField(timeField)) {
+            hasErrors = true;
+        }
+        if (date && time) {
+            // Дополнительная проверка совместимости даты и времени
+            if (!hasErrors && !validateDateTimeCompatibility(dateField, timeField)) {
+                hasErrors = true;
+            }
         }
     }
     
     return !hasErrors;
 }
 
-function showFieldError(field, message) {
-    const formGroup = field.closest('.form-group');
-    if (!formGroup) return;
+// Функция проверки совместимости даты и времени
+function validateDateTimeCompatibility(dateField, timeField) {
+    const dateValue = dateField.value;
+    const timeValue = timeField.value;
     
-    formGroup.classList.add('error');
+    if (!dateValue || !timeValue) return true;
     
-    const existingError = formGroup.querySelector('.error-message');
-    if (existingError) {
-        existingError.remove();
+    const selectedDate = new Date(dateValue + 'T' + timeValue);
+    const now = new Date();
+    
+    if (selectedDate <= now) {
+        showFieldError(timeField, 'Дата и время должны быть в будущем');
+        return false;
     }
     
-    const errorDiv = document.createElement('div');
-    errorDiv.className = 'error-message';
-    errorDiv.textContent = message;
-    
-    field.parentNode.insertBefore(errorDiv, field.nextSibling);
-    
-    setTimeout(() => {
-        clearFieldError(field);
-    }, 5000);
+    return true;
 }
 
-function clearFieldError(field) {
-    const formGroup = field.closest('.form-group');
-    if (!formGroup) return;
-    
-    formGroup.classList.remove('error');
-    
-    const errorMessage = formGroup.querySelector('.error-message');
-    if (errorMessage) {
-        errorMessage.style.animation = 'fadeOut 0.3s ease-out';
-        setTimeout(() => {
-            if (errorMessage.parentNode) {
-                errorMessage.remove();
-            }
-        }, 300);
-    }
-}
-
+// Функция очистки всех ошибок в форме
 function clearAllFieldErrors() {
     const formGroups = document.querySelectorAll('#orderForm .form-group');
     formGroups.forEach(group => {
@@ -998,61 +961,203 @@ function clearAllFieldErrors() {
     });
 }
 
-function sendOrderEmail(clientData) {
-    const orderData = JSON.parse(clientData.orderData);
+// Функции для работы с модальным окном заказа
+function openOrderModal() {
+    const modal = document.getElementById('orderModal');
+    const orderDataInput = document.getElementById('orderData');
     
-    const sessidElement = document.querySelector('input[name="sessid"]');
-    const sessid = sessidElement ? sessidElement.value : '';
+    // Собираем данные расчета
+    const form = document.getElementById(calcConfig.type + 'CalcForm');
+    const formData = collectFormData(form);
     
-    const emailData = {
-        action: 'sendOrderEmail',
-        clientName: clientData.clientName || '',
-        clientPhone: clientData.clientPhone || '',
-        clientEmail: clientData.clientEmail || '',
-        callDate: clientData.callDate || '',
-        callTime: clientData.callTime || '',
-        clientComment: '',
-        orderDetails: JSON.stringify(orderData),
-        sessid: sessid
+    // Получаем результат расчета
+    const resultDiv = document.getElementById('calcResult');
+    const priceElements = resultDiv.querySelectorAll('.price-item.total-price span');
+    const totalPrice = priceElements.length > 1 ? 
+        priceElements[1].textContent.replace(/[^\d.,]/g, '') : '0';
+    
+    // Собираем дополнительные данные из результата расчета
+    const bannerData = {};
+    
+    // Получаем данные о размерах и площади из результата
+    const dimensionsDiv = resultDiv.querySelector('.banner-dimensions');
+    if (dimensionsDiv) {
+        const dimensionsText = dimensionsDiv.textContent;
+        const match = dimensionsText.match(/(\d+(?:\.\d+)?)\s*×\s*(\d+(?:\.\d+)?)\s*м/);
+        if (match) {
+            bannerData.length = parseFloat(match[1]);
+            bannerData.width = parseFloat(match[2]);
+        }
+    }
+    
+    // Формируем данные заказа для баннеров
+    const orderData = {
+        calcType: calcConfig.type,
+        product: 'Баннер',
+        width: bannerData.width || formData.width || '',
+        length: bannerData.length || formData.length || '',
+        bannerType: formData.bannerType || '',
+        hemming: formData.hemming || false,
+        grommets: formData.grommets || false,
+        grommetStep: formData.grommetStep || '',
+        totalPrice: parseFloat(totalPrice.replace(',', '.')) || 0
     };
     
-    if (typeof BX !== 'undefined' && BX.ajax) {
-        return BX.ajax.runComponentAction(calcConfig.component, 'sendOrderEmail', {
+    // Добавляем дополнительные поля из результата если есть
+    const priceItems = resultDiv.querySelectorAll('.price-item');
+    priceItems.forEach(item => {
+        const text = item.textContent;
+        if (text.includes('Площадь баннера:')) {
+            const area = text.match(/(\d+(?:\.\d+)?)\s*м²/);
+            if (area) orderData.area = parseFloat(area[1]);
+        }
+        if (text.includes('Проклейка')) {
+            const perimeter = text.match(/\((\d+(?:\.\d+)?)\s*м\)/);
+            if (perimeter) orderData.perimeter = parseFloat(perimeter[1]);
+        }
+        if (text.includes('Люверсы')) {
+            const grommetCount = text.match(/\((\d+)\s*шт\)/);
+            if (grommetCount) orderData.grommetCount = parseInt(grommetCount[1]);
+        }
+    });
+    
+    console.log('Данные заказа баннера:', orderData);
+    orderDataInput.value = JSON.stringify(orderData);
+    modal.style.display = 'block';
+}
+
+function closeOrderModal() {
+    const modal = document.getElementById('orderModal');
+    modal.style.display = 'none';
+    
+    // Очищаем форму и все ошибки
+    const form = document.getElementById('orderForm');
+    form.reset();
+    clearAllFieldErrors();
+}
+
+function initOrderModal() {
+    const modal = document.getElementById('orderModal');
+    const closeBtn = modal.querySelector('.order-modal-close');
+    const form = document.getElementById('orderForm');
+    
+    // Закрытие по клику на X
+    if (closeBtn) {
+        closeBtn.addEventListener('click', closeOrderModal);
+    }
+    
+    // Закрытие по клику вне модального окна
+    window.addEventListener('click', function(event) {
+        if (event.target === modal) {
+            closeOrderModal();
+        }
+    });
+    
+    // Обработка отправки формы
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            // Валидация формы
+            if (!validateOrderForm()) {
+                return;
+            }
+            
+            // Собираем данные формы
+            const formData = new FormData(form);
+            const clientData = {
+                name: formData.get('clientName'),
+                phone: formData.get('clientPhone'),
+                email: formData.get('clientEmail'),
+                callDate: formData.get('callDate'),
+                callTime: formData.get('callTime'),
+                orderData: formData.get('orderData')
+            };
+            
+            // Формируем время звонка
+            let callTime = '';
+            if (clientData.callDate && clientData.callTime) {
+                callTime = clientData.callDate + ' ' + clientData.callTime;
+            } else if (clientData.callDate) {
+                callTime = clientData.callDate;
+            } else if (clientData.callTime) {
+                callTime = clientData.callTime;
+            }
+            clientData.callTime = callTime;
+            
+            // Отправляем данные на сервер
+            sendOrderEmail(clientData);
+        });
+    }
+}
+
+function sendOrderEmail(clientData) {
+    const submitBtn = document.querySelector('#orderForm button[type="submit"]');
+    const originalText = submitBtn.textContent;
+    submitBtn.textContent = 'Отправляем...';
+    submitBtn.disabled = true;
+    
+    // Формируем правильные данные для отправки на сервер
+    const serverData = {
+        clientName: clientData.name,
+        clientPhone: clientData.phone,
+        clientEmail: clientData.email || '',
+        callDate: clientData.callDate || '',
+        callTime: clientData.callTime || '',
+        orderDetails: clientData.orderData
+    };
+    
+    // Используем BX.ajax если доступен, иначе fetch
+    if (typeof BX !== 'undefined' && BX.ajax && BX.ajax.runComponentAction) {
+        BX.ajax.runComponentAction(calcConfig.component, 'sendOrderEmail', {
             mode: 'class',
-            data: emailData
+            data: serverData
+        }).then(function(response) {
+            handleOrderResponse(response, submitBtn, originalText);
+        }).catch(function(error) {
+            console.error('Ошибка отправки заказа:', error);
+            handleOrderError(submitBtn, originalText);
         });
     } else {
-        return fetch('/bitrix/services/main/ajax.php?c=' + calcConfig.component + '&action=sendOrderEmail&mode=class', {
+        fetch('/bitrix/services/main/ajax.php?c=' + calcConfig.component + '&action=sendOrderEmail&mode=class', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded',
             },
-            body: new URLSearchParams(emailData)
-        }).then(response => response.json());
+            body: new URLSearchParams(serverData)
+        })
+        .then(response => response.json())
+        .then(response => {
+            handleOrderResponse(response, submitBtn, originalText);
+        })
+        .catch(error => {
+            console.error('Ошибка отправки заказа:', error);
+            handleOrderError(submitBtn, originalText);
+        });
     }
 }
 
 function handleOrderResponse(response, submitBtn, originalText) {
-    if (response && (response.success || (response.data && response.data.success))) {
-        closeOrderModal();
-        alert('Заказ успешно отправлен! Мы свяжемся с вами в ближайшее время.');
+    if (response && response.data) {
+        if (response.data.success) {
+            // Заказ успешно отправлен
+            console.log('Заказ успешно отправлен! Мы свяжемся с Вами в ближайшее время.');
+            closeOrderModal();
+        } else {
+            // Показываем ошибку
+            console.error('Ошибка при отправке заказа: ' + (response.data.error || 'Неизвестная ошибка'));
+        }
     } else {
-        const errorMsg = response && response.data && response.data.error ? 
-            response.data.error : 
-            'Произошла ошибка при отправке заказа. Пожалуйста, свяжитесь с нами по телефону.';
-        alert(errorMsg);
+        console.error('Ошибка при отправке заказа. Попробуйте еще раз.');
     }
     
     submitBtn.textContent = originalText;
     submitBtn.disabled = false;
 }
 
-function handleOrderError(submitBtn, originalText, error) {
-    console.error('Ошибка отправки заказа:', error);
-    alert('Произошла ошибка при отправке заказа. Пожалуйста, свяжитесь с нами по телефону.');
-    
+function handleOrderError(submitBtn, originalText) {
+    console.error('Ошибка соединения. Попробуйте еще раз.');
     submitBtn.textContent = originalText;
     submitBtn.disabled = false;
 }
-
 </script>

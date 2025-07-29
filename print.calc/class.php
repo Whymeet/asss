@@ -2697,7 +2697,7 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
             }
             
             $this->debug("Отправка HTML-письма", [
-                'to' => 'matvey.turkin.97@mail.ru',
+                'to' => 'info@mir-pechati.su',
                 'subject' => "Новый заказ: {$productType}",
                 'calcType' => $calcType,
                 'messageLength' => strlen($htmlMessage),
@@ -2705,7 +2705,7 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
             ]);
 
             // Пробуем использовать встроенную в Bitrix функцию отправки почты
-            $to = "matvey.turkin.97@mail.ru";
+            $to = "info@mir-pechati.su";
             $subject = "Новый заказ: {$productType} - " . number_format($orderInfo['totalPrice'] ?? 0, 0, ',', ' ') . ' руб.';
             $message = $htmlMessage;
             
@@ -2912,13 +2912,13 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
             }
             
             $this->debug("Отправка текстового письма", [
-                'to' => 'matvey.turkin.97@mail.ru',
+                'to' => 'info@mir-pechati.su',
                 'subject' => "Новый заказ: {$productType}",
                 'calcType' => $calcType
             ]);
 
             // Пробуем использовать встроенную в Bitrix функцию отправки почты
-            $to = "matvey.turkin.97@mail.ru";
+            $to = "info@mir-pechati.su";
             $subject = "Новый заказ: {$productType} - " . number_format($orderInfo['totalPrice'] ?? 0, 0, ',', ' ') . ' руб.';
             
             // Конвертируем HTML в текст если нужно
@@ -3502,7 +3502,7 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
         
         <div class="footer">
             <p>Тел: +7 (846) 206-00-68</p>
-            <p>Email: matvey.turkin.97@mail.ru</p>
+            <p>Email: info@mir-pechati.su</p>
             <p>Время получения: ' . date('d.m.Y H:i:s') . '</p>
         </div>
     </div>

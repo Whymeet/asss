@@ -423,31 +423,6 @@ $validationRules = $arResult['validation_rules'] ?? [];
     border-radius: 6px;
 }
 
-.price-breakdown {
-    background: #fff;
-    border: 1px solid #e0e0e0;
-    border-radius: 8px;
-    padding: 20px;
-    margin: 15px 0;
-}
-
-.price-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 8px 0;
-    border-bottom: 1px solid #f5f5f5;
-}
-
-.price-item:last-child {
-    border-bottom: none;
-    font-weight: bold;
-    font-size: 16px;
-    color: #2e7d32;
-    margin-top: 10px;
-    padding-top: 15px;
-    border-top: 2px solid #2e7d32;
-}
 
 .banner-dimensions {
     background: #ffffff;
@@ -457,6 +432,29 @@ $validationRules = $arResult['validation_rules'] ?? [];
     margin: 10px 0;
     color: #495057;
     font-size: 14px;
+}
+
+/* Стили деталей расчета в едином дизайне */
+.detail-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.detail-item:last-child {
+    border-bottom: none;
+}
+
+.detail-label {
+    font-weight: 500;
+    color: #495057;
+}
+
+.detail-value {
+    font-weight: 600;
+    color: #2e7d32;
 }
 
 @media (max-width: 768px) {
@@ -647,41 +645,47 @@ function handleResponse(response, resultDiv) {
 
 // Отображение результата расчета баннера
 function displayBannerResult(result, resultDiv) {
-    const totalPrice = Math.round((result.totalPrice || 0) * 100) / 100;
+    // Округляем все цены до десятых
+    const totalPrice = Math.round((result.totalPrice || 0) * 10) / 10;
     
     let html = '<div class="result-success">';
-    html += '<h3>Результат расчета баннера</h3>';
+    html += '<h3 class="result-title">Результат расчета баннера</h3>';
+    html += '<div class="result-price">' + totalPrice + ' <small>₽</small></div>';
+    
+    // Детали расчета в выпадающем блоке
+    html += '<details class="result-details">';
+    html += '<summary>Детали расчета</summary>';
+    html += '<div class="result-details-content">';
     
     if (result.dimensions) {
-        html += '<div class="banner-dimensions">';
-        html += '<strong>Размеры:</strong> ' + result.dimensions.length + ' × ' + result.dimensions.width + ' м';
-        html += '</div>';
+        const dimensions = result.dimensions.length && result.dimensions.width 
+            ? result.dimensions.length + ' × ' + result.dimensions.width + ' м'
+            : result.dimensions;
+        html += '<div class="detail-item"><span class="detail-label">Размеры:</span><span class="detail-value">' + dimensions + '</span></div>';
     }
     
-    html += '<div class="price-breakdown">';
-    
     if (result.area) {
-        html += '<div class="price-item"><span>Площадь баннера:</span><span>' + result.area + ' м²</span></div>';
+        html += '<div class="detail-item"><span class="detail-label">Площадь баннера:</span><span class="detail-value">' + result.area + ' м²</span></div>';
     }
     
     if (result.bannerType) {
-        html += '<div class="price-item"><span>Тип материала:</span><span>' + result.bannerType + '</span></div>';
+        html += '<div class="detail-item"><span class="detail-label">Тип материала:</span><span class="detail-value">' + result.bannerType + '</span></div>';
     }
     
     if (result.bannerCost) {
-        html += '<div class="price-item"><span>Стоимость полотна:</span><span>' + formatPrice(result.bannerCost) + ' ₽</span></div>';
+        html += '<div class="detail-item"><span class="detail-label">Стоимость полотна:</span><span class="detail-value">' + formatPrice(result.bannerCost) + ' ₽</span></div>';
     }
     
     if (result.perimeter && result.hemmingCost > 0) {
-        html += '<div class="price-item"><span>Проклейка (' + result.perimeter + ' м):</span><span>' + formatPrice(result.hemmingCost) + ' ₽</span></div>';
+        html += '<div class="detail-item"><span class="detail-label">Проклейка краев (' + result.perimeter + ' м):</span><span class="detail-value">' + formatPrice(result.hemmingCost) + ' ₽</span></div>';
     }
     
     if (result.grommetCount > 0) {
-        html += '<div class="price-item"><span>Люверсы (' + result.grommetCount + ' шт):</span><span>' + formatPrice(result.grommetCost) + ' ₽</span></div>';
+        html += '<div class="detail-item"><span class="detail-label">Люверсы (' + result.grommetCount + ' шт):</span><span class="detail-value">' + formatPrice(result.grommetCost) + ' ₽</span></div>';
     }
     
-    html += '<div class="price-item total-price"><span>Итоговая стоимость:</span><span>' + formatPrice(totalPrice) + ' ₽</span></div>';
     html += '</div>';
+    html += '</details>';
     
     // Добавляем кнопку заказа
     html += '<button type="button" class="order-button" onclick="openOrderModal()">Заказать баннер</button>';

@@ -965,7 +965,7 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
         $maxAllowedPoints = $area * $pocketLimits['max_points_per_m2'];
         
         if ($totalPoints > $maxAllowedPoints) {
-            return ['error' => "Превышено максимальное количество карманов. Максимум: " . floor($maxAllowedPoints) . " баллов для данной площади"];
+            return ['error' => "На стенд заданной площади не возможно уместить столько карманов"];
         }
         
         // Расчет стоимости ПВХ

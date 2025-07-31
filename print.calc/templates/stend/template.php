@@ -141,7 +141,7 @@ $pocketTypes = $arResult['pocket_types'] ?? [];
         <div class="form-group">
             <div id="previewCalc" class="preview-calc">
                 <strong>Площадь стенда:</strong> <span id="areaPreview">0.70</span> м²<br>
-                <span id="pointsWarning" class="points-warning" style="display: none;">⚠️ Превышен лимит карманов!</span>
+                <span id="pointsWarning" class="points-warning" style="display: none;">На стенде не поместится столько карманов</span>
             </div>
         </div>
 

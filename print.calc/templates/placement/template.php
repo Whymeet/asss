@@ -2,12 +2,12 @@
 /** Шаблон калькулятора размещения */
 if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED !== true) die();
 
-// Подключаем общие стили
+// Подключаем общие стили и скрипты
 $this->addExternalCss($templateFolder.'/../.default/style.css');
-// Подключаем специфичные стили для размещения (если есть)
 if (file_exists($templateFolder.'/style.css')) {
     $this->addExternalCss($templateFolder.'/style.css');
 }
+$this->addExternalJs($templateFolder.'/../_shared/shared.js');
 
 // Проверяем, что конфигурация загружена
 if (!$arResult['CONFIG_LOADED']) {
@@ -33,11 +33,11 @@ $features = $arResult['FEATURES'] ?? [];
             Спасибо за понимание!
         </p>
     </div>
-    
+
     <h2><?= $arResult['DESCRIPTION'] ?? 'Калькулятор печати размещения' ?></h2>
-    
+
     <form id="<?= $calcType ?>CalcForm" class="calc-form">
-        
+
         <?php if (!empty($arResult['PAPER_TYPES'])): ?>
         <!-- Тип бумаги (ограниченный выбор) -->
         <div class="form-group">
@@ -67,13 +67,13 @@ $features = $arResult['FEATURES'] ?? [];
         <!-- Тираж -->
         <div class="form-group">
             <label class="form-label" for="quantity">Тираж:</label>
-            <input name="quantity" 
-                   id="quantity" 
-                   type="number" 
-                   class="form-control" 
-                   min="<?= $arResult['MIN_QUANTITY'] ?? 1 ?>" 
-                   max="<?= $arResult['MAX_QUANTITY'] ?? '' ?>" 
-                   value="<?= $arResult['DEFAULT_QUANTITY'] ?? 100 ?>" 
+            <input name="quantity"
+                   id="quantity"
+                   type="number"
+                   class="form-control"
+                   min="<?= $arResult['MIN_QUANTITY'] ?? 1 ?>"
+                   max="<?= $arResult['MAX_QUANTITY'] ?? '' ?>"
+                   value="<?= $arResult['DEFAULT_QUANTITY'] ?? 100 ?>"
                    placeholder="Введите количество"
                    required>
         </div>
@@ -83,21 +83,21 @@ $features = $arResult['FEATURES'] ?? [];
             <label class="form-label">Тип печати:</label>
             <div class="radio-group">
                 <label class="radio-label">
-                    <input type="radio" name="printType" value="single" checked> 
+                    <input type="radio" name="printType" value="single" checked>
                     Односторонняя
                 </label>
                 <label class="radio-label">
-                    <input type="radio" name="printType" value="double"> 
+                    <input type="radio" name="printType" value="double">
                     Двусторонняя
                 </label>
             </div>
         </div>
 
-        <?php 
+        <?php
         // Показываем дополнительные услуги
         $showAdditionalServices = false;
         $supportedServices = [];
-        
+
         if (!empty($features['bigovka'])) {
             $supportedServices[] = ['name' => 'bigovka', 'label' => 'Биговка'];
             $showAdditionalServices = true;
@@ -114,7 +114,7 @@ $features = $arResult['FEATURES'] ?? [];
             $supportedServices[] = ['name' => 'numbering', 'label' => 'Нумерация'];
             $showAdditionalServices = true;
         }
-        
+
         if ($showAdditionalServices): ?>
         <!-- Дополнительные услуги -->
         <div class="form-group">
@@ -147,165 +147,104 @@ $features = $arResult['FEATURES'] ?? [];
         <input type="hidden" name="calcType" value="<?= $calcType ?>">
         <input type="hidden" name="sessid" value="<?= bitrix_sessid() ?>">
 
-        <button id="calcBtn" type="button" class="calc-button mt-4" style="margin-top:32px;">Рассчитать стоимость</button>
         <?php if (!empty($features['lamination'])): ?>
         <!-- Секция ламинации -->
-        <div id="laminationSection" class="lamination-section" style="margin-top: 32px;">
+        <div id="laminationSection" class="lamination-section" style="display: none; margin-top: 20px; margin-bottom: 20px;">
             <h3>Дополнительная ламинация</h3>
             <div id="laminationControls"></div>
             <div id="laminationResult" class="lamination-result"></div>
         </div>
         <?php endif; ?>
+
+        <button id="calcBtn" type="button" class="calc-button mt-4" style="margin-top:32px;">Рассчитать стоимость</button>
+
         <div id="calcResult" class="calc-result"></div>
         <div class="calc-spacer"></div>
     </form>
 
-    <div class="calc-thanks">
-        <p>Спасибо, что Вы с нами!</p>
-    </div>
+    <?php include dirname(__DIR__) . '/_shared/order-modal.php'; ?>
 </div>
 
+<style>
+/* Специфичные стили для размещения */
+.remove-lamination-btn {
+    background: #dc3545;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    font-size: 14px;
+    cursor: pointer;
+    margin-left: 10px;
+    transition: all 0.3s;
+}
+
+.remove-lamination-btn:hover {
+    background: #c82333;
+    transform: translateY(-1px);
+}
+
+.lamination-info-container {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+</style>
+
 <script>
-// Блокировка внешних ошибок
-window.addEventListener('error', function(e) {
-    if (e.message && (
-        e.message.includes('Cannot set properties of null') || 
-        e.message.includes('Cannot read properties of null') ||
-        e.message.includes('recaptcha') ||
-        e.message.includes('mail.ru') ||
-        e.message.includes('top-fwz1') ||
-        e.message.includes('code.js')
-    )) {
-        e.preventDefault();
-        e.stopPropagation();
-        return true;
-    }
-});
-
-window.addEventListener('unhandledrejection', function(e) {
-    if (e.reason === null || (e.reason && e.reason.toString().includes('recaptcha'))) {
-        e.preventDefault();
-        return true;
-    }
-});
-
-// Конфигурация для калькулятора размещения
-const calcConfig = {
+// Конфигурация калькулятора размещения
+var calcConfig = {
     type: '<?= $calcType ?>',
     features: <?= json_encode($features) ?>,
     component: 'my:print.calc'
 };
 
-// Функция ожидания BX
-function waitForBX(callback, fallbackCallback, timeout = 3000) {
-    const startTime = Date.now();
-    
-    function checkBX() {
-        if (typeof BX !== 'undefined' && BX.ajax) {
-            callback();
-        } else if (Date.now() - startTime < timeout) {
-            setTimeout(checkBX, 50);
-        } else {
-            fallbackCallback();
-        }
-    }
-    checkBX();
-}
+// Сохраняем исходный результат без ламинации
+var originalResultWithoutLamination = null;
+var currentPrintingType = null;
 
-// Инициализация с BX
-function initWithBX() {
-    const form = document.getElementById(calcConfig.type + 'CalcForm');
-    const resultDiv = document.getElementById('calcResult');
-    const calcBtn = document.getElementById('calcBtn');
-    
-    if (!form || !resultDiv || !calcBtn) {
-        console.error('Элементы формы не найдены');
-        return;
+// Hook для отображения результата (вызывается из shared.js)
+window.displayResult = function(data, resultDiv) {
+    // Сохраняем исходный результат без ламинации
+    if (!data.laminationCost) {
+        originalResultWithoutLamination = JSON.parse(JSON.stringify(data));
+        currentPrintingType = data.printingType;
     }
 
-    calcBtn.addEventListener('click', function() {
-        const data = collectFormData(form);
-        data.calcType = calcConfig.type;
-        
-        resultDiv.innerHTML = '<div class="loading">Выполняется расчет размещения...</div>';
+    displayPlacementResult(data, resultDiv);
 
-        BX.ajax.runComponentAction(calcConfig.component, 'calc', {
-            mode: 'class',
-            data: data
-        }).then(function(response) {
-            handleResponse(response, resultDiv);
-        }).catch(function(error) {
-            resultDiv.innerHTML = '<div class="result-error">Ошибка соединения: ' + 
-                (error.message || 'Неизвестная ошибка') + '</div>';
-        });
-    });
-}
-
-// Запасной вариант без BX
-function initWithoutBX() {
-    const form = document.getElementById(calcConfig.type + 'CalcForm');
-    const resultDiv = document.getElementById('calcResult');
-    const calcBtn = document.getElementById('calcBtn');
-    
-    if (!form || !resultDiv || !calcBtn) {
-        console.error('Элементы формы не найдены');
-        return;
+    // Показываем секцию ламинации если доступна
+    if (calcConfig.features.lamination && data.printingType) {
+        showLaminationSection(data);
     }
+};
 
-    calcBtn.addEventListener('click', function() {
-        const data = collectFormData(form);
-        data.calcType = calcConfig.type;
-        
-        resultDiv.innerHTML = '<div class="loading">Выполняется расчет размещения...</div>';
+// Инициализация
+document.addEventListener('DOMContentLoaded', function() {
+    initCalculator('Выполняется расчет размещения...');
+    initOrderModal();
+    initializeDateTimeValidation();
+});
 
-        fetch('/bitrix/services/main/ajax.php?c=' + calcConfig.component + '&action=calc&mode=class', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-            },
-            body: new URLSearchParams(data)
-        })
-        .then(response => response.json())
-        .then(response => {
-            handleResponse(response, resultDiv);
-        })
-        .catch(error => {
-            resultDiv.innerHTML = '<div class="result-error">Ошибка соединения: ' + error.message + '</div>';
-        });
-    });
-}
-
-// Обработка ответа сервера
-function handleResponse(response, resultDiv) {
-    if (response && response.data) {
-        if (response.data.error) {
-            resultDiv.innerHTML = '<div class="result-error">Ошибка: ' + response.data.error + '</div>';
-        } else {
-            displayPlacementResult(response.data, resultDiv);
-            // Показываем секцию ламинации если доступна
-            if (calcConfig.features.lamination && response.data.printingType) {
-                showLaminationSection(response.data);
-            }
-        }
-    } else {
-        resultDiv.innerHTML = '<div class="result-error">Некорректный ответ сервера</div>';
-    }
-}
+// === УНИКАЛЬНАЯ ЛОГИКА РАЗМЕЩЕНИЯ ===
 
 // Отображение результата размещения
 function displayPlacementResult(result, resultDiv) {
-    const totalPrice = Math.round((result.totalPrice || 0) * 10) / 10;
-    
-    let html = '<div class="result-success">';
+    var totalPrice = Math.round((result.totalPrice || 0) * 10) / 10;
+    var hasLamination = result.laminationCost && result.laminationCost > 0;
+
+    var html = '<div class="result-success">';
     html += '<h3 class="result-title">Результат расчета размещения</h3>';
     html += '<div class="result-price">' + totalPrice + ' <small>₽</small></div>';
-    
+
     // Информация о типе печати
     if (result.printingType) {
-        const isOffset = result.printingType === 'Офсетная';
-        const color = isOffset ? '#28a745' : '#007bff';
-        const bgColor = isOffset ? '#f8fff8' : '#f8f9ff';
-        
+        var isOffset = result.printingType === 'Офсетная';
+        var color = isOffset ? '#28a745' : '#007bff';
+        var bgColor = isOffset ? '#f8fff8' : '#f8f9ff';
+
         html += '<div style="color: ' + color + '; background: ' + bgColor + '; padding: 10px; border-radius: 6px; border-left: 4px solid ' + color + '; margin-bottom: 15px;">';
         html += '<strong>Тип печати:</strong> ' + result.printingType;
         if (isOffset) {
@@ -317,52 +256,57 @@ function displayPlacementResult(result, resultDiv) {
     }
 
     // Показываем информацию о ламинации если она была добавлена
-    if (result.laminationCost && result.laminationCost > 0) {
+    if (hasLamination) {
         html += '<div class="lamination-info-container">';
         html += '<p class="lamination-info" style="margin: 0;"><strong>Ламинация включена:</strong> ' + Math.round(result.laminationCost * 10) / 10 + ' ₽</p>';
         html += '<button type="button" class="remove-lamination-btn" onclick="removeLamination()">Убрать ламинацию</button>';
         html += '</div>';
     }
-    
+
     html += '<details class="result-details">';
     html += '<summary class="result-summary">Подробности расчета</summary>';
     html += '<div class="result-details-content">';
     html += '<ul>';
-    
+
     if (result.baseA3Sheets) html += '<li>Листов A3: ' + result.baseA3Sheets + '</li>';
     if (result.printingCost) html += '<li>Стоимость печати: ' + Math.round(result.printingCost * 10) / 10 + ' ₽</li>';
     if (result.paperCost) html += '<li>Стоимость бумаги: ' + Math.round(result.paperCost * 10) / 10 + ' ₽</li>';
     if (result.plateCost && result.plateCost > 0) html += '<li>Стоимость пластин: ' + Math.round(result.plateCost * 10) / 10 + ' ₽</li>';
     if (result.additionalCosts && result.additionalCosts > 0) html += '<li>Дополнительные услуги: ' + Math.round(result.additionalCosts * 10) / 10 + ' ₽</li>';
     if (result.laminationCost && result.laminationCost > 0) html += '<li>Ламинация: ' + Math.round(result.laminationCost * 10) / 10 + ' ₽</li>';
-    
+
     html += '</ul>';
     html += '</div>';
     html += '</details>';
+
+    // Добавляем кнопку заказа
+    html += '<button type="button" class="order-button" onclick="openOrderModal()">Заказать печать</button>';
+
     html += '</div>';
-    
+
     resultDiv.innerHTML = html;
 }
 
 // Функция показа секции ламинации
 function showLaminationSection(result) {
-    const laminationSection = document.getElementById('laminationSection');
-    const controlsDiv = document.getElementById('laminationControls');
-    
+    var laminationSection = document.getElementById('laminationSection');
+    var controlsDiv = document.getElementById('laminationControls');
+
     if (!laminationSection || !controlsDiv || !calcConfig.features.lamination) {
         return;
     }
-    
-    // Секция ламинации всегда видима, даже если ламинация уже добавлена
-    
-    let html = '<div class="lamination-content">';
+
+    // Используем сохраненный тип печати или текущий
+    var printingType = currentPrintingType || result.printingType;
+
+    var html = '<div class="lamination-content">';
     html += '<p class="lamination-title">Добавить ламинацию к заказу:</p>';
-    
-    if (result.printingType === 'Офсетная') {
+
+    if (printingType === 'Офсетная') {
         html += '<div class="lamination-options">';
         html += '<div class="radio-group">';
-        html += '<label class="radio-label"><input type="radio" name="laminationType" value="1+0"> 1+0 (7 руб/лист)</label>';
-        html += '<label class="radio-label"><input type="radio" name="laminationType" value="1+1"> 1+1 (14 руб/лист)</label>';
+        html += '<label class="radio-label"><input type="radio" name="laminationType" value="1+0"> Односторонняя (7 руб/лист)</label>';
+        html += '<label class="radio-label"><input type="radio" name="laminationType" value="1+1"> Двусторонняя (14 руб/лист)</label>';
         html += '</div>';
         html += '</div>';
     } else {
@@ -377,182 +321,154 @@ function showLaminationSection(result) {
         html += '</select></label>';
         html += '</div>';
         html += '<div class="radio-group">';
-        html += '<label class="radio-label"><input type="radio" name="laminationType" value="1+0"> 1+0 (x1)</label>';
-        html += '<label class="radio-label"><input type="radio" name="laminationType" value="1+1"> 1+1 (x2)</label>';
+        html += '<label class="radio-label"><input type="radio" name="laminationType" value="1+0"> Односторонняя</label>';
+        html += '<label class="radio-label"><input type="radio" name="laminationType" value="1+1"> Двусторонняя</label>';
         html += '</div>';
         html += '</div>';
     }
-    
+
     html += '<div class="lamination-button-container">';
     html += '<button type="button" id="laminationBtn" class="calc-button calc-button-success">Пересчитать с ламинацией</button>';
     html += '</div>';
     html += '</div>';
-    
+
     controlsDiv.innerHTML = html;
     laminationSection.style.display = 'block';
-    
+
     // Обработчик для кнопки ламинации
-    const laminationBtn = document.getElementById('laminationBtn');
+    var laminationBtn = document.getElementById('laminationBtn');
     if (laminationBtn) {
         laminationBtn.addEventListener('click', function() {
-            calculateWithLamination();
+            calculateLamination(result);
         });
     }
+
+    // Добавляем обработчики для радио кнопок чтобы убирать ошибку
+    var radioButtons = controlsDiv.querySelectorAll('input[name="laminationType"]');
+    radioButtons.forEach(function(radio) {
+        radio.addEventListener('change', function() {
+            var laminationResult = document.getElementById('laminationResult');
+            if (laminationResult && laminationResult.innerHTML.indexOf('Выберите тип ламинации') !== -1) {
+                laminationResult.innerHTML = '';
+            }
+        });
+    });
 }
 
-// Функция расчета с ламинацией
-function calculateWithLamination() {
-    const laminationType = document.querySelector('input[name="laminationType"]:checked');
-    const laminationThickness = document.querySelector('select[name="laminationThickness"]');
-    const resultDiv = document.getElementById('calcResult');
-    const laminationResult = document.getElementById('laminationResult');
-    
+// Функция расчета с ламинацией (клиентская)
+function calculateLamination(originalResult) {
+    var laminationType = document.querySelector('input[name="laminationType"]:checked');
+    var laminationThickness = document.querySelector('select[name="laminationThickness"]');
+    var resultDiv = document.getElementById('calcResult');
+    var laminationResult = document.getElementById('laminationResult');
+
     if (!laminationType) {
         if (laminationResult) {
             laminationResult.innerHTML = '<div class="result-error">Выберите тип ламинации</div>';
         }
         return;
     }
-    
-    const form = document.getElementById(calcConfig.type + 'CalcForm');
-    const data = collectFormData(form);
-    data.calcType = calcConfig.type;
-    data.lamination_type = laminationType.value;
-    if (laminationThickness) {
-        data.lamination_thickness = laminationThickness.value;
-    }
-    
-    resultDiv.innerHTML = '<div class="loading">Пересчитываем с ламинацией...</div>';
 
-    // Используем тот же метод что и для основного расчета
-    if (typeof BX !== 'undefined' && BX.ajax) {
-        BX.ajax.runComponentAction(calcConfig.component, 'calc', {
-            mode: 'class',
-            data: data
-        }).then(function(response) {
-            handleResponse(response, resultDiv);
-        }).catch(function(error) {
-            resultDiv.innerHTML = '<div class="result-error">Ошибка соединения: ' + error.message + '</div>';
-        });
-    } else {
-        fetch('/bitrix/services/main/ajax.php?c=' + calcConfig.component + '&action=calc&mode=class', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-            },
-            body: new URLSearchParams(data)
-        })
-        .then(response => response.json())
-        .then(response => {
-            handleResponse(response, resultDiv);
-        })
-        .catch(error => {
-            resultDiv.innerHTML = '<div class="result-error">Ошибка соединения: ' + error.message + '</div>';
-        });
-    }
-}
+    var form = document.getElementById(calcConfig.type + 'CalcForm');
+    var quantity = parseInt(form.querySelector('input[name="quantity"]').value);
 
-// Сбор данных формы
-function collectFormData(form) {
-    const formData = new FormData(form);
-    const data = {};
-    
-    // Собираем все поля формы
-    for (let [key, value] of formData.entries()) {
-        data[key] = value;
-    }
-    
-    // Добавляем чекбоксы
-    const checkboxes = ['bigovka', 'perforation', 'drill', 'numbering'];
-    checkboxes.forEach(name => {
-        const checkbox = form.querySelector(`input[name="${name}"]`);
-        if (checkbox) {
-            data[name] = checkbox.checked;
+    // Используем сохраненный результат или текущий
+    var baseResult = originalResultWithoutLamination || originalResult;
+    var printingType = currentPrintingType || baseResult.printingType;
+
+    var laminationCost = 0;
+    var laminationDescription = '';
+
+    if (printingType === 'Офсетная') {
+        if (laminationType.value === '1+0') {
+            laminationCost = quantity * 7;
+            laminationDescription = 'Односторонняя (7 руб/лист)';
+        } else {
+            laminationCost = quantity * 14;
+            laminationDescription = 'Двусторонняя (14 руб/лист)';
         }
-    });
+    } else {
+        var thickness = laminationThickness ? laminationThickness.value : '32';
+        var rates = {
+            '32': { '1+0': 40, '1+1': 80 },
+            '75': { '1+0': 60, '1+1': 120 },
+            '125': { '1+0': 80, '1+1': 160 },
+            '250': { '1+0': 90, '1+1': 180 }
+        };
 
-    return data;
+        laminationCost = quantity * rates[thickness][laminationType.value];
+        var laminationName = laminationType.value === '1+0' ? 'Односторонняя' : 'Двусторонняя';
+        laminationDescription = laminationName + ' ' + thickness + ' мкм (' + rates[thickness][laminationType.value] + ' руб/лист)';
+    }
+
+    // Создаем новый результат с ламинацией
+    var newResult = JSON.parse(JSON.stringify(baseResult));
+    newResult.totalPrice = baseResult.totalPrice + laminationCost;
+    newResult.laminationCost = laminationCost;
+    newResult.laminationDescription = laminationDescription;
+
+    displayPlacementResult(newResult, resultDiv);
 }
-
-// Запуск инициализации
-document.addEventListener('DOMContentLoaded', function() {
-    waitForBX(initWithBX, initWithoutBX, 3000);
-});
 
 // Функция для удаления ламинации
 function removeLamination() {
-    const resultDiv = document.getElementById('calcResult');
-    const laminationInfoContainer = resultDiv.querySelector('.lamination-info-container');
-    if (laminationInfoContainer) {
-        laminationInfoContainer.remove();
-        // Пересчитываем стоимость без ламинации
-        const form = document.getElementById(calcConfig.type + 'CalcForm');
-        const data = collectFormData(form);
-        data.calcType = calcConfig.type;
-        data.lamination_type = '0'; // Удаляем ламинацию
-        data.lamination_thickness = '0'; // Удаляем толщину
+    var resultDiv = document.getElementById('calcResult');
 
-        resultDiv.innerHTML = '<div class="loading">Пересчитываем без ламинации...</div>';
+    if (originalResultWithoutLamination) {
+        displayPlacementResult(originalResultWithoutLamination, resultDiv);
+        // Сбрасываем выбор ламинации
+        var laminationRadios = document.querySelectorAll('input[name="laminationType"]');
+        laminationRadios.forEach(function(radio) { radio.checked = false; });
+    }
+}
 
-        if (typeof BX !== 'undefined' && BX.ajax) {
-            BX.ajax.runComponentAction(calcConfig.component, 'calc', {
-                mode: 'class',
-                data: data
-            }).then(function(response) {
-                handleResponse(response, resultDiv);
-            }).catch(function(error) {
-                resultDiv.innerHTML = '<div class="result-error">Ошибка соединения: ' + error.message + '</div>';
-            });
-        } else {
-            fetch('/bitrix/services/main/ajax.php?c=' + calcConfig.component + '&action=calc&mode=class', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                },
-                body: new URLSearchParams(data)
-            })
-            .then(response => response.json())
-            .then(response => {
-                handleResponse(response, resultDiv);
-            })
-            .catch(error => {
-                resultDiv.innerHTML = '<div class="result-error">Ошибка соединения: ' + error.message + '</div>';
-            });
+// Открытие модалки с данными заказа размещения
+function openOrderModal() {
+    var modal = document.getElementById('orderModal');
+    var orderDataInput = document.getElementById('orderData');
+
+    // Собираем данные расчета
+    var form = document.getElementById(calcConfig.type + 'CalcForm');
+    var formData = collectFormData(form);
+
+    // Получаем результат расчета
+    var resultDiv = document.getElementById('calcResult');
+    var priceElement = resultDiv.querySelector('.result-price');
+    var totalPrice = priceElement ? priceElement.textContent.replace(/[^\d.,]/g, '') : '0';
+
+    // Формируем данные заказа для размещения
+    var orderData = {
+        product: 'Размещение',
+        paperType: formData.paperType || 'Не указан',
+        size: formData.size || 'Не указан',
+        printType: formData.printType === 'single' ? '1+0' : '1+1',
+        quantity: formData.quantity || 0,
+        totalPrice: totalPrice,
+        calcType: 'placement'
+    };
+
+    // Добавляем дополнительные услуги
+    var additionalServices = [];
+    if (formData.bigovka) additionalServices.push('Биговка');
+    if (formData.perforation) additionalServices.push('Перфорация');
+    if (formData.drill) additionalServices.push('Сверление');
+    if (formData.numbering) additionalServices.push('Нумерация');
+    if (formData.cornerRadius && formData.cornerRadius > 0) additionalServices.push('Скругление ' + formData.cornerRadius + ' углов');
+    if (additionalServices.length > 0) {
+        orderData.additionalServices = additionalServices.join(', ');
+    }
+
+    // Добавляем информацию о ламинации если выбрана
+    var laminationRadio = document.querySelector('input[name="laminationType"]:checked');
+    if (laminationRadio) {
+        orderData.laminationType = laminationRadio.value;
+        var laminationThickness = document.querySelector('select[name="laminationThickness"]');
+        if (laminationThickness) {
+            orderData.laminationThickness = laminationThickness.value;
         }
     }
+
+    orderDataInput.value = JSON.stringify(orderData);
+    modal.style.display = 'block';
 }
 </script>
-<style>
-.remove-lamination-btn {
-    background: #dc3545;
-    color: white;
-    border: none;
-    padding: 8px 16px;
-    border-radius: 4px;
-    font-size: 14px;
-    cursor: pointer;
-    margin-left: 10px;
-    transition: all 0.3s;
-}
-.remove-lamination-btn:hover {
-    background: #c82333;
-    transform: translateY(-1px);
-}
-.lamination-info-container {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    gap: 10px;
-}
-@media (max-width: 768px) {
-    .lamination-info-container {
-        flex-direction: column;
-        align-items: stretch;
-    }
-    .remove-lamination-btn {
-        margin-left: 0;
-        width: 100%;
-    }
-}
-</style>

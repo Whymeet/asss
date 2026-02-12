@@ -2,8 +2,12 @@
 /** Шаблон калькулятора конвертов */
 if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED !== true) die();
 
-// Подключаем общие стили
+// Подключаем общие стили и скрипты
 $this->addExternalCss($templateFolder.'/../.default/style.css');
+if (file_exists($templateFolder.'/style.css')) {
+    $this->addExternalCss($templateFolder.'/style.css');
+}
+$this->addExternalJs($templateFolder.'/../_shared/shared.js');
 
 // Проверяем, что конфигурация загружена
 if (!$arResult['CONFIG_LOADED']) {
@@ -29,11 +33,11 @@ $features = $arResult['FEATURES'] ?? [];
             Спасибо за понимание!
         </p>
     </div>
-    
+
     <h2><?= $arResult['DESCRIPTION'] ?? 'Калькулятор конвертов' ?></h2>
-    
+
     <form id="<?= $calcType ?>CalcForm" class="calc-form">
-        
+
         <!-- Формат конверта -->
         <div class="form-group">
             <label class="form-label" for="format">Формат конверта:</label>
@@ -53,13 +57,13 @@ $features = $arResult['FEATURES'] ?? [];
         <!-- Тираж -->
         <div class="form-group">
             <label class="form-label" for="quantity">Тираж (шт):</label>
-            <input name="quantity" 
-                   id="quantity" 
-                   type="number" 
-                   class="form-control" 
-                   min="<?= $arResult['MIN_QUANTITY'] ?? 1 ?>" 
-                   max="<?= $arResult['MAX_QUANTITY'] ?? '' ?>" 
-                   value="<?= $arResult['DEFAULT_QUANTITY'] ?? 100 ?>" 
+            <input name="quantity"
+                   id="quantity"
+                   type="number"
+                   class="form-control"
+                   min="<?= $arResult['MIN_QUANTITY'] ?? 1 ?>"
+                   max="<?= $arResult['MAX_QUANTITY'] ?? '' ?>"
+                   value="<?= $arResult['DEFAULT_QUANTITY'] ?? 100 ?>"
                    placeholder="Введите количество"
                    required>
         </div>
@@ -68,20 +72,17 @@ $features = $arResult['FEATURES'] ?? [];
         <input type="hidden" name="sessid" value="<?= bitrix_sessid() ?>">
 
         <button id="calcBtn" type="button" class="calc-button">Рассчитать стоимость</button>
-        
+
         <div id="calcResult" class="calc-result"></div>
-        
+
         <div class="calc-spacer"></div>
     </form>
 
-    <div class="calc-thanks">
-        <p>Спасибо, что Вы с нами!</p>
-    </div>
+    <?php include dirname(__DIR__) . '/_shared/order-modal.php'; ?>
 </div>
 
 <style>
-
-
+/* Специфичные стили для конвертов */
 .format-info {
     background: #e3f2fd;
     border: 1px solid #2196f3;
@@ -122,11 +123,11 @@ $features = $arResult['FEATURES'] ?? [];
         padding: 15px;
         margin: 15px 0;
     }
-    
+
     .pricing-preview h4 {
         font-size: 14px;
     }
-    
+
     .price-ranges-list li {
         font-size: 13px;
     }
@@ -134,172 +135,69 @@ $features = $arResult['FEATURES'] ?? [];
 </style>
 
 <script>
-// Блокировка внешних ошибок
-window.addEventListener('error', function(e) {
-    if (e.message && (
-        e.message.includes('Cannot set properties of null') || 
-        e.message.includes('Cannot read properties of null') ||
-        e.message.includes('recaptcha') ||
-        e.message.includes('mail.ru') ||
-        e.message.includes('top-fwz1') ||
-        e.message.includes('code.js')
-    )) {
-        e.preventDefault();
-        e.stopPropagation();
-        return true;
-    }
-});
-
-window.addEventListener('unhandledrejection', function(e) {
-    if (e.reason === null || (e.reason && e.reason.toString().includes('recaptcha'))) {
-        e.preventDefault();
-        return true;
-    }
-});
-
-// Конфигурация для калькулятора конвертов
-const calcConfig = {
+// Конфигурация калькулятора
+var calcConfig = {
     type: '<?= $calcType ?>',
     features: <?= json_encode($features) ?>,
     component: 'my:print.calc'
 };
 
+// Hook для отображения результата (вызывается из shared.js)
+window.displayResult = function(data, resultDiv) {
+    displayEnvelopeResult(data, resultDiv);
+};
 
+// Инициализация
+document.addEventListener('DOMContentLoaded', function() {
+    initCalculator('Выполняется расчет конвертов...');
+    initOrderModal();
+    initializeDateTimeValidation();
+});
 
-// Функция ожидания BX
-function waitForBX(callback, fallbackCallback, timeout = 3000) {
-    const startTime = Date.now();
-    
-    function checkBX() {
-        if (typeof BX !== 'undefined' && BX.ajax) {
-            callback();
-        } else if (Date.now() - startTime < timeout) {
-            setTimeout(checkBX, 50);
-        } else {
-            fallbackCallback();
-        }
-    }
-    checkBX();
-}
-
-// Инициализация с BX
-function initWithBX() {
-    const form = document.getElementById(calcConfig.type + 'CalcForm');
-    const resultDiv = document.getElementById('calcResult');
-    const calcBtn = document.getElementById('calcBtn');
-    
-    if (!form || !resultDiv || !calcBtn) {
-        console.error('Элементы формы не найдены');
-        return;
-    }
-
-    calcBtn.addEventListener('click', function() {
-        const data = collectFormData(form);
-        data.calcType = calcConfig.type;
-        
-        resultDiv.innerHTML = '<div class="loading">Выполняется расчет конвертов...</div>';
-
-        BX.ajax.runComponentAction(calcConfig.component, 'calc', {
-            mode: 'class',
-            data: data
-        }).then(function(response) {
-            handleResponse(response, resultDiv);
-        }).catch(function(error) {
-            resultDiv.innerHTML = '<div class="result-error">Ошибка соединения: ' + 
-                (error.message || 'Неизвестная ошибка') + '</div>';
-        });
-    });
-}
-
-// Запасной вариант без BX
-function initWithoutBX() {
-    const form = document.getElementById(calcConfig.type + 'CalcForm');
-    const resultDiv = document.getElementById('calcResult');
-    const calcBtn = document.getElementById('calcBtn');
-    
-    if (!form || !resultDiv || !calcBtn) {
-        console.error('Элементы формы не найдены');
-        return;
-    }
-
-    calcBtn.addEventListener('click', function() {
-        const data = collectFormData(form);
-        data.calcType = calcConfig.type;
-        
-        resultDiv.innerHTML = '<div class="loading">Выполняется расчет конвертов...</div>';
-
-        fetch('/bitrix/services/main/ajax.php?c=' + calcConfig.component + '&action=calc&mode=class', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-            },
-            body: new URLSearchParams(data)
-        })
-        .then(response => response.json())
-        .then(response => {
-            handleResponse(response, resultDiv);
-        })
-        .catch(error => {
-            resultDiv.innerHTML = '<div class="result-error">Ошибка соединения: ' + error.message + '</div>';
-        });
-    });
-}
-
-// Обработка ответа сервера
-function handleResponse(response, resultDiv) {
-    if (response && response.data) {
-        if (response.data.error) {
-            resultDiv.innerHTML = '<div class="result-error">Ошибка: ' + response.data.error + '</div>';
-        } else {
-            displayEnvelopeResult(response.data, resultDiv);
-        }
-    } else {
-        resultDiv.innerHTML = '<div class="result-error">Некорректный ответ сервера</div>';
-    }
-}
+// === УНИКАЛЬНАЯ ЛОГИКА КОНВЕРТОВ ===
 
 // Отображение результата конвертов
 function displayEnvelopeResult(result, resultDiv) {
-    const totalPrice = Math.round((result.totalPrice || 0) * 10) / 10;
-    const pricePerUnit = Math.round((result.pricePerUnit || 0) * 10) / 10;
-    
-    let html = '<div class="result-success">';
+    var totalPrice = Math.round((result.totalPrice || 0) * 10) / 10;
+    var pricePerUnit = Math.round((result.pricePerUnit || 0) * 10) / 10;
+
+    var html = '<div class="result-success">';
     html += '<h3 class="result-title">Результат расчета конвертов</h3>';
     html += '<div class="result-price">' + totalPrice.toLocaleString() + ' <small>₽</small></div>';
-    
+
     // Информация о формате
     if (result.format) {
         html += '<div class="format-info">';
         html += '<strong>Формат конверта:</strong> ' + result.format;
         html += '</div>';
     }
-    
+
     // Детализация стоимости
     html += '<div class="envelope-breakdown">';
     html += '<h4>Детализация стоимости:</h4>';
-    
+
     html += '<div class="envelope-item">';
     html += '<span>Формат:</span>';
     html += '<span>' + (result.format || 'Не указан') + '</span>';
     html += '</div>';
-    
+
     html += '<div class="envelope-item">';
     html += '<span>Тираж:</span>';
     html += '<span>' + (result.quantity || 0).toLocaleString() + ' шт</span>';
     html += '</div>';
-    
+
     html += '<div class="envelope-item">';
     html += '<span>Цена за штуку:</span>';
     html += '<span>' + pricePerUnit + ' ₽</span>';
     html += '</div>';
-    
+
     html += '<div class="envelope-item">';
     html += '<span>Итого:</span>';
     html += '<span>' + totalPrice.toLocaleString() + ' ₽</span>';
     html += '</div>';
-    
+
     html += '</div>';
-    
+
     html += '<details class="result-details">';
     html += '<summary class="result-summary">Информация о ценообразовании</summary>';
     html += '<div class="result-details-content">';
@@ -314,26 +212,39 @@ function displayEnvelopeResult(result, resultDiv) {
     html += '</ul>';
     html += '</div>';
     html += '</details>';
+
+    // Добавляем кнопку заказа
+    html += '<button type="button" class="order-button" onclick="openOrderModal()">Заказать печать</button>';
+
     html += '</div>';
-    
+
     resultDiv.innerHTML = html;
 }
 
-// Сбор данных формы для конвертов
-function collectFormData(form) {
-    const formData = new FormData(form);
-    const data = {};
-    
-    // Собираем все поля формы
-    for (let [key, value] of formData.entries()) {
-        data[key] = value;
-    }
+// Открытие модалки с данными заказа конвертов
+function openOrderModal() {
+    var modal = document.getElementById('orderModal');
+    var orderDataInput = document.getElementById('orderData');
 
-    return data;
+    // Собираем данные расчета
+    var form = document.getElementById(calcConfig.type + 'CalcForm');
+    var formData = collectFormData(form);
+
+    // Получаем результат расчета
+    var resultDiv = document.getElementById('calcResult');
+    var priceElement = resultDiv.querySelector('.result-price');
+    var totalPrice = priceElement ? priceElement.textContent.replace(/[^\d.,]/g, '') : '0';
+
+    // Формируем данные заказа для конвертов
+    var orderData = {
+        product: 'Конверты',
+        format: formData.format || 'Не указан',
+        quantity: formData.quantity || 0,
+        totalPrice: totalPrice,
+        calcType: 'envelope'
+    };
+
+    orderDataInput.value = JSON.stringify(orderData);
+    modal.style.display = 'block';
 }
-
-// Запуск инициализации
-document.addEventListener('DOMContentLoaded', function() {
-    waitForBX(initWithBX, initWithoutBX, 3000);
-});
 </script>

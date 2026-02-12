@@ -170,12 +170,54 @@ $features = $arResult['FEATURES'] ?? [];
         <div class="calc-spacer"></div>
     </form>
 
+    <!-- Модальное окно для заказа -->
+    <div id="orderModal" class="order-modal" style="display: none;">
+        <div class="order-modal-content">
+            <span class="order-modal-close">&times;</span>
+            <h3>Оформить заказ</h3>
+            <form id="orderForm" class="order-form">
+                <div class="form-group">
+                    <label class="form-label" for="clientName">Имя <span class="required">*</span>:</label>
+                    <input type="text" id="clientName" name="clientName" class="form-control" required>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label" for="clientPhone">Телефон <span class="required">*</span>:</label>
+                    <input type="tel" id="clientPhone" name="clientPhone" class="form-control" required>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label" for="clientEmail">E-mail:</label>
+                    <input type="email" id="clientEmail" name="clientEmail" class="form-control">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label" for="callDate">Удобная дата для звонка:</label>
+                    <input type="date" id="callDate" name="callDate" class="form-control">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="callTime">Удобное время для звонка:</label>
+                    <input type="time" id="callTime" name="callTime" class="form-control">
+                </div>
+                
+                <div class="modal-buttons">
+                    <button type="button" class="calc-button calc-button-secondary" onclick="closeOrderModal()">Отмена</button>
+                    <button type="submit" class="calc-button calc-button-success">Отправить заказ</button>
+                </div>
+                
+                <input type="hidden" id="orderData" name="orderData">
+            </form>
+        </div>
+    </div>
+
     <div class="calc-thanks">
         <p>Спасибо, что Вы с нами!</p>
     </div>
 </div>
 
 <style>
+    
 .remove-lamination-btn {
     background: #dc3545;
     color: white;
@@ -213,16 +255,6 @@ $features = $arResult['FEATURES'] ?? [];
     overflow: hidden;
 }
 
-/* .lamination-section::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 3px;
-    background: linear-gradient(90deg, #28a745, #20c997);
-} */
-
 .lamination-section h3 {
     margin: 0 0 10px 0;
     color: #495057;
@@ -235,19 +267,248 @@ $features = $arResult['FEATURES'] ?? [];
 }
 
 .lamination-title {
-    margin-bottom: 20px;
+    margin-bottom: 15px;
     font-weight: 600;
     color: #495057;
 }
 
 .lamination-options {
-    margin-bottom: 15px;
+    margin-bottom: 10px;
 }
 
 .lamination-button-container {
-    margin-top: 20px;
-    padding-top: 15px;
+    margin-top: 15px;
+    padding-top: 10px;
     border-top: 1px solid #dee2e6;
+}
+
+/* Стили для модального окна заказа */
+.order-modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.4);
+    backdrop-filter: blur(3px);
+}
+
+.order-modal-content {
+    background-color: #fefefe;
+    margin: 5% auto;
+    padding: 30px;
+    border: none;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 500px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    position: relative;
+    animation: modalSlideIn 0.3s ease-out;
+}
+
+@keyframes modalSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-50px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.order-modal-close {
+    color: #aaa;
+    float: right;
+    font-size: 28px;
+    font-weight: bold;
+    position: absolute;
+    top: 15px;
+    right: 20px;
+    cursor: pointer;
+    transition: color 0.3s;
+}
+
+.order-modal-close:hover,
+.order-modal-close:focus {
+    color: #000;
+}
+
+.order-form h3 {
+    margin: 0 0 25px 0;
+    color: #333;
+    font-size: 24px;
+    text-align: center;
+}
+
+.required {
+    color: #dc3545;
+}
+
+.modal-buttons {
+    display: flex;
+    gap: 15px;
+    margin-top: 25px;
+    justify-content: center;
+}
+
+.calc-button-secondary {
+    background: #6c757d;
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 16px;
+    transition: all 0.3s;
+}
+
+.calc-button-secondary:hover {
+    background: #5a6268;
+    transform: translateY(-1px);
+}
+
+.calc-button-success {
+    background: #28a745;
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 16px;
+    transition: all 0.3s;
+}
+
+.calc-button-success:hover {
+    background: #218838;
+    transform: translateY(-1px);
+}
+
+/* Кнопка заказа в результатах */
+.order-button {
+    background: linear-gradient(45deg, #28a745, #20c997);
+    color: white;
+    border: none;
+    padding: 15px 30px;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 15px;
+    width: 100%;
+    transition: all 0.3s;
+    box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);
+}
+
+.order-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(40, 167, 69, 0.4);
+    background: linear-gradient(45deg, #218838, #1ea085);
+}
+
+.order-button:active {
+    transform: translateY(0);
+}
+
+/* Стили для полей даты и времени */
+.form-group input[type="date"],
+.form-group input[type="time"] {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+    box-sizing: border-box;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.form-group input[type="date"]:focus,
+.form-group input[type="time"]:focus {
+    border-color: #007bff;
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+.form-group input[type="date"]:invalid,
+.form-group input[type="time"]:invalid {
+    border-color: #dc3545;
+}
+
+/* Стили для ошибок валидации */
+.form-group.error input,
+.form-group.error select {
+    border-color: #dc3545 !important;
+    box-shadow: 0 0 0 2px rgba(220, 53, 69, 0.25) !important;
+    animation: shakeError 0.5s ease-in-out;
+}
+
+.error-message {
+    color: #dc3545;
+    font-size: 14px;
+    margin-top: 5px;
+    padding: 8px 12px;
+    background: rgba(220, 53, 69, 0.1);
+    border: 1px solid rgba(220, 53, 69, 0.3);
+    border-radius: 4px;
+    animation: slideDown 0.3s ease-out;
+    display: block;
+}
+
+@keyframes shakeError {
+    0%, 100% { transform: translateX(0); }
+    10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+    20%, 40%, 60%, 80% { transform: translateX(5px); }
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+        max-height: 0;
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+        max-height: 50px;
+    }
+}
+
+@keyframes fadeOut {
+    from {
+        opacity: 1;
+        transform: translateY(0);
+        max-height: 50px;
+    }
+    to {
+        opacity: 0;
+        transform: translateY(-10px);
+        max-height: 0;
+    }
+}
+
+@media (max-width: 768px) {
+    .order-modal-content {
+        margin: 10% auto;
+        padding: 20px;
+        width: 95%;
+    }
+    
+    .modal-buttons {
+        flex-direction: column;
+    }
+    
+    .calc-button-secondary,
+    .calc-button-success {
+        width: 100%;
+    }
+    
+    /* Стили для мобильных устройств */
+    .form-group input[type="date"],
+    .form-group input[type="time"] {
+        font-size: 16px; /* Предотвращает зум на iOS */
+    }
 }
 
 </style>
@@ -422,11 +683,6 @@ function displayResult(result, resultDiv) {
     html += '<h3 class="result-title">Результат расчета</h3>';
     html += '<div class="result-price">' + totalPrice + ' <small>₽</small></div>';
     
-    // Стандартное отображение для листовок и буклетов
-    if (result.printingType) {
-        html += '<p><strong>Тип печати:</strong> ' + result.printingType + '</p>';
-    }
-    
     // Информация о ламинации с кнопкой удаления
     if (hasLamination) {
         html += '<div class="lamination-info-container">';
@@ -435,21 +691,9 @@ function displayResult(result, resultDiv) {
         html += '</div>'; 
     }
     
-    html += '<details class="result-details">';
-    html += '<summary class="result-summary">Подробности расчета</summary>';
-    html += '<div class="result-details-content">';
-    html += '<ul>';
+    // Добавляем кнопку заказа
+    html += '<button type="button" class="order-button" onclick="openOrderModal()">Заказать печать</button>';
     
-    if (result.baseA3Sheets) html += '<li>Листов A3: ' + result.baseA3Sheets + '</li>';
-    if (result.printingCost) html += '<li>Стоимость печати: ' + Math.round(result.printingCost * 10) / 10 + ' ₽</li>';
-    if (result.paperCost) html += '<li>Стоимость бумаги: ' + Math.round(result.paperCost * 10) / 10 + ' ₽</li>';
-    if (result.plateCost && result.plateCost > 0) html += '<li>Стоимость пластин: ' + Math.round(result.plateCost * 10) / 10 + ' ₽</li>';
-    if (result.additionalCosts && result.additionalCosts > 0) html += '<li>Дополнительные услуги: ' + Math.round(result.additionalCosts * 10) / 10 + ' ₽</li>';
-    if (hasLamination) html += '<li class="lamination-info">Ламинация: ' + Math.round(result.laminationCost * 10) / 10 + ' ₽</li>';
-    
-    html += '</ul>';
-    html += '</div>';
-    html += '</details>';
     html += '</div>';
     
     resultDiv.innerHTML = html;
@@ -473,8 +717,8 @@ function showLaminationSection(result) {
     if (printingType === 'Офсетная') {
         html += '<div class="lamination-options">';
         html += '<div class="radio-group">';
-        html += '<label class="radio-label"><input type="radio" name="laminationType" value="1+0"> 1+0 (7 руб/лист)</label>';
-        html += '<label class="radio-label"><input type="radio" name="laminationType" value="1+1"> 1+1 (14 руб/лист)</label>';
+        html += '<label class="radio-label"><input type="radio" name="laminationType" value="1+0"> Односторонняя (7 руб/лист)</label>';
+        html += '<label class="radio-label"><input type="radio" name="laminationType" value="1+1"> Двусторонняя (14 руб/лист)</label>';
         html += '</div>';
         html += '</div>';
     } else {
@@ -489,8 +733,8 @@ function showLaminationSection(result) {
         html += '</select></label>';
         html += '</div>';
         html += '<div class="radio-group">';
-        html += '<label class="radio-label"><input type="radio" name="laminationType" value="1+0"> 1+0 (x1)</label>';
-        html += '<label class="radio-label"><input type="radio" name="laminationType" value="1+1"> 1+1 (x2)</label>';
+        html += '<label class="radio-label"><input type="radio" name="laminationType" value="1+0"> Односторонняя</label>';
+        html += '<label class="radio-label"><input type="radio" name="laminationType" value="1+1"> Двусторонняя</label>';
         html += '</div>';
         html += '</div>';
     }
@@ -549,10 +793,10 @@ function calculateLamination(originalResult) {
         // Офсетная печать: простые тарифы
         if (laminationType.value === '1+0') {
             laminationCost = quantity * 7;
-            laminationDescription = '1+0 (7 руб/лист)';
+            laminationDescription = 'Односторонняя (7 руб/лист)';
         } else {
             laminationCost = quantity * 14;
-            laminationDescription = '1+1 (14 руб/лист)';
+            laminationDescription = 'Двусторонняя (14 руб/лист)';
         }
     } else {
         // Цифровая печать: зависит от толщины
@@ -565,7 +809,8 @@ function calculateLamination(originalResult) {
         };
         
         laminationCost = quantity * rates[thickness][laminationType.value];
-        laminationDescription = `${laminationType.value} ${thickness} мкм (${rates[thickness][laminationType.value]} руб/лист)`;
+        const laminationName = laminationType.value === '1+0' ? 'Односторонняя' : 'Двусторонняя';
+        laminationDescription = `${laminationName} ${thickness} мкм (${rates[thickness][laminationType.value]} руб/лист)`;
     }
     
     // Создаем новый результат с ламинацией
@@ -629,5 +874,496 @@ console.log('Время запуска:', new Date().toLocaleTimeString());
 document.addEventListener('DOMContentLoaded', function() {
     console.log('DOM загружен, ждем BX...');
     waitForBX(initWithBX, initWithoutBX, 3000);
+    
+    // Инициализация модального окна
+    initOrderModal();
+    
+    // Инициализация валидации даты и времени
+    initializeDateTimeValidation();
 });
+
+// Функция инициализации валидации даты и времени
+function initializeDateTimeValidation() {
+    const dateInput = document.getElementById('callDate');
+    const timeInput = document.getElementById('callTime');
+    
+    if (dateInput) {
+        // Устанавливаем минимальную дату как сегодня
+        const today = new Date().toISOString().split('T')[0];
+        dateInput.setAttribute('min', today);
+        
+        // Устанавливаем максимальную дату как год вперед (динамически)
+        const maxDate = new Date();
+        maxDate.setFullYear(maxDate.getFullYear() + 1);
+        const maxDateString = maxDate.toISOString().split('T')[0];
+        dateInput.setAttribute('max', maxDateString);
+        
+        dateInput.addEventListener('change', function() {
+            validateDateField(this);
+        });
+        
+        dateInput.addEventListener('input', function() {
+            validateDateField(this);
+        });
+        
+        dateInput.addEventListener('blur', function() {
+            validateDateField(this);
+        });
+    }
+    
+    if (timeInput) {
+        // Устанавливаем ограничения на время (9:00 - 20:00)
+        timeInput.setAttribute('min', '09:00');
+        timeInput.setAttribute('max', '20:00');
+        timeInput.setAttribute('step', '300'); // 5 минут
+        
+        timeInput.addEventListener('change', function() {
+            validateTimeField(this);
+        });
+        
+        timeInput.addEventListener('input', function() {
+            validateTimeField(this);
+        });
+        
+        timeInput.addEventListener('blur', function() {
+            validateTimeField(this);
+        });
+    }
+}
+
+// Функция валидации поля даты
+function validateDateField(dateField) {
+    // Сначала очищаем предыдущие ошибки
+    clearFieldError(dateField);
+    
+    const dateValue = dateField.value;
+    if (!dateValue) return true;
+    
+    const selectedDate = new Date(dateValue);
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const selectedDay = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate());
+    
+    // Проверяем корректность даты
+    if (isNaN(selectedDate.getTime())) {
+        showFieldError(dateField, 'Введите корректную дату');
+        return false;
+    }
+    
+    // Проверяем, что дата не в прошлом
+    if (selectedDay < today) {
+        showFieldError(dateField, 'Нельзя выбрать дату в прошлом');
+        return false;
+    }
+    
+    // Проверяем, что дата не более чем на год вперед (динамически)
+    const oneYearFromNow = new Date();
+    oneYearFromNow.setFullYear(oneYearFromNow.getFullYear() + 1);
+    if (selectedDate > oneYearFromNow) {
+        showFieldError(dateField, 'Нельзя выбрать дату более чем на год вперед');
+        return false;
+    }
+    
+    return true;
+}
+
+// Функция валидации поля времени
+function validateTimeField(timeField) {
+    // Сначала очищаем предыдущие ошибки
+    clearFieldError(timeField);
+    
+    const timeValue = timeField.value;
+    if (!timeValue) return true;
+    
+    const timeParts = timeValue.split(':');
+    const hours = parseInt(timeParts[0], 10);
+    const minutes = parseInt(timeParts[1], 10);
+    
+    // Проверяем корректность времени
+    if (isNaN(hours) || isNaN(minutes)) {
+        showFieldError(timeField, 'Введите корректное время');
+        return false;
+    }
+    
+    if (hours < 9 || hours > 20 || (hours === 20 && minutes > 0)) {
+        showFieldError(timeField, 'Время должно быть между 9:00 и 20:00');
+        return false;
+    }
+    
+    // Проверяем время для сегодняшнего дня
+    const dateField = document.getElementById('callDate');
+    if (dateField && dateField.value) {
+        const selectedDate = new Date(dateField.value);
+        const now = new Date();
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const selectedDay = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate());
+        
+        if (selectedDay.getTime() === today.getTime()) {
+            const selectedDateTime = new Date(dateField.value + 'T' + timeValue);
+            if (selectedDateTime < now) {
+                showFieldError(timeField, 'Нельзя выбрать время в прошлом');
+                return false;
+            }
+        }
+    }
+    
+    return true;
+}
+
+// Функция показа ошибки для конкретного поля
+function showFieldError(field, message) {
+    const formGroup = field.closest('.form-group');
+    if (!formGroup) return;
+    
+    // Добавляем класс ошибки
+    formGroup.classList.add('error');
+    
+    // Удаляем предыдущее сообщение об ошибке, если есть
+    const existingError = formGroup.querySelector('.error-message');
+    if (existingError) {
+        existingError.remove();
+    }
+    
+    // Создаем новое сообщение об ошибке
+    const errorDiv = document.createElement('div');
+    errorDiv.className = 'error-message';
+    errorDiv.textContent = message;
+    
+    // Добавляем сообщение после поля
+    field.parentNode.insertBefore(errorDiv, field.nextSibling);
+    
+    // Автоматически убираем ошибку через 5 секунд
+    setTimeout(() => {
+        clearFieldError(field);
+    }, 5000);
+}
+
+// Функция очистки ошибки для поля
+function clearFieldError(field) {
+    const formGroup = field.closest('.form-group');
+    if (!formGroup) return;
+    
+    formGroup.classList.remove('error');
+    
+    const errorMessage = formGroup.querySelector('.error-message');
+    if (errorMessage) {
+        errorMessage.style.animation = 'fadeOut 0.3s ease-out';
+        setTimeout(() => {
+            if (errorMessage.parentNode) {
+                errorMessage.remove();
+            }
+        }, 300);
+    }
+}
+
+// Функция валидации формы заказа
+function validateOrderForm() {
+    const nameField = document.getElementById('clientName');
+    const phoneField = document.getElementById('clientPhone');
+    const emailField = document.getElementById('clientEmail');
+    const dateField = document.getElementById('callDate');
+    const timeField = document.getElementById('callTime');
+    
+    const name = nameField.value.trim();
+    const phone = phoneField.value.trim();
+    const email = emailField.value.trim();
+    const date = dateField.value;
+    const time = timeField.value;
+    
+    let hasErrors = false;
+    
+    // Очищаем все предыдущие ошибки
+    clearAllFieldErrors();
+    
+    // Валидация имени
+    if (!name) {
+        showFieldError(nameField, 'Пожалуйста, введите ваше имя');
+        hasErrors = true;
+    } else if (name.length < 2) {
+        showFieldError(nameField, 'Имя должно содержать минимум 2 символа');
+        hasErrors = true;
+    }
+    
+    // Валидация телефона
+    if (!phone) {
+        showFieldError(phoneField, 'Пожалуйста, введите номер телефона');
+        hasErrors = true;
+    } else {
+        // Простая валидация телефона (российские номера)
+        const phoneRegex = /^(\+7|8)?[\s\-]?\(?[0-9]{3}\)?[\s\-]?[0-9]{3}[\s\-]?[0-9]{2}[\s\-]?[0-9]{2}$/;
+        if (!phoneRegex.test(phone.replace(/\s/g, ''))) {
+            showFieldError(phoneField, 'Пожалуйста, введите корректный номер телефона');
+            hasErrors = true;
+        }
+    }
+    
+    // Валидация email (если указан)
+    if (email) {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+            showFieldError(emailField, 'Пожалуйста, введите корректный email адрес');
+            hasErrors = true;
+        }
+    }
+    
+    // Валидация даты и времени (если указаны)
+    if (date || time) {
+        if (!date) {
+            showFieldError(dateField, 'Если указываете время, пожалуйста, выберите дату');
+            hasErrors = true;
+        }
+        if (!time) {
+            showFieldError(timeField, 'Если указываете дату, пожалуйста, выберите время');
+            hasErrors = true;
+        }
+        
+        // Валидация даты и времени
+        if (date && time) {
+            const selectedDate = new Date(date);
+            const now = new Date();
+            const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            const selectedDay = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate());
+            
+            // Проверяем, что дата не в прошлом
+            if (selectedDay < today) {
+                showFieldError(dateField, 'Нельзя выбрать дату в прошлом');
+                hasErrors = true;
+            }
+            
+            // Проверяем, что дата не более чем на год вперед (динамически)
+            const oneYearFromNow = new Date();
+            oneYearFromNow.setFullYear(oneYearFromNow.getFullYear() + 1);
+            if (selectedDate > oneYearFromNow) {
+                showFieldError(dateField, 'Нельзя выбрать дату более чем на год вперед');
+                hasErrors = true;
+            }
+            
+            // Валидация времени (с 9:00 до 20:00)
+            const timeParts = time.split(':');
+            const hours = parseInt(timeParts[0], 10);
+            const minutes = parseInt(timeParts[1], 10);
+            
+            if (hours < 9 || hours > 20 || (hours === 20 && minutes > 0)) {
+                showFieldError(timeField, 'Время должно быть между 9:00 и 20:00');
+                hasErrors = true;
+            }
+            
+            // Проверяем, что дата и время не в прошлом (для сегодняшнего дня)
+            if (selectedDay.getTime() === today.getTime()) {
+                const selectedDateTime = new Date(date + 'T' + time);
+                if (selectedDateTime < now) {
+                    showFieldError(timeField, 'Нельзя выбрать время в прошлом');
+                    hasErrors = true;
+                }
+            }
+        }
+    }
+    
+    return !hasErrors;
+}
+
+// Функция очистки всех ошибок в форме
+function clearAllFieldErrors() {
+    const formGroups = document.querySelectorAll('#orderForm .form-group');
+    formGroups.forEach(group => {
+        group.classList.remove('error');
+        const errorMessage = group.querySelector('.error-message');
+        if (errorMessage) {
+            errorMessage.remove();
+        }
+    });
+}
+
+// Функция показа общего уведомления (удалена)
+
+// Функции для работы с модальным окном заказа
+function openOrderModal() {
+    const modal = document.getElementById('orderModal');
+    const orderDataInput = document.getElementById('orderData');
+    
+    // Собираем данные расчета
+    const form = document.getElementById(calcConfig.type + 'CalcForm');
+    const formData = collectFormData(form);
+    
+    // Получаем результат расчета
+    const resultDiv = document.getElementById('calcResult');
+    const priceElement = resultDiv.querySelector('.result-price');
+    const totalPrice = priceElement ? priceElement.textContent.replace(/[^\d.,]/g, '') : '0';
+    
+    // Формируем данные заказа для листовок (БСО)
+    const orderData = {
+        product: 'Листовки',
+        paperType: formData.paperType || 'Не указан',
+        size: formData.size || 'Не указан',
+        printType: formData.printType === 'single' ? '1+0' : '1+1',
+        quantity: formData.quantity || 0,
+        layers: '1 слой', // Для листовок всегда 1 слой
+        numbering: formData.numbering ? 'Да, нужна' : 'Нет',
+        layersSame: 'Слои одинаковые', // Для листовок всегда одинаковые
+        totalPrice: totalPrice,
+        calcType: 'list'
+    };
+    
+    // Добавляем дополнительные услуги
+    let additionalServices = [];
+    if (formData.bigovka) additionalServices.push('Биговка');
+    if (formData.perforation) additionalServices.push('Перфорация');
+    if (formData.drill) additionalServices.push('Сверление');
+    if (formData.cornerRadius && formData.cornerRadius > 0) additionalServices.push(`Скругление ${formData.cornerRadius} углов`);
+    if (additionalServices.length > 0) {
+        orderData.additionalServices = additionalServices.join(', ');
+    }
+    
+    // Добавляем информацию о ламинации если выбрана
+    if (formData.laminationType) {
+        orderData.laminationType = formData.laminationType;
+        if (formData.laminationThickness) {
+            orderData.laminationThickness = formData.laminationThickness;
+        }
+    }
+    
+    orderDataInput.value = JSON.stringify(orderData);
+    modal.style.display = 'block';
+}
+
+function closeOrderModal() {
+    const modal = document.getElementById('orderModal');
+    modal.style.display = 'none';
+    
+    // Очищаем форму и все ошибки
+    const form = document.getElementById('orderForm');
+    form.reset();
+    clearAllFieldErrors();
+}
+
+function initOrderModal() {
+    const modal = document.getElementById('orderModal');
+    const closeBtn = modal.querySelector('.order-modal-close');
+    const form = document.getElementById('orderForm');
+    
+    // Закрытие по клику на X
+    closeBtn.onclick = closeOrderModal;
+    
+    // Закрытие по клику вне модального окна
+    window.onclick = function(event) {
+        if (event.target === modal) {
+            closeOrderModal();
+        }
+    };
+    
+    // Добавляем обработчики для очистки ошибок при фокусе
+    const formFields = form.querySelectorAll('input[type="text"], input[type="tel"], input[type="email"], input[type="date"], input[type="time"]');
+    formFields.forEach(field => {
+        field.addEventListener('focus', function() {
+            clearFieldError(this);
+        });
+        
+        // Также очищаем ошибки при вводе текста
+        if (field.type === 'text' || field.type === 'tel' || field.type === 'email') {
+            field.addEventListener('input', function() {
+                clearFieldError(this);
+            });
+        }
+    });
+    
+    // Обработчик отправки формы
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        // Сначала валидируем форму
+        if (!validateOrderForm()) {
+            return;
+        }
+        
+        const formData = new FormData(form);
+        const date = formData.get('callDate');
+        const time = formData.get('callTime');
+        
+        // Формируем строку времени для отправки
+        let callTimeString = '';
+        if (date && time) {
+            const dateObj = new Date(date + 'T' + time);
+            callTimeString = dateObj.toLocaleString('ru-RU', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+        
+        const clientData = {
+            name: formData.get('clientName'),
+            phone: formData.get('clientPhone'),
+            email: formData.get('clientEmail'),
+            callTime: callTimeString,
+            orderData: formData.get('orderData')
+        };
+        
+        // Отправляем данные на сервер
+        sendOrderEmail(clientData);
+    });
+}
+
+function sendOrderEmail(clientData) {
+    const submitBtn = document.querySelector('#orderForm button[type="submit"]');
+    const originalText = submitBtn.textContent;
+    submitBtn.textContent = 'Отправляем...';
+    submitBtn.disabled = true;
+    
+    // Парсим данные заказа
+    const orderData = JSON.parse(clientData.orderData);
+    
+    // Формируем правильные данные для отправки на сервер
+    const serverData = {
+        name: clientData.name,
+        phone: clientData.phone,
+        email: clientData.email || '',
+        callTime: clientData.callTime || '',
+        orderData: clientData.orderData
+    };
+    
+    // Используем BX.ajax если доступен, иначе fetch
+    if (typeof BX !== 'undefined' && BX.ajax) {
+        BX.ajax.runComponentAction(calcConfig.component, 'sendOrder', {
+            mode: 'class',
+            data: serverData
+        }).then(function(response) {
+            handleOrderResponse(response, submitBtn, originalText);
+        }).catch(function(error) {
+            console.error('Ошибка отправки заказа:', error);
+            handleOrderError(submitBtn, originalText);
+        });
+    } else {
+        fetch('/bitrix/services/main/ajax.php?c=' + calcConfig.component + '&action=sendOrder&mode=class', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: new URLSearchParams(serverData)
+        })
+        .then(response => response.json())
+        .then(response => {
+            handleOrderResponse(response, submitBtn, originalText);
+        })
+        .catch(error => {
+            console.error('Ошибка отправки заказа:', error);
+            handleOrderError(submitBtn, originalText);
+        });
+    }
+}
+
+function handleOrderResponse(response, submitBtn, originalText) {
+    if (response && response.data && response.data.success) {
+        closeOrderModal();
+    }
+    
+    submitBtn.textContent = originalText;
+    submitBtn.disabled = false;
+}
+
+function handleOrderError(submitBtn, originalText) {
+    submitBtn.textContent = originalText;
+    submitBtn.disabled = false;
+}
 </script>

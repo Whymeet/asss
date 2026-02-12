@@ -34,6 +34,14 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
             'calc' => [
                 'prefilters' => [],
                 'postfilters' => []
+            ],
+            'sendOrder' => [
+                'prefilters' => [],
+                'postfilters' => []
+            ],
+            'sendOrderEmail' => [
+                'prefilters' => [],
+                'postfilters' => []
             ]
         ];
     }
@@ -297,6 +305,11 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
                 // Специфичные данные для календарей уже добавлены через additional
                 // Дополнительная обработка не требуется, все данные передаются через конфигурацию
                 break;
+                
+            case 'banner':
+                // Специфичные данные для баннеров уже добавлены через additional
+                // Дополнительная обработка не требуется, все данные передаются через конфигурацию
+                break;
         }
         
         // Добавляем дополнительные параметры из конфигурации
@@ -348,11 +361,41 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
 
             switch ($calcType) {
                 case 'list':
-                    return $this->calculateList($paperType, $size, $quantity, $printType, $bigovka, $cornerRadius, $perforation, $drill, $numbering);
+                    $result = $this->calculateList($paperType, $size, $quantity, $printType, $bigovka, $cornerRadius, $perforation, $drill, $numbering);
+                    
+                    // Добавляем обработку ламинации если указана
+                    if (!empty($_POST['laminationType']) || !empty($_POST['lamination_type'])) {
+                        // Преобразуем данные ламинации в нужный формат
+                        $postData = $_POST;
+                        if (!empty($_POST['laminationType'])) {
+                            $postData['lamination_type'] = $_POST['laminationType'];
+                        }
+                        if (!empty($_POST['laminationThickness'])) {
+                            $postData['lamination_thickness'] = $_POST['laminationThickness'];
+                        }
+                        $result = $this->addLamination($result, $postData, $quantity);
+                    }
+                    
+                    return $result;
                     
                 case 'booklet':
                     $foldingCount = (int)($_POST['foldingCount'] ?? 0);
-                    return $this->calculateBooklet($paperType, $size, $quantity, $printType, $foldingCount, $bigovka, $cornerRadius, $perforation, $drill, $numbering);
+                    $result = $this->calculateBooklet($paperType, $size, $quantity, $printType, $foldingCount, $bigovka, $cornerRadius, $perforation, $drill, $numbering);
+                    
+                    // Добавляем обработку ламинации если указана
+                    if (!empty($_POST['laminationType']) || !empty($_POST['lamination_type'])) {
+                        // Преобразуем данные ламинации в нужный формат
+                        $postData = $_POST;
+                        if (!empty($_POST['laminationType'])) {
+                            $postData['lamination_type'] = $_POST['laminationType'];
+                        }
+                        if (!empty($_POST['laminationThickness'])) {
+                            $postData['lamination_thickness'] = $_POST['laminationThickness'];
+                        }
+                        $result = $this->addLamination($result, $postData, $quantity);
+                    }
+                    
+                    return $result;
                     
                 case 'rizo':
                     return $this->calculateRizo($paperType, $size, $quantity, $printType, $bigovka, $cornerRadius, $perforation, $drill, $numbering);
@@ -922,7 +965,7 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
         $maxAllowedPoints = $area * $pocketLimits['max_points_per_m2'];
         
         if ($totalPoints > $maxAllowedPoints) {
-            return ['error' => "Превышено максимальное количество карманов. Максимум: " . floor($maxAllowedPoints) . " баллов для данной площади"];
+            return ['error' => "На стенд заданной площади не возможно уместить столько карманов"];
         }
         
         // Расчет стоимости ПВХ
@@ -1728,6 +1771,1745 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
             $this->debug("Ошибка расчета автовизиток: " . $e->getMessage());
             return ['error' => 'Ошибка расчета: ' . $e->getMessage()];
         }
+    }
+
+    /**
+     * Метод для отправки заказа по email
+     */
+    public function sendOrderAction($name = '', $phone = '', $email = '', $callTime = '', $orderData = '')
+    {
+        $this->debug("sendOrderAction вызван", [
+            'name' => $name,
+            'phone' => $phone, 
+            'email' => $email,
+            'callTime' => $callTime,
+            'orderData' => $orderData
+        ]);
+
+        // Валидация обязательных полей
+        if (empty($name) || empty($phone)) {
+            return ['error' => 'Не заполнены обязательные поля: имя и телефон'];
+        }
+
+        // Дополнительная валидация
+        if (strlen($name) < 2) {
+            return ['error' => 'Имя должно содержать минимум 2 символа'];
+        }
+
+        // Валидация телефона
+        $cleanPhone = preg_replace('/[^\d+]/', '', $phone);
+        if (strlen($cleanPhone) < 10) {
+            return ['error' => 'Некорректный номер телефона'];
+        }
+
+        // Валидация email (если указан)
+        if (!empty($email) && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            return ['error' => 'Некорректный email адрес'];
+        }
+
+        try {
+            // Декодируем данные заказа
+            $orderInfo = json_decode($orderData, true);
+            if (!$orderInfo) {
+                return ['error' => 'Некорректные данные заказа'];
+            }
+
+            // Формируем сообщение для email
+            $message = $this->formatOrderMessage($orderInfo, $name, $phone, $email, $callTime, '');
+            
+            // Отправляем email через событие Битрикса
+            $success = $this->sendEmailNotification($message, $orderInfo, $name, $phone, $email);
+            
+            if ($success) {
+                $this->debug("Email успешно отправлен");
+                return ['success' => true, 'message' => 'Заказ успешно отправлен'];
+            } else {
+                $this->debug("Ошибка отправки email");
+                return ['error' => 'Ошибка при отправке заказа'];
+            }
+            
+        } catch (Exception $e) {
+            $this->debug("Исключение при отправке заказа: " . $e->getMessage());
+            return ['error' => 'Техническая ошибка при отправке заказа'];
+        }
+    }
+
+    /**
+     * Отправка заказа по email с улучшенной валидацией
+     */
+    public function sendOrderEmailAction($clientName = '', $clientPhone = '', $clientEmail = '', $callDate = '', $callTime = '', $clientComment = '', $orderDetails = '')
+    {
+        $this->debug("sendOrderEmailAction вызван", [
+            'clientName' => $clientName,
+            'clientPhone' => $clientPhone,
+            'clientEmail' => $clientEmail,
+            'callDate' => $callDate,
+            'callTime' => $callTime,
+            'clientComment' => $clientComment,
+            'orderDetails' => $orderDetails
+        ]);
+
+        // Валидация обязательных полей
+        if (empty($clientName) || empty($clientPhone)) {
+            return ['error' => 'Не заполнены обязательные поля: имя и телефон'];
+        }
+
+        // Дополнительная валидация
+        if (strlen($clientName) < 2) {
+            return ['error' => 'Имя должно содержать минимум 2 символа'];
+        }
+
+        // Валидация телефона
+        $cleanPhone = preg_replace('/[^\d+]/', '', $clientPhone);
+        if (strlen($cleanPhone) < 10) {
+            return ['error' => 'Некорректный номер телефона'];
+        }
+
+        // Валидация email (если указан)
+        if (!empty($clientEmail) && !filter_var($clientEmail, FILTER_VALIDATE_EMAIL)) {
+            return ['error' => 'Некорректный email адрес'];
+        }
+
+        try {
+            // Декодируем данные заказа
+            $orderInfo = json_decode($orderDetails, true);
+            if (!$orderInfo) {
+                return ['error' => 'Некорректные данные заказа'];
+            }
+
+            // Убеждаемся, что calcType правильно установлен
+            if (!isset($orderInfo['calcType']) && isset($orderInfo['type'])) {
+                $orderInfo['calcType'] = $orderInfo['type'];
+            }
+            
+            $this->debug("Обработка заказа", [
+                'calcType' => $orderInfo['calcType'] ?? 'не установлен',
+                'type' => $orderInfo['type'] ?? 'не установлен',
+                'orderData' => $orderInfo
+            ]);
+
+            // Формируем предпочтительное время звонка
+            $preferredCallTime = '';
+            if (!empty($callDate) && !empty($callTime)) {
+                $preferredCallTime = date('d.m.Y', strtotime($callDate)) . ' в ' . $callTime;
+            }
+
+            // Формируем сообщение для email
+            $message = $this->formatOrderMessage($orderInfo, $clientName, $clientPhone, $clientEmail, $preferredCallTime, $clientComment);
+            
+            // Отправляем email через событие Битрикса
+            $success = $this->sendEmailNotification($message, $orderInfo, $clientName, $clientPhone, $clientEmail);
+            
+            if ($success) {
+                $this->debug("Email успешно отправлен");
+                return ['success' => true, 'message' => 'Заказ успешно отправлен'];
+            } else {
+                $this->debug("Ошибка отправки email");
+                return ['error' => 'Ошибка при отправке заказа'];
+            }
+            
+        } catch (Exception $e) {
+            $this->debug("Исключение при отправке заказа: " . $e->getMessage());
+            return ['error' => 'Техническая ошибка при отправке заказа'];
+        }
+    }
+
+    /**
+     * Форматирует сообщение для email
+     */
+    private function formatOrderMessage($orderInfo, $name, $phone, $email, $callTime, $clientComment = '')
+    {
+        $this->debug("formatOrderMessage вызван", [
+            'calcType' => $orderInfo['calcType'] ?? 'не установлен',
+            'type' => $orderInfo['type'] ?? 'не установлен'
+        ]);
+        
+        // Для листовок создаем красивое HTML-письмо
+        if ($orderInfo['calcType'] === 'list') {
+            $this->debug("Выбран формат для листовок");
+            return $this->formatListOrderHTML($orderInfo, $name, $phone, $email, $callTime, $clientComment);
+        }
+        
+        // Для буклетов создаем красивое HTML-письмо
+        if ($orderInfo['calcType'] === 'booklet') {
+            $this->debug("Выбран формат для буклетов");
+            return $this->formatBookletOrderHTML($orderInfo, $name, $phone, $email, $callTime, $clientComment);
+        }
+        
+        // Для визиток создаем красивое HTML-письмо
+        if ($orderInfo['calcType'] === 'vizit') {
+            $this->debug("Выбран формат для визиток");
+            return $this->formatVizitOrderHTML($orderInfo, $name, $phone, $email, $callTime, $clientComment);
+        }
+        
+        // Для ПВХ стендов создаем красивое HTML-письмо
+        if ($orderInfo['calcType'] === 'stend') {
+            $this->debug("Выбран формат для ПВХ стендов");
+            return $this->formatStendOrderHTML($orderInfo, $name, $phone, $email, $callTime, $clientComment);
+        }
+        
+        // Для блокнотов создаем красивое HTML-письмо
+        if ($orderInfo['calcType'] === 'note') {
+            $this->debug("Выбран формат для блокнотов");
+            return $this->formatNoteOrderHTML($orderInfo, $name, $phone, $email, $callTime, $clientComment);
+        }
+        
+        // Для кубариков создаем красивое HTML-письмо
+        if ($orderInfo['calcType'] === 'kubaric' || $orderInfo['type'] === 'kubaric') {
+            $this->debug("Выбран формат для кубариков");
+            return $this->formatKubaricOrderHTML($orderInfo, $name, $phone, $email, $callTime, $clientComment);
+        }
+        
+        // Для наклеек создаем красивое HTML-письмо
+        if ($orderInfo['calcType'] === 'sticker') {
+            $this->debug("Выбран формат для наклеек");
+            return $this->formatStickerOrderHTML($orderInfo, $name, $phone, $email, $callTime, $clientComment);
+        }
+        
+        // Для холстов создаем красивое HTML-письмо
+        if ($orderInfo['calcType'] === 'canvas') {
+            $this->debug("Выбран формат для холстов");
+            return $this->formatCanvasOrderHTML($orderInfo, $name, $phone, $email, $callTime, $clientComment);
+        }
+        
+        // Для календарей создаем красивое HTML-письмо
+        if ($orderInfo['calcType'] === 'calendar') {
+            $this->debug("Выбран формат для календарей");
+            return $this->formatCalendarOrderHTML($orderInfo, $name, $phone, $email, $callTime, $clientComment);
+        }
+        
+        // Для баннеров создаем красивое HTML-письмо
+        if ($orderInfo['calcType'] === 'banner') {
+            $this->debug("Выбран формат для баннеров");
+            return $this->formatBannerOrderHTML($orderInfo, $name, $phone, $email, $callTime, $clientComment);
+        }
+        
+        // Для остальных калькуляторов - старый текстовый формат
+        $this->debug("Используется стандартный текстовый формат для типа: " . ($orderInfo['calcType'] ?? 'неизвестен'));
+        $message = "=== НОВЫЙ ЗАКАЗ ИЗ КАЛЬКУЛЯТОРА ===\n\n";
+        
+        $message .= "Информация о заказе:\n";
+        $message .= "Продукт: " . ($orderInfo['product'] ?? 'Не указан') . "\n";
+        
+        // Для листовок (БСО)
+        if ($orderInfo['calcType'] === 'list') {
+            $message .= "Формат бланка: " . ($orderInfo['size'] ?? 'Не указан') . "\n";
+            $message .= "Печать: " . ($orderInfo['printType'] ?? 'Не указан') . "\n";
+            $message .= "Тираж: " . ($orderInfo['quantity'] ?? 'Не указан') . "\n";
+            $message .= "Количество слоёв: " . ($orderInfo['layers'] ?? 'Не указан') . "\n";
+            $message .= "Нумерация: " . ($orderInfo['numbering'] ?? 'Не указана') . "\n";
+            $message .= "Одинаковые слои или разные?: " . ($orderInfo['layersSame'] ?? 'Не указано') . "\n";
+            
+            if (!empty($orderInfo['additionalServices'])) {
+                $message .= "Дополнительные услуги: " . $orderInfo['additionalServices'] . "\n";
+            }
+        }
+        
+        $message .= "Итого: " . ($orderInfo['totalPrice'] ?? '0') . " руб.\n\n";
+        
+        $message .= "Клиент:\n";
+        $message .= "Имя: " . $name . "\n";
+        $message .= "Телефон: " . $phone . "\n";
+        
+        if (!empty($email)) {
+            $message .= "E-mail: " . $email . "\n";
+        }
+        
+        if (!empty($callTime)) {
+            // Если время уже отформатировано (содержит точки), используем как есть
+            if (strpos($callTime, '.') !== false) {
+                $message .= "Удобное время для звонка: " . $callTime . "\n";
+            } else {
+                // Иначе пытаемся отформатировать
+                $callTimeFormatted = date('d.m.Y H:i', strtotime($callTime));
+                $message .= "Удобное время для звонка: " . $callTimeFormatted . "\n";
+            }
+        }
+        
+        $message .= "\nДата заказа: " . date('d.m.Y H:i:s') . "\n";
+        
+        return $message;
+    }
+
+    /**
+     * Создает HTML-письмо для заказа листовок
+     */
+    private function formatListOrderHTML($orderInfo, $name, $phone, $email, $callTime, $clientComment = '')
+    {
+        $html = '<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Новый заказ листовок</title>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: linear-gradient(135deg, #28a745, #20c997); color: white; padding: 20px; border-radius: 8px 8px 0 0; text-align: center; }
+        .content { background: #f8f9fa; padding: 20px; border: 1px solid #dee2e6; }
+        .footer { background: #6c757d; color: white; padding: 15px; border-radius: 0 0 8px 8px; text-align: center; font-size: 14px; }
+        .section { margin-bottom: 20px; }
+        .section h3 { color: #28a745; margin-bottom: 10px; border-bottom: 2px solid #28a745; padding-bottom: 5px; }
+        .info-table { width: 100%; border-collapse: collapse; }
+        .info-table td { padding: 8px 12px; border-bottom: 1px solid #dee2e6; }
+        .info-table td:first-child { font-weight: bold; background: #e8f5e8; width: 40%; }
+        .price { font-size: 24px; font-weight: bold; color: #28a745; text-align: center; margin: 20px 0; }
+        .client-info { background: white; padding: 15px; border-radius: 6px; border-left: 4px solid #28a745; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Новый заказ листовок</h1>
+            <p>Заказ с калькулятора печати</p>
+        </div>
+        
+        <div class="content">
+            <div class="section">
+                <h3>Информация о заказе</h3>
+                <table class="info-table">
+                    <tr><td>Продукт</td><td>' . htmlspecialchars($orderInfo['product'] ?? 'Листовки') . '</td></tr>
+                    <tr><td>Формат</td><td>' . htmlspecialchars($orderInfo['size'] ?? 'Не указан') . '</td></tr>
+                    <tr><td>Тип бумаги</td><td>' . htmlspecialchars($orderInfo['paperType'] ?? 'Не указан') . '</td></tr>
+                    <tr><td>Тип печати</td><td>' . htmlspecialchars($orderInfo['printType'] ?? 'Не указан') . '</td></tr>
+                    <tr><td>Тираж</td><td>' . number_format($orderInfo['quantity'] ?? 0, 0, ',', ' ') . ' шт.</td></tr>';
+        
+        // Добавляем информацию о ламинации если есть
+        if (!empty($orderInfo['laminationType'])) {
+            $laminationText = $orderInfo['laminationType'];
+            
+            // Преобразуем коды ламинации в понятные названия
+            $laminationTypes = [
+                '1+0' => 'Односторонняя',
+                '1+1' => 'Двусторонняя'
+            ];
+            
+            if (isset($laminationTypes[$laminationText])) {
+                $laminationText = $laminationTypes[$laminationText];
+            }
+            
+            // Добавляем толщину если указана
+            if (!empty($orderInfo['laminationThickness'])) {
+                $laminationText .= ' (' . $orderInfo['laminationThickness'] . ' мкм)';
+            }
+            
+            $html .= '<tr><td>Ламинация</td><td>' . htmlspecialchars($laminationText) . '</td></tr>';
+        }
+        
+        // Добавляем дополнительные услуги если есть
+        if (!empty($orderInfo['additionalServices'])) {
+            $html .= '<tr><td>Дополнительные услуги</td><td>' . htmlspecialchars($orderInfo['additionalServices']) . '</td></tr>';
+        }
+        
+        $html .= '</table>
+                <div class="price">Итого: ' . number_format($orderInfo['totalPrice'] ?? 0, 0, ',', ' ') . ' руб.</div>
+            </div>
+            
+            <div class="section">
+                <h3>Информация о клиенте</h3>
+                <div class="client-info">
+                    <p><strong>Имя:</strong> ' . htmlspecialchars($name) . '</p>
+                    <p><strong>Телефон:</strong> <a href="tel:' . htmlspecialchars($phone) . '">' . htmlspecialchars($phone) . '</a></p>';
+        
+        if (!empty($email)) {
+            $html .= '<p><strong>E-mail:</strong> <a href="mailto:' . htmlspecialchars($email) . '">' . htmlspecialchars($email) . '</a></p>';
+        }
+        
+        if (!empty($callTime)) {
+            $callTimeFormatted = $callTime;
+            if (strpos($callTime, '.') === false && strtotime($callTime)) {
+                $callTimeFormatted = date('d.m.Y H:i', strtotime($callTime));
+            }
+            $html .= '<p><strong>Удобное время для звонка:</strong> ' . htmlspecialchars($callTimeFormatted) . '</p>';
+        }
+        
+        $html .= '<p><strong>Дата заказа:</strong> ' . date('d.m.Y H:i:s') . '</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>Заказ получен через калькулятор печати на сайте</p>
+            <p>Время получения: ' . date('d.m.Y H:i:s') . '</p>
+        </div>
+    </div>
+</body>
+</html>';
+        
+        return $html;
+    }
+
+    /**
+     * Создает HTML-письмо для заказа буклетов
+     */
+    private function formatBookletOrderHTML($orderInfo, $name, $phone, $email, $callTime, $clientComment = '')
+    {
+        $html = '<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Новый заказ буклетов</title>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: linear-gradient(135deg, #17a2b8, #20c997); color: white; padding: 20px; border-radius: 8px 8px 0 0; text-align: center; }
+        .content { background: #f8f9fa; padding: 20px; border: 1px solid #dee2e6; }
+        .footer { background: #6c757d; color: white; padding: 15px; border-radius: 0 0 8px 8px; text-align: center; font-size: 14px; }
+        .section { margin-bottom: 20px; }
+        .section h3 { color: #17a2b8; margin-bottom: 10px; border-bottom: 2px solid #17a2b8; padding-bottom: 5px; }
+        .info-table { width: 100%; border-collapse: collapse; }
+        .info-table td { padding: 8px 12px; border-bottom: 1px solid #dee2e6; }
+        .info-table td:first-child { font-weight: bold; background: #e8f4f8; width: 40%; }
+        .price { font-size: 24px; font-weight: bold; color: #17a2b8; text-align: center; margin: 20px 0; }
+        .client-info { background: white; padding: 15px; border-radius: 6px; border-left: 4px solid #17a2b8; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Новый заказ буклетов</h1>
+            <p>Заказ с калькулятора печати</p>
+        </div>
+        
+        <div class="content">
+            <div class="section">
+                <h3>Информация о заказе</h3>
+                <table class="info-table">
+                    <tr><td>Продукт</td><td>' . htmlspecialchars($orderInfo['product'] ?? 'Буклеты') . '</td></tr>
+                    <tr><td>Формат</td><td>' . htmlspecialchars($orderInfo['size'] ?? 'Не указан') . '</td></tr>
+                    <tr><td>Тип бумаги</td><td>' . htmlspecialchars($orderInfo['paperType'] ?? 'Не указан') . '</td></tr>
+                    <tr><td>Тип печати</td><td>' . htmlspecialchars($orderInfo['printType'] ?? 'Не указан') . '</td></tr>
+                    <tr><td>Тираж</td><td>' . number_format($orderInfo['quantity'] ?? 0, 0, ',', ' ') . ' шт.</td></tr>';
+        
+        // Всегда добавляем информацию о сложениях
+        if (isset($orderInfo['foldingDescription'])) {
+            $html .= '<tr><td>Данные сложений</td><td>' . htmlspecialchars($orderInfo['foldingDescription']) . '</td></tr>';
+        } elseif (isset($orderInfo['foldingCount'])) {
+            // Фоллбэк для старых данных
+            $foldingText = $orderInfo['foldingCount'] > 0 ? $orderInfo['foldingCount'] . ' сложение' . ($orderInfo['foldingCount'] > 1 ? 'я' : '') : 'Нет сложений';
+            $html .= '<tr><td>Данные сложений</td><td>' . htmlspecialchars($foldingText) . '</td></tr>';
+        } else {
+            // Если данных о сложениях нет вообще
+            $html .= '<tr><td>Данные сложений</td><td>Нет сложений</td></tr>';
+        }
+        
+        // Добавляем информацию о ламинации если есть
+        if (!empty($orderInfo['laminationType'])) {
+            $laminationText = $orderInfo['laminationType'];
+            
+            // Преобразуем коды ламинации в понятные названия
+            $laminationTypes = [
+                '1+0' => 'Односторонняя',
+                '1+1' => 'Двусторонняя'
+            ];
+            
+            if (isset($laminationTypes[$laminationText])) {
+                $laminationText = $laminationTypes[$laminationText];
+            }
+            
+            // Добавляем толщину если указана
+            if (!empty($orderInfo['laminationThickness'])) {
+                $laminationText .= ' (' . $orderInfo['laminationThickness'] . ' мкм)';
+            }
+            
+            $html .= '<tr><td>Ламинация</td><td>' . htmlspecialchars($laminationText) . '</td></tr>';
+        }
+        
+        // Добавляем дополнительные услуги если есть
+        if (!empty($orderInfo['additionalServices'])) {
+            $html .= '<tr><td>Дополнительные услуги</td><td>' . htmlspecialchars($orderInfo['additionalServices']) . '</td></tr>';
+        }
+        
+        $html .= '</table>
+                <div class="price">Итого: ' . number_format($orderInfo['totalPrice'] ?? 0, 0, ',', ' ') . ' руб.</div>
+            </div>
+            
+            <div class="section">
+                <h3>Информация о клиенте</h3>
+                <div class="client-info">
+                    <p><strong>Имя:</strong> ' . htmlspecialchars($name) . '</p>
+                    <p><strong>Телефон:</strong> <a href="tel:' . htmlspecialchars($phone) . '">' . htmlspecialchars($phone) . '</a></p>';
+        
+        if (!empty($email)) {
+            $html .= '<p><strong>E-mail:</strong> <a href="mailto:' . htmlspecialchars($email) . '">' . htmlspecialchars($email) . '</a></p>';
+        }
+        
+        if (!empty($callTime)) {
+            $callTimeFormatted = $callTime;
+            if (strpos($callTime, '.') === false && strtotime($callTime)) {
+                $callTimeFormatted = date('d.m.Y H:i', strtotime($callTime));
+            }
+            $html .= '<p><strong>Удобное время для звонка:</strong> ' . htmlspecialchars($callTimeFormatted) . '</p>';
+        }
+        
+        $html .= '<p><strong>Дата заказа:</strong> ' . date('d.m.Y H:i:s') . '</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>Заказ получен через калькулятор печати на сайте</p>
+            <p>Время получения: ' . date('d.m.Y H:i:s') . '</p>
+        </div>
+    </div>
+</body>
+</html>';
+        
+        return $html;
+    }
+
+    /**
+     * Форматирование HTML-письма для заказа визиток
+     */
+    private function formatVizitOrderHTML($orderInfo, $name, $phone, $email, $callTime, $clientComment = '')
+    {
+        $html = '<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Новый заказ визиток</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f8f9fa;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+        }
+        .header {
+            background: linear-gradient(135deg, #007bff, #0056b3);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+        }
+        .section {
+            margin-bottom: 25px;
+            padding: 20px;
+            background: #f8f9ff;
+            border-radius: 8px;
+            border-left: 4px solid #007bff;
+        }
+        .section h2 {
+            color: #007bff;
+            margin-top: 0;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+        .info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        .info-item {
+            background: white;
+            padding: 15px;
+            border-radius: 6px;
+            border: 1px solid #e3f2fd;
+        }
+        .info-item strong {
+            color: #0056b3;
+            display: block;
+            margin-bottom: 5px;
+        }
+        .price-highlight {
+            background: linear-gradient(135deg, #28a745, #20c997);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+            font-size: 24px;
+            font-weight: bold;
+            margin: 20px 0;
+        }
+        .client-info {
+            background: #fff3cd;
+            border-left-color: #ffc107;
+        }
+        .client-info h2 {
+            color: #856404;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #dee2e6;
+            color: #6c757d;
+            font-size: 14px;
+        }
+        @media (max-width: 600px) {
+            .info-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Новый заказ визиток</h1>
+        </div>
+        
+        <div class="section">
+            <h2>Параметры заказа</h2>
+            <div class="info-grid">';
+        
+        // Тип печати
+        if (!empty($orderInfo['printType'])) {
+            $printTypeDisplay = '';
+            if ($orderInfo['printType'] === 'digital') {
+                $printTypeDisplay = 'Цифровая печать';
+            } elseif ($orderInfo['printType'] === 'offset') {
+                $printTypeDisplay = 'Офсетная печать';
+            } else {
+                $printTypeDisplay = htmlspecialchars($orderInfo['printType']);
+            }
+            
+            $html .= '<div class="info-item">
+                        <strong>Тип печати:</strong>
+                        ' . $printTypeDisplay . '
+                      </div>';
+        }
+        
+        // Количество
+        if (!empty($orderInfo['quantity'])) {
+            $html .= '<div class="info-item">
+                        <strong>Тираж:</strong>
+                        ' . number_format($orderInfo['quantity'], 0, '', ' ') . ' шт
+                      </div>';
+        }
+        
+        // Тип печати (односторонняя/двусторонняя)
+        if (!empty($orderInfo['sideType'])) {
+            $sideTypeDisplay = '';
+            if ($orderInfo['sideType'] === 'single') {
+                $sideTypeDisplay = 'Односторонняя (4+0)';
+            } elseif ($orderInfo['sideType'] === 'double') {
+                $sideTypeDisplay = 'Двусторонняя (4+4)';
+            } else {
+                $sideTypeDisplay = htmlspecialchars($orderInfo['sideType']);
+            }
+            
+            $html .= '<div class="info-item">
+                        <strong>Печать:</strong>
+                        ' . $sideTypeDisplay . '
+                      </div>';
+        }
+        
+        // Размер (стандартный для визиток)
+        $html .= '<div class="info-item">
+                    <strong>Размер:</strong>
+                    90x50 мм (стандартный)
+                  </div>';
+        
+        $html .= '</div>';
+        
+        // Стоимость
+        if (!empty($orderInfo['totalPrice'])) {
+            $html .= '<div class="price-highlight">
+                        Стоимость: ' . number_format($orderInfo['totalPrice'], 2, ',', ' ') . ' ₽
+                      </div>';
+        }
+        
+        $html .= '</div>';
+        
+        // Информация о клиенте
+        $html .= '<div class="section client-info">
+                    <h2>Информация о клиенте</h2>
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <strong>Имя:</strong>
+                            ' . htmlspecialchars($name) . '
+                        </div>
+                        <div class="info-item">
+                            <strong>Телефон:</strong>
+                            <a href="tel:' . htmlspecialchars($phone) . '">' . htmlspecialchars($phone) . '</a>
+                        </div>';
+        
+        if (!empty($email)) {
+            $html .= '<div class="info-item">
+                        <strong>Email:</strong>
+                        <a href="mailto:' . htmlspecialchars($email) . '">' . htmlspecialchars($email) . '</a>
+                      </div>';
+        }
+        
+        $html .= '</div>';
+        
+        // Предпочтительное время звонка
+        if (!empty($callTime)) {
+            $callTimeFormatted = $callTime;
+            try {
+                $dateTime = new DateTime($callTime);
+                $callTimeFormatted = $dateTime->format('d.m.Y в H:i');
+            } catch (Exception $e) {
+                // Если не удалось распарсить дату, оставляем как есть
+            }
+            $html .= '<p><strong>Удобное время для звонка:</strong> ' . htmlspecialchars($callTimeFormatted) . '</p>';
+        }
+        
+        $html .= '<p><strong>Дата заказа:</strong> ' . date('d.m.Y H:i:s') . '</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>Заказ получен через калькулятор визиток на сайте</p>
+            <p>Время получения: ' . date('d.m.Y H:i:s') . '</p>
+        </div>
+    </div>
+</body>
+</html>';
+        
+        return $html;
+    }
+
+    /**
+     * Создает HTML-письмо для заказа блокнотов
+     */
+    private function formatNoteOrderHTML($orderInfo, $name, $phone, $email, $callTime, $clientComment = '')
+    {
+        $html = '<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Новый заказ блокнотов</title>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: linear-gradient(135deg, #6f42c1, #e83e8c); color: white; padding: 20px; border-radius: 8px 8px 0 0; text-align: center; }
+        .content { background: #f8f9fa; padding: 20px; border: 1px solid #dee2e6; }
+        .footer { background: #6c757d; color: white; padding: 15px; border-radius: 0 0 8px 8px; text-align: center; font-size: 14px; }
+        .section { margin-bottom: 20px; }
+        .section h3 { color: #6f42c1; margin-bottom: 10px; border-bottom: 2px solid #6f42c1; padding-bottom: 5px; }
+        .info-table { width: 100%; border-collapse: collapse; }
+        .info-table td { padding: 8px 12px; border-bottom: 1px solid #dee2e6; }
+        .info-table td:first-child { font-weight: bold; background: #f3e8ff; width: 40%; }
+        .price { font-size: 24px; font-weight: bold; color: #6f42c1; text-align: center; margin: 20px 0; }
+        .client-info { background: white; padding: 15px; border-radius: 6px; border-left: 4px solid #6f42c1; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Новый заказ блокнотов</h1>
+            <p>Заказ с калькулятора печати</p>
+        </div>
+        
+        <div class="content">
+            <div class="section">
+                <h3>Информация о заказе</h3>
+                <table class="info-table">
+                    <tr><td>Продукт</td><td>' . htmlspecialchars($orderInfo['product'] ?? 'Блокноты') . '</td></tr>
+                    <tr><td>Формат</td><td>' . htmlspecialchars($orderInfo['size'] ?? 'Не указан') . '</td></tr>
+                    <tr><td>Тираж</td><td>' . number_format($orderInfo['quantity'] ?? 0, 0, ',', ' ') . ' шт.</td></tr>
+                    <tr><td>Листов в блоке</td><td>' . htmlspecialchars($orderInfo['inner_pages'] ?? 'Не указано') . '</td></tr>
+                    <tr><td>Печать обложки</td><td>' . htmlspecialchars($orderInfo['cover_print'] ?? 'Не указано') . '</td></tr>
+                    <tr><td>Печать задника</td><td>' . htmlspecialchars($orderInfo['back_print'] ?? 'Не указано') . '</td></tr>
+                    <tr><td>Печать внутреннего блока</td><td>' . htmlspecialchars($orderInfo['inner_print'] ?? 'Не указано') . '</td></tr>';
+        
+        // Добавляем информацию о ламинации если есть
+        if (!empty($orderInfo['laminationType'])) {
+            $laminationText = $orderInfo['laminationType'];
+            
+            // Преобразуем коды ламинации в понятные названия
+            $laminationTypes = [
+                '1+0' => 'Односторонняя',
+                '1+1' => 'Двусторонняя'
+            ];
+            
+            if (isset($laminationTypes[$laminationText])) {
+                $laminationText = $laminationTypes[$laminationText];
+            }
+            
+            // Добавляем толщину если указана
+            if (!empty($orderInfo['laminationThickness'])) {
+                $laminationText .= ' (' . $orderInfo['laminationThickness'] . ' мкм)';
+            }
+            
+            $html .= '<tr><td>Ламинация обложки</td><td>' . htmlspecialchars($laminationText) . '</td></tr>';
+        }
+        
+        // Добавляем дополнительные услуги если есть
+        if (!empty($orderInfo['additionalServices'])) {
+            $html .= '<tr><td>Дополнительные услуги</td><td>' . htmlspecialchars($orderInfo['additionalServices']) . '</td></tr>';
+        }
+        
+        $html .= '</table>
+                <div class="price">Итого: ' . number_format($orderInfo['totalPrice'] ?? 0, 0, ',', ' ') . ' руб.</div>
+            </div>
+            
+            <div class="section">
+                <h3>Информация о клиенте</h3>
+                <div class="client-info">
+                    <p><strong>Имя:</strong> ' . htmlspecialchars($name) . '</p>
+                    <p><strong>Телефон:</strong> <a href="tel:' . htmlspecialchars($phone) . '">' . htmlspecialchars($phone) . '</a></p>';
+        
+        if (!empty($email)) {
+            $html .= '<p><strong>E-mail:</strong> <a href="mailto:' . htmlspecialchars($email) . '">' . htmlspecialchars($email) . '</a></p>';
+        }
+        
+        if (!empty($callTime)) {
+            $callTimeFormatted = $callTime;
+            if (strpos($callTime, '.') === false && strtotime($callTime)) {
+                $callTimeFormatted = date('d.m.Y H:i', strtotime($callTime));
+            }
+            $html .= '<p><strong>Удобное время для звонка:</strong> ' . htmlspecialchars($callTimeFormatted) . '</p>';
+        }
+        
+        $html .= '<p><strong>Дата заказа:</strong> ' . date('d.m.Y H:i:s') . '</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>Заказ получен через калькулятор печати на сайте</p>
+            <p>Время получения: ' . date('d.m.Y H:i:s') . '</p>
+        </div>
+    </div>
+</body>
+</html>';
+        
+        return $html;
+    }
+
+    /**
+     * Отправляет email уведомление через событие Битрикса
+     */
+    private function sendEmailNotification($message, $orderInfo, $name, $phone, $email)
+    {
+        $this->debug("sendEmailNotification вызвана", [
+            'calcType' => $orderInfo['calcType'] ?? 'unknown',
+            'messageLength' => strlen($message),
+            'name' => $name,
+            'phone' => $phone,
+            'email' => $email
+        ]);
+        
+        if (!CModule::IncludeModule("main")) {
+            $this->debug("Модуль main не подключен");
+            return false;
+        }
+
+        // Для листовок, буклетов, визиток, стендов, блокнотов, кубариков, наклеек, холстов, календарей и баннеров отправляем письмо напрямую
+        if (in_array($orderInfo['calcType'], ['list', 'booklet', 'vizit', 'stend', 'note', 'kubaric', 'sticker', 'canvas', 'calendar', 'banner'])) {
+            $this->debug("Отправляем HTML-письмо для типа: " . $orderInfo['calcType']);
+            // Для стендов пока отправляем текстовую версию
+            if ($orderInfo['calcType'] === 'stend') {
+                return $this->sendTextEmail($message, $orderInfo, $name, $phone, $email);
+            }
+            // Для остальных HTML
+            return $this->sendHtmlEmail($message, $orderInfo, $name, $phone, $email);
+        }
+
+        // Для остальных калькуляторов используем стандартный способ через события Bitrix
+        $arEventFields = [
+            "CALC_TYPE" => $orderInfo['calcType'] ?? 'list',
+            "ORDER_INFO" => $message,
+            "CLIENT_NAME" => $name,
+            "CLIENT_PHONE" => $phone,
+            "CLIENT_EMAIL" => $email,
+            "DATE_CREATE" => date('d.m.Y H:i:s'),
+            // Дополнительные поля для совместимости
+            "ORDER_TEXT" => $message,
+            "PRODUCT_TYPE" => $orderInfo['product'] ?? '',
+            "TOTAL_PRICE" => $orderInfo['totalPrice'] ?? '0',
+            "ORDER_DATE" => date('d.m.Y H:i:s')
+        ];
+
+        // Отправляем событие
+        $this->debug("Отправка события CALC_ORDER_REQUEST с полями:", $arEventFields);
+        
+        $result = CEvent::Send("CALC_ORDER_REQUEST", SITE_ID, $arEventFields);
+        
+        $this->debug("Результат отправки события CALC_ORDER_REQUEST", [
+            'result' => $result,
+            'SITE_ID' => SITE_ID,
+            'eventFields' => $arEventFields
+        ]);
+        
+        // Дополнительная проверка лога почты
+        if ($result) {
+            $this->debug("Событие отправлено успешно, проверяем последние записи почтового лога");
+        } else {
+            $this->debug("ОШИБКА: Событие не отправлено!");
+        }
+        
+        return $result;
+    }
+
+    /**
+     * Отправляет HTML-письмо
+     */
+    private function sendHtmlEmail($htmlMessage, $orderInfo, $name, $phone, $email)
+    {
+        try {
+            // Определяем тип заказа для темы письма
+            $productType = 'заказ';
+            $calcType = $orderInfo['calcType'] ?? '';
+            
+            switch ($calcType) {
+                case 'list':
+                    $productType = 'листовки';
+                    break;
+                case 'stend':
+                    $productType = 'ПВХ стенд';
+                    break;
+                case 'vizit':
+                    $productType = 'визитки';
+                    break;
+                case 'booklet':
+                    $productType = 'буклеты';
+                    break;
+                case 'note':
+                    $productType = 'блокноты';
+                    break;
+                case 'kubaric':
+                    $productType = 'кубарики';
+                    break;
+                case 'sticker':
+                    $productType = 'наклейки';
+                    break;
+                case 'canvas':
+                    $productType = 'печать на холсте';
+                    break;
+                case 'calendar':
+                    $productType = 'календари';
+                    break;
+                case 'banner':
+                    $productType = 'баннеры';
+                    break;
+                default:
+                    $productType = $orderInfo['product'] ?? 'заказ';
+                    break;
+            }
+            
+            $this->debug("Отправка HTML-письма", [
+                'to' => 'info@mir-pechati.su',
+                'subject' => "Новый заказ: {$productType}",
+                'calcType' => $calcType,
+                'messageLength' => strlen($htmlMessage),
+                'messagePreview' => substr(strip_tags($htmlMessage), 0, 100) . '...'
+            ]);
+
+            // Пробуем использовать встроенную в Bitrix функцию отправки почты
+            $to = "info@mir-pechati.su";
+            $subject = "Новый заказ: {$productType} - " . number_format($orderInfo['totalPrice'] ?? 0, 0, ',', ' ') . ' руб.';
+            $message = $htmlMessage;
+            
+            // Создаем текстовую версию письма для совместимости
+            $textMessage = $this->htmlToText($htmlMessage);
+            
+            // Генерируем boundary для multipart
+            $boundary = "boundary_" . md5(uniqid(time()));
+            
+            // Заголовки для multipart HTML-письма
+            $headers = [
+                "MIME-Version: 1.0",
+                "Content-Type: multipart/alternative; boundary=\"{$boundary}\"",
+                "From: info@mir-pechati.su",
+                "Reply-To: " . ($email ?: "info@mir-pechati.su"),
+                "X-Mailer: PHP/" . phpversion()
+            ];
+            
+            // Создаем multipart сообщение
+            $multipartMessage = "--{$boundary}\r\n";
+            $multipartMessage .= "Content-Type: text/plain; charset=UTF-8\r\n";
+            $multipartMessage .= "Content-Transfer-Encoding: 8bit\r\n\r\n";
+            $multipartMessage .= $textMessage . "\r\n\r\n";
+            
+            $multipartMessage .= "--{$boundary}\r\n";
+            $multipartMessage .= "Content-Type: text/html; charset=UTF-8\r\n";
+            $multipartMessage .= "Content-Transfer-Encoding: 8bit\r\n\r\n";
+            $multipartMessage .= $htmlMessage . "\r\n\r\n";
+            
+            $multipartMessage .= "--{$boundary}--";
+            
+            $this->debug("Заголовки письма", $headers);
+            
+            // Отправляем через стандартную функцию Bitrix
+            $result = bxmail($to, $subject, $multipartMessage, implode("\r\n", $headers));
+            
+            if ($result) {
+                $this->debug("HTML-письмо успешно отправлено через bxmail");
+                return true;
+            } else {
+                $this->debug("Ошибка отправки через bxmail, пробуем альтернативный способ");
+                
+                // Fallback: используем стандартный PHP mail()
+                $result = mail($to, $subject, $multipartMessage, implode("\r\n", $headers));
+                
+                if ($result) {
+                    $this->debug("HTML-письмо успешно отправлено через mail()");
+                    return true;
+                } else {
+                    $this->debug("Ошибка отправки через mail()");
+                    return false;
+                }
+            }
+            
+        } catch (Exception $e) {
+            $this->debug("Исключение при отправке HTML-письма: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Конвертирует HTML в простой текст для текстовой версии письма
+     */
+    private function htmlToText($html)
+    {
+        // Убираем теги стилей и скриптов
+        $html = preg_replace('/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/mi', '', $html);
+        $html = preg_replace('/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/mi', '', $html);
+        
+        // Заменяем основные HTML теги на текстовые эквиваленты
+        $html = str_replace(['<br>', '<br/>', '<br />'], "\n", $html);
+        $html = str_replace(['</p>', '</div>', '</h1>', '</h2>', '</h3>', '</h4>', '</h5>', '</h6>'], "\n\n", $html);
+        $html = str_replace(['</tr>'], "\n", $html);
+        $html = str_replace(['</td>'], " | ", $html);
+        $html = str_replace(['</li>'], "\n- ", $html);
+        
+        // Убираем все остальные HTML теги
+        $html = strip_tags($html);
+        
+        // Убираем лишние пробелы и переносы строк
+        $html = preg_replace('/\n\s*\n/', "\n\n", $html);
+        $html = trim($html);
+        
+        return $html;
+    }
+
+    /**
+     * Создает текстовое письмо для заказа ПВХ стендов
+     */
+    private function formatStendOrderHTML($orderInfo, $name, $phone, $email, $callTime, $clientComment = '')
+    {
+        $text = "=== НОВЫЙ ЗАКАЗ ПВХ СТЕНДА ===\n\n";
+        
+        $text .= "Информация о заказе:\n";
+        $text .= "Продукт: " . ($orderInfo['product'] ?? 'ПВХ стенд') . "\n";
+        $text .= "Ширина стенда: " . ($orderInfo['width'] ?? 'Не указана') . " см\n";
+        $text .= "Высота стенда: " . ($orderInfo['height'] ?? 'Не указана') . " см\n";
+        
+        // Рассчитываем площадь если есть размеры
+        if (!empty($orderInfo['width']) && !empty($orderInfo['height'])) {
+            $area = ((float)$orderInfo['width'] * (float)$orderInfo['height']) / 10000;
+            $text .= "Площадь стенда: " . number_format($area, 2, ',', ' ') . " м²\n";
+        }
+        
+        // Тип ПВХ
+        $pvcTypeText = $orderInfo['pvcType'] ?? 'Не указан';
+        if ($pvcTypeText === '3mm') $pvcTypeText = '3 мм';
+        if ($pvcTypeText === '5mm') $pvcTypeText = '5 мм';
+        $text .= "Толщина ПВХ: " . $pvcTypeText . "\n";
+        
+        // Карманы
+        $text .= "\nКарманы для документов:\n";
+        $hasAnyPockets = false;
+        
+        if (!empty($orderInfo['flatA4']) && (int)$orderInfo['flatA4'] > 0) {
+            $text .= "- Плоских карманов А4: " . (int)$orderInfo['flatA4'] . "\n";
+            $hasAnyPockets = true;
+        }
+        if (!empty($orderInfo['flatA5']) && (int)$orderInfo['flatA5'] > 0) {
+            $text .= "- Плоских карманов А5: " . (int)$orderInfo['flatA5'] . "\n";
+            $hasAnyPockets = true;
+        }
+        if (!empty($orderInfo['volumeA4']) && (int)$orderInfo['volumeA4'] > 0) {
+            $text .= "- Объемных карманов А4: " . (int)$orderInfo['volumeA4'] . "\n";
+            $hasAnyPockets = true;
+        }
+        if (!empty($orderInfo['volumeA5']) && (int)$orderInfo['volumeA5'] > 0) {
+            $text .= "- Объемных карманов А5: " . (int)$orderInfo['volumeA5'] . "\n";
+            $hasAnyPockets = true;
+        }
+        
+        if (!$hasAnyPockets) {
+            $text .= "- Без карманов\n";
+        }
+        
+        // Ламинация если есть
+        if (!empty($orderInfo['laminationType'])) {
+            $laminationText = $orderInfo['laminationType'];
+            
+            // Преобразуем коды ламинации в понятные названия
+            $laminationTypes = [
+                '1+0' => 'Односторонняя',
+                '1+1' => 'Двусторонняя'
+            ];
+            
+            if (isset($laminationTypes[$laminationText])) {
+                $laminationText = $laminationTypes[$laminationText];
+            }
+            
+            // Добавляем толщину если указана
+            if (!empty($orderInfo['laminationThickness'])) {
+                $thicknessNames = [
+                    '80' => '80 мкм',
+                    '125' => '125 мкм',
+                    '175' => '175 мкм'
+                ];
+                
+                $thicknessText = $thicknessNames[$orderInfo['laminationThickness']] ?? $orderInfo['laminationThickness'];
+                $laminationText .= ' (' . $thicknessText . ')';
+            }
+            
+            $text .= "\nЛаминация: " . $laminationText . "\n";
+        }
+        
+        // Цена
+        $text .= "\nИТОГО: " . ($orderInfo['totalPrice'] ?? '0') . " руб.\n";
+        
+        // Информация о клиенте
+        $text .= "\n=== КОНТАКТНАЯ ИНФОРМАЦИЯ ===\n";
+        $text .= "Имя: " . $name . "\n";
+        $text .= "Телефон: " . $phone . "\n";
+        
+        if (!empty($email)) {
+            $text .= "E-mail: " . $email . "\n";
+        }
+        
+        if (!empty($callTime)) {
+            $text .= "Удобное время для звонка: " . $callTime . "\n";
+        }
+        
+        $text .= "\nДата заказа: " . date('d.m.Y H:i:s') . "\n";
+        $text .= "Автоматическое уведомление от калькулятора печати\n";
+        
+        return $text;
+    }
+
+    /**
+     * Отправляет обычное текстовое письмо
+     */
+    private function sendTextEmail($textMessage, $orderInfo, $name, $phone, $email)
+    {
+        try {
+            // Определяем тип заказа для темы письма
+            $productType = 'заказ';
+            $calcType = $orderInfo['calcType'] ?? '';
+            
+            switch ($calcType) {
+                case 'stend':
+                    $productType = 'ПВХ стенд';
+                    break;
+                default:
+                    $productType = $orderInfo['product'] ?? 'заказ';
+                    break;
+            }
+            
+            $this->debug("Отправка текстового письма", [
+                'to' => 'info@mir-pechati.su',
+                'subject' => "Новый заказ: {$productType}",
+                'calcType' => $calcType
+            ]);
+
+            // Пробуем использовать встроенную в Bitrix функцию отправки почты
+            $to = "info@mir-pechati.su";
+            $subject = "Новый заказ: {$productType} - " . number_format($orderInfo['totalPrice'] ?? 0, 0, ',', ' ') . ' руб.';
+            
+            // Конвертируем HTML в текст если нужно
+            $message = strip_tags($textMessage);
+            $message = html_entity_decode($message, ENT_QUOTES, 'UTF-8');
+            
+            // Заголовки для текстового письма
+            $headers = [
+                "Content-Type: text/plain; charset=UTF-8",
+                "From: info@mir-pechati.su",
+                "Reply-To: " . ($email ?: "info@mir-pechati.su")
+            ];
+            
+            $this->debug("Заголовки письма", $headers);
+            $this->debug("Содержимое письма", substr($message, 0, 200) . '...');
+            
+            // Отправляем через стандартную функцию Bitrix
+            $result = bxmail($to, $subject, $message, implode("\r\n", $headers));
+            
+            if ($result) {
+                $this->debug("Текстовое письмо успешно отправлено через bxmail");
+                return true;
+            } else {
+                $this->debug("Ошибка отправки через bxmail, пробуем альтернативный способ");
+                
+                // Fallback: используем стандартный PHP mail()
+                $result = mail($to, $subject, $message, implode("\r\n", $headers));
+                
+                if ($result) {
+                    $this->debug("Текстовое письмо успешно отправлено через mail()");
+                    return true;
+                } else {
+                    $this->debug("Ошибка отправки через mail()");
+                    return false;
+                }
+            }
+            
+        } catch (Exception $e) {
+            $this->debug("Исключение при отправке текстового письма: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Форматирует HTML письмо для заказа кубариков
+     */
+    private function formatKubaricOrderHTML($orderInfo, $name, $phone, $email, $callTime, $clientComment = '')
+    {
+        $html = '<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Новый заказ кубариков</title>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: linear-gradient(135deg, #ff9800, #f57c00); color: white; padding: 20px; border-radius: 8px 8px 0 0; text-align: center; }
+        .content { background: #f8f9fa; padding: 20px; border: 1px solid #dee2e6; }
+        .footer { background: #6c757d; color: white; padding: 15px; border-radius: 0 0 8px 8px; text-align: center; font-size: 14px; }
+        .section { margin-bottom: 20px; }
+        .section h3 { color: #ff9800; margin-bottom: 10px; border-bottom: 2px solid #ff9800; padding-bottom: 5px; }
+        .info-table { width: 100%; border-collapse: collapse; }
+        .info-table td { padding: 8px 12px; border-bottom: 1px solid #dee2e6; }
+        .info-table td:first-child { font-weight: bold; background: #fff3e0; width: 40%; }
+        .price { font-size: 24px; font-weight: bold; color: #ff9800; text-align: center; margin: 20px 0; }
+        .client-info { background: white; padding: 15px; border-radius: 6px; border-left: 4px solid #ff9800; }
+        .highlight { background: #fff3e0; padding: 10px; border-radius: 4px; border-left: 4px solid #ff9800; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Новый заказ кубариков</h1>
+            <p>Получен через калькулятор на сайте</p>
+        </div>
+        
+        <div class="content">
+            <div class="price">
+                ' . (isset($orderInfo['totalPrice']) ? number_format($orderInfo['totalPrice'], 2, ',', ' ') . ' ₽' : 'Цена не указана') . '
+            </div>
+            
+            <div class="section">
+                <h3>Параметры кубариков</h3>
+                <table class="info-table">
+                    <tr>
+                        <td>Формат</td>
+                        <td>' . ($orderInfo['format'] ?? '9×9 см') . '</td>
+                    </tr>
+                    <tr>
+                        <td>Листов в пачке</td>
+                        <td>' . ($orderInfo['sheetsPerPack'] ?? 'Не указано') . ' листов</td>
+                    </tr>
+                    <tr>
+                        <td>Количество пачек</td>
+                        <td>' . ($orderInfo['packsCount'] ?? 'Не указано') . ' шт</td>
+                    </tr>
+                    <tr>
+                        <td>Общее количество листов</td>
+                        <td>' . (isset($orderInfo['totalSheets']) ? number_format($orderInfo['totalSheets'], 0, ',', ' ') : 'Не указано') . ' листов</td>
+                    </tr>
+                    <tr>
+                        <td>Тип печати</td>
+                        <td>' . ($orderInfo['printType'] ?? 'Не указан') . '</td>
+                    </tr>
+                </table>
+            </div>
+            
+            <div class="section">
+                <h3>Информация о клиенте</h3>
+                <div class="client-info">
+                    <p><strong>Имя:</strong> ' . htmlspecialchars($name) . '</p>
+                    <p><strong>Телефон:</strong> <a href="tel:' . htmlspecialchars($phone) . '">' . htmlspecialchars($phone) . '</a></p>';
+        
+        if (!empty($email)) {
+            $html .= '<p><strong>E-mail:</strong> <a href="mailto:' . htmlspecialchars($email) . '">' . htmlspecialchars($email) . '</a></p>';
+        }
+        
+        if (!empty($callTime)) {
+            $callTimeFormatted = $callTime;
+            if (strpos($callTime, '.') === false && strtotime($callTime)) {
+                $callTimeFormatted = date('d.m.Y H:i', strtotime($callTime));
+            }
+            $html .= '<p><strong>Удобное время для звонка:</strong> ' . htmlspecialchars($callTimeFormatted) . '</p>';
+        }
+        
+        if (!empty($clientComment)) {
+            $html .= '<p><strong>Комментарий к заказу:</strong> ' . nl2br(htmlspecialchars($clientComment)) . '</p>';
+        }
+        
+        $html .= '<p><strong>Дата заказа:</strong> ' . date('d.m.Y H:i:s') . '</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>Заказ получен через калькулятор печати на сайте</p>
+            <p>Время получения: ' . date('d.m.Y H:i:s') . '</p>
+        </div>
+    </div>
+</body>
+</html>';
+        
+        return $html;
+    }
+
+    /**
+     * Создает HTML-письмо для заказа наклеек
+     */
+    private function formatStickerOrderHTML($orderInfo, $name, $phone, $email, $callTime, $clientComment = '')
+    {
+        // Преобразуем коды типов наклеек в понятные названия
+        $stickerTypeNames = [
+            'simple_print' => 'Просто печать СМУК',
+            'print_cut' => 'Печать + контурная резка',
+            'print_white' => 'Печать смук + белый',
+            'print_white_cut' => 'Печать смук + белый + контурная резка',
+            'print_white_varnish' => 'Печать смук + белый + лак',
+            'print_white_varnish_cut' => 'Печать смук + белый + лак + контурная резка',
+            'print_varnish' => 'Печать смук+лак',
+            'print_varnish_cut' => 'Печать смук+лак+резка'
+        ];
+        
+        $stickerType = $orderInfo['stickerType'] ?? 'simple_print';
+        $stickerTypeName = $stickerTypeNames[$stickerType] ?? $stickerType;
+        
+        $html = '<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Новый заказ наклеек</title>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: linear-gradient(135deg, #007bff, #0056b3); color: white; padding: 20px; border-radius: 8px 8px 0 0; text-align: center; }
+        .content { background: #f8f9fa; padding: 20px; border: 1px solid #dee2e6; }
+        .footer { background: #6c757d; color: white; padding: 15px; border-radius: 0 0 8px 8px; text-align: center; font-size: 14px; }
+        .section { margin-bottom: 20px; }
+        .section h3 { color: #007bff; margin-bottom: 10px; border-bottom: 2px solid #007bff; padding-bottom: 5px; }
+        .info-table { width: 100%; border-collapse: collapse; }
+        .info-table td { padding: 8px 12px; border-bottom: 1px solid #dee2e6; }
+        .info-table td:first-child { font-weight: bold; background: #e3f2fd; width: 40%; }
+        .price { font-size: 24px; font-weight: bold; color: #007bff; text-align: center; margin: 20px 0; }
+        .client-info { background: white; padding: 15px; border-radius: 6px; border-left: 4px solid #007bff; }
+        .highlight { background: #e3f2fd; padding: 10px; border-radius: 4px; border-left: 4px solid #007bff; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Новый заказ наклеек</h1>
+            <p>Получен через калькулятор на сайте</p>
+        </div>
+        
+        <div class="content">
+            <div class="price">
+                ' . (isset($orderInfo['totalPrice']) ? number_format($orderInfo['totalPrice'], 2, ',', ' ') . ' ₽' : 'Цена не указана') . '
+            </div>
+            
+            <div class="section">
+                <h3>Параметры наклеек</h3>
+                <table class="info-table">
+                    <tr>
+                        <td>Длина одной наклейки</td>
+                        <td>' . ($orderInfo['length'] ?? 'Не указана') . ' м</td>
+                    </tr>
+                    <tr>
+                        <td>Ширина одной наклейки</td>
+                        <td>' . ($orderInfo['width'] ?? 'Не указана') . ' м</td>
+                    </tr>';
+        
+        $html .= '<tr>
+                        <td>Количество</td>
+                        <td>' . (isset($orderInfo['quantity']) ? number_format($orderInfo['quantity'], 0, ',', ' ') : 'Не указано') . ' шт</td>
+                    </tr>';
+        
+        $html .= '<tr>
+                        <td>Тип наклейки</td>
+                        <td>' . htmlspecialchars($stickerTypeName) . '</td>
+                    </tr>';
+        
+        $html .= '</table>
+            </div>
+            
+            <div class="section">
+                <h3>Информация о клиенте</h3>
+                <div class="client-info">
+                    <p><strong>Имя:</strong> ' . htmlspecialchars($name) . '</p>
+                    <p><strong>Телефон:</strong> <a href="tel:' . htmlspecialchars($phone) . '">' . htmlspecialchars($phone) . '</a></p>';
+        
+        if (!empty($email)) {
+            $html .= '<p><strong>E-mail:</strong> <a href="mailto:' . htmlspecialchars($email) . '">' . htmlspecialchars($email) . '</a></p>';
+        }
+        
+        if (!empty($callTime)) {
+            $callTimeFormatted = $callTime;
+            if (strpos($callTime, '.') === false && strtotime($callTime)) {
+                $callTimeFormatted = date('d.m.Y H:i', strtotime($callTime));
+            }
+            $html .= '<p><strong>Удобное время для звонка:</strong> ' . htmlspecialchars($callTimeFormatted) . '</p>';
+        }
+        
+        if (!empty($clientComment)) {
+            $html .= '<p><strong>Комментарий к заказу:</strong> ' . nl2br(htmlspecialchars($clientComment)) . '</p>';
+        }
+        
+        $html .= '<p><strong>Дата заказа:</strong> ' . date('d.m.Y H:i:s') . '</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>Заказ получен через калькулятор печати на сайте</p>
+            <p>Время получения: ' . date('d.m.Y H:i:s') . '</p>
+        </div>
+    </div>
+</body>
+</html>';
+        
+        return $html;
+    }
+    
+    /**
+     * Создает HTML-письмо для заказа холстов
+     */
+    private function formatCanvasOrderHTML($orderInfo, $name, $phone, $email, $callTime, $clientComment = '')
+    {
+        // Извлекаем данные для холстов
+        $width = $orderInfo['width'] ?? 'Не указана';
+        $height = $orderInfo['height'] ?? 'Не указана';
+        $includePodramnik = isset($orderInfo['includePodramnik']) && $orderInfo['includePodramnik'] ? 'Да' : 'Нет';
+        $totalPrice = $orderInfo['totalPrice'] ?? '0';
+        
+        $html = '<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Новый заказ печати на холсте</title>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: linear-gradient(135deg, #6f42c1, #e83e8c); color: white; padding: 20px; border-radius: 8px 8px 0 0; text-align: center; }
+        .content { background: #f8f9fa; padding: 20px; border: 1px solid #dee2e6; }
+        .footer { background: #6c757d; color: white; padding: 15px; border-radius: 0 0 8px 8px; text-align: center; font-size: 14px; }
+        .section { margin-bottom: 20px; }
+        .section h3 { color: #6f42c1; margin-bottom: 10px; border-bottom: 2px solid #6f42c1; padding-bottom: 5px; }
+        .info-table { width: 100%; border-collapse: collapse; }
+        .info-table td { padding: 8px 12px; border-bottom: 1px solid #dee2e6; }
+        .info-table td:first-child { font-weight: bold; background: #f3e5f5; width: 40%; }
+        .price { font-size: 24px; font-weight: bold; color: #6f42c1; text-align: center; margin: 20px 0; }
+        .client-info { background: white; padding: 15px; border-radius: 6px; border-left: 4px solid #6f42c1; }
+        .size-info { background: #e3f2fd; border: 1px solid #2196f3; border-radius: 6px; padding: 10px; margin: 10px 0; color: #1565c0; }
+        .podramnik-info { background: #f3e5f5; border: 1px solid #9c27b0; border-radius: 6px; padding: 10px; margin: 10px 0; color: #7b1fa2; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Новый заказ печати на холсте</h1>
+        </div>
+        
+        <div class="content">
+            <div class="section">
+                <h3>Информация о заказе</h3>
+                <table class="info-table">
+                    <tr><td>Продукт</td><td>Печать на холсте</td></tr>
+                    <tr><td>Ширина</td><td>' . htmlspecialchars($width) . ' см</td></tr>
+                    <tr><td>Высота</td><td>' . htmlspecialchars($height) . ' см</td></tr>
+                    <tr><td>Подрамник</td><td>' . htmlspecialchars($includePodramnik) . '</td></tr>
+                </table>
+            </div>
+            
+            <div class="price">
+                Итоговая стоимость: ' . htmlspecialchars($totalPrice) . ' ₽
+            </div>
+            
+            <div class="section">
+                <h3>Информация о клиенте</h3>
+                <div class="client-info">
+                    <p><strong>Имя:</strong> ' . htmlspecialchars($name) . '</p>
+                    <p><strong>Телефон:</strong> ' . htmlspecialchars($phone) . '</p>';
+                    
+        if (!empty($email)) {
+            $html .= '<p><strong>E-mail:</strong> ' . htmlspecialchars($email) . '</p>';
+        }
+        
+        if (!empty($callTime)) {
+            $html .= '<p><strong>Удобное время для звонка:</strong> ' . htmlspecialchars($callTime) . '</p>';
+        }
+        
+        if (!empty($clientComment)) {
+            $html .= '<p><strong>Комментарий:</strong> ' . nl2br(htmlspecialchars($clientComment)) . '</p>';
+        }
+        
+        $html .= '</div>
+            </div>
+        
+        <p><strong>Дата заказа:</strong> ' . date('d.m.Y H:i:s') . '</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>Заказ получен через калькулятор печати на холсте</p>
+        </div>
+    </div>
+</body>
+</html>';
+        
+        return $html;
+    }
+
+    /**
+     * Создает HTML-письмо для заказа календарей
+     */
+    private function formatCalendarOrderHTML($orderInfo, $name, $phone, $email, $callTime, $clientComment = '')
+    {
+        $calendarType = $orderInfo['calendarType'] ?? 'Не указан';
+        $size = $orderInfo['size'] ?? '';
+        $printType = $orderInfo['printType'] ?? 'Не указан';
+        $quantity = $orderInfo['quantity'] ?? 0;
+        $totalPrice = $orderInfo['totalPrice'] ?? '0';
+
+        // Преобразуем коды типов календарей в понятные названия
+        $calendarTypes = [
+            'wall' => 'Настенный',
+            'desktop' => 'Настольный',
+            'pocket' => 'Карманный'
+        ];
+        
+        if (isset($calendarTypes[$calendarType])) {
+            $calendarType = $calendarTypes[$calendarType];
+        }
+
+        $html = '<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Новый заказ календарей</title>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: linear-gradient(135deg, #2c5aa0, #6a4c93); color: white; padding: 20px; border-radius: 8px 8px 0 0; text-align: center; }
+        .content { background: #f8f9fa; padding: 20px; border: 1px solid #dee2e6; }
+        .footer { background: #6c757d; color: white; padding: 15px; border-radius: 0 0 8px 8px; text-align: center; font-size: 14px; }
+        .section { margin-bottom: 20px; }
+        .section h3 { color: #2c5aa0; margin-bottom: 10px; border-bottom: 2px solid #2c5aa0; padding-bottom: 5px; }
+        .info-table { width: 100%; border-collapse: collapse; }
+        .info-table td { padding: 8px 12px; border-bottom: 1px solid #dee2e6; }
+        .info-table td:first-child { font-weight: bold; background: #e8f0ff; width: 40%; }
+        .price { font-size: 24px; font-weight: bold; color: #2c5aa0; text-align: center; margin: 20px 0; }
+        .client-info { background: white; padding: 15px; border-radius: 6px; border-left: 4px solid #2c5aa0; }
+        .badge { background: #6a4c93; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🗓️ Новый заказ календарей</h1>
+            <p>Заказ с калькулятора печати</p>
+        </div>
+        
+        <div class="content">
+            <div class="section">
+                <h3>Информация о заказе</h3>
+                <table class="info-table">
+                    <tr><td>Продукт</td><td>Календари</td></tr>
+                    <tr><td>Тип календаря</td><td>' . htmlspecialchars($calendarType) . '</td></tr>';
+        
+        if (!empty($size)) {
+            $html .= '<tr><td>Размер</td><td>' . htmlspecialchars($size) . '</td></tr>';
+        }
+        
+        $html .= '<tr><td>Тип печати</td><td>' . htmlspecialchars($printType) . '</td></tr>
+                    <tr><td>Тираж</td><td>' . number_format($quantity, 0, ',', ' ') . ' шт.</td></tr>
+                </table>
+            </div>
+            
+            <div class="price">
+                Итоговая стоимость: ' . htmlspecialchars($totalPrice) . ' ₽
+            </div>
+            
+            <div class="section">
+                <h3>Информация о клиенте</h3>
+                <div class="client-info">
+                    <p><strong>Имя:</strong> ' . htmlspecialchars($name) . '</p>
+                    <p><strong>Телефон:</strong> ' . htmlspecialchars($phone) . '</p>';
+                    
+        if (!empty($email)) {
+            $html .= '<p><strong>E-mail:</strong> ' . htmlspecialchars($email) . '</p>';
+        }
+        
+        if (!empty($callTime)) {
+            $html .= '<p><strong>Удобное время для звонка:</strong> ' . htmlspecialchars($callTime) . '</p>';
+        }
+        
+        if (!empty($clientComment)) {
+            $html .= '<p><strong>Комментарий:</strong> ' . nl2br(htmlspecialchars($clientComment)) . '</p>';
+        }
+        
+        $html .= '</div>
+            </div>
+            
+            <div class="section">
+                <h3>Дополнительная информация</h3>
+                <p><span class="badge">КАЛЕНДАРИ</span> Сборка включена в стоимость</p>';
+        
+        if ($calendarType === 'Настольный') {
+            $html .= '<p><span class="badge">БИГОВКА</span> Для настольных календарей включена биговка</p>';
+        }
+        
+        if ($calendarType === 'Карманный') {
+            $html .= '<p><span class="badge">УГЛЫ</span> Возможно скругление углов</p>';
+        }
+        
+        $html .= '<p><strong>Дата заказа:</strong> ' . date('d.m.Y H:i:s') . '</p>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>Заказ получен через калькулятор календарей</p>
+            <p>Тел: +7 (846) 206-00-68</p>
+        </div>
+    </div>
+</body>
+</html>';
+        
+        return $html;
+    }
+
+    /**
+     * Создает HTML-письмо для заказа баннеров
+     */
+    private function formatBannerOrderHTML($orderInfo, $name, $phone, $email, $callTime, $clientComment = '')
+    {
+        $html = '<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Новый заказ баннеров</title>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: linear-gradient(135deg, #dc3545, #fd7e14); color: white; padding: 20px; border-radius: 8px 8px 0 0; text-align: center; }
+        .content { background: #f8f9fa; padding: 20px; border: 1px solid #dee2e6; }
+        .footer { background: #6c757d; color: white; padding: 15px; border-radius: 0 0 8px 8px; text-align: center; font-size: 14px; }
+        .section { margin-bottom: 20px; }
+        .section h3 { color: #dc3545; margin-bottom: 10px; border-bottom: 2px solid #dc3545; padding-bottom: 5px; }
+        .info-table { width: 100%; border-collapse: collapse; }
+        .info-table td { padding: 8px 12px; border-bottom: 1px solid #dee2e6; }
+        .info-table td:first-child { font-weight: bold; background: #ffeaea; width: 40%; }
+        .price { font-size: 24px; font-weight: bold; color: #dc3545; text-align: center; margin: 20px 0; }
+        .client-info { background: white; padding: 15px; border-radius: 6px; border-left: 4px solid #dc3545; }
+        .badge { background: #dc3545; color: white; padding: 3px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; }
+        .services-list { background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px; padding: 10px; margin: 10px 0; }
+        .services-list ul { margin: 0; padding-left: 20px; }
+        .services-list li { margin: 5px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎯 Новый заказ баннеров</h1>
+            <p>Заказ с калькулятора печати баннеров</p>
+        </div>
+        
+        <div class="content">
+            <div class="section">
+                <h3>Информация о заказе</h3>
+                <table class="info-table">
+                    <tr><td>Продукт</td><td>' . htmlspecialchars($orderInfo['product'] ?? 'Баннер') . '</td></tr>';
+        
+        // Размеры баннера
+        if (!empty($orderInfo['width']) && !empty($orderInfo['length'])) {
+            $width = $orderInfo['width'];
+            $length = $orderInfo['length'];
+            $area = round($width * $length, 2);
+            
+            $html .= '<tr><td>Размеры</td><td>' . $width . ' × ' . $length . ' м</td></tr>';
+            $html .= '<tr><td>Площадь</td><td>' . $area . ' м²</td></tr>';
+        }
+        
+        // Тип баннера
+        if (!empty($orderInfo['bannerType'])) {
+            $html .= '<tr><td>Тип материала</td><td>' . htmlspecialchars($orderInfo['bannerType']) . '</td></tr>';
+        }
+        
+        // Дополнительные услуги
+        $additionalServices = [];
+        
+        if (!empty($orderInfo['hemming']) && $orderInfo['hemming'] === true) {
+            $additionalServices[] = 'Проклейка краев';
+        }
+        
+        if (!empty($orderInfo['grommets']) && $orderInfo['grommets'] === true) {
+            $grommetStep = !empty($orderInfo['grommetStep']) ? $orderInfo['grommetStep'] : '50';
+            $additionalServices[] = 'Люверсы (шаг ' . htmlspecialchars($grommetStep) . ' см)';
+        }
+        
+        if (!empty($additionalServices)) {
+            $html .= '<tr><td>Дополнительные услуги</td><td>';
+            $html .= '<div class="services-list">';
+            $html .= '<ul>';
+            foreach ($additionalServices as $service) {
+                $html .= '<li>' . htmlspecialchars($service) . '</li>';
+            }
+            $html .= '</ul>';
+            $html .= '</div>';
+            $html .= '</td></tr>';
+        }
+        
+        $html .= '</table>
+                <div class="price">Итого: ' . number_format($orderInfo['totalPrice'] ?? 0, 2, ',', ' ') . ' руб.</div>
+            </div>
+            
+            <div class="section">
+                <h3>Информация о клиенте</h3>
+                <div class="client-info">
+                    <p><strong>Имя:</strong> ' . htmlspecialchars($name) . '</p>
+                    <p><strong>Телефон:</strong> <a href="tel:' . htmlspecialchars($phone) . '">' . htmlspecialchars($phone) . '</a></p>';
+        
+        if (!empty($email)) {
+            $html .= '<p><strong>E-mail:</strong> <a href="mailto:' . htmlspecialchars($email) . '">' . htmlspecialchars($email) . '</a></p>';
+        }
+        
+        if (!empty($callTime)) {
+            $callTimeFormatted = $callTime;
+            if (strpos($callTime, '.') === false && strtotime($callTime)) {
+                $callTimeFormatted = date('d.m.Y H:i', strtotime($callTime));
+            }
+            $html .= '<p><strong>Удобное время для звонка:</strong> ' . htmlspecialchars($callTimeFormatted) . '</p>';
+        }
+        
+        if (!empty($clientComment)) {
+            $html .= '<p><strong>Комментарий:</strong> ' . nl2br(htmlspecialchars($clientComment)) . '</p>';
+        }
+        
+        $html .= '<p><strong>Дата заказа:</strong> ' . date('d.m.Y H:i:s') . '</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>Тел: +7 (846) 206-00-68</p>
+            <p>Email: info@mir-pechati.su</p>
+            <p>Время получения: ' . date('d.m.Y H:i:s') . '</p>
+        </div>
+    </div>
+</body>
+</html>';
+        
+        return $html;
     }
 }
 ?>

@@ -891,3 +891,78 @@ select.form-control::-ms-expand {
 select.form-control::-ms-expand {
     display: none !important;
 }
+
+/* ==============================================
+   СТИЛИ ДЛЯ ВАЛИДАЦИИ ФОРМ
+   ============================================== */
+
+/* Поля с ошибками */
+.form-group.error .form-control {
+    border-color: #dc3545 !important;
+    box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.1) !important;
+}
+
+/* Сообщения об ошибках */
+.error-message {
+    display: block;
+    margin-top: 5px;
+    font-size: 12px;
+    color: #dc3545;
+    font-weight: 500;
+    animation: slideInError 0.3s ease-out;
+}
+
+/* Анимация появления ошибки */
+@keyframes slideInError {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Анимация исчезновения ошибки */
+@keyframes fadeOut {
+    from {
+        opacity: 1;
+        transform: translateY(0);
+    }
+    to {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+}
+
+/* Стили для полей времени и даты с ограничениями */
+input[type="date"]:invalid,
+input[type="time"]:invalid {
+    border-color: #dc3545;
+}
+
+/* Подсветка обязательных полей */
+.required {
+    color: #dc3545;
+}
+
+/* Дополнительные стили для полей с валидацией */
+.form-control:invalid:not(:focus):not(:placeholder-shown) {
+    border-color: #dc3545;
+}
+
+.form-control:valid:not(:focus):not(:placeholder-shown) {
+    border-color: #28a745;
+}
+
+/* Анимация встряхивания для полей с ошибками */
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-5px); }
+    75% { transform: translateX(5px); }
+}
+
+.form-group.error .form-control {
+    animation: shake 0.5s ease-in-out;
+}

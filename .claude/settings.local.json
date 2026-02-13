@@ -1,7 +1,12 @@
 {
   "permissions": {
     "allow": [
-      "Bash(php -l:*)"
+      "Bash(php -l:*)",
+      "Bash(ls -la \"c:\\\\Users\\\\matve\\\\dev\\\\asss\\\\print.calc\\\\templates\\\\booklet\"\" 2>nul || echo \"Directory not found \")",
+      "Bash(dir:*)",
+      "Bash(for f in c:Usersmatvedevasssprint.calcconfig*.php)",
+      "Bash(do wc -l \"$f\")",
+      "Bash(wc:*)"
     ]
   }
 }

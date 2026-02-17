@@ -43,85 +43,73 @@ $validationRules = $arResult['validation_rules'] ?? [];
     <form id="<?= $calcType ?>CalcForm" class="calc-form">
 
         <!-- Размеры баннера -->
-        <div class="form-section">
-            <h3 class="section-title">Размеры баннера</h3>
+        <div class="form-group">
+            <label class="form-label" for="length">Длина (м):</label>
+            <input name="length"
+                   id="length"
+                   type="number"
+                   class="form-control"
+                   min="<?= $validationRules['min_length'] ?? 0.1 ?>"
+                   max="<?= $validationRules['max_length'] ?? 50 ?>"
+                   step="0.01"
+                   value="1.0"
+                   placeholder="Введите длину в метрах"
+                   required>
+            <small class="text-muted">Минимум: <?= $validationRules['min_length'] ?? 0.1 ?> м, максимум: <?= $validationRules['max_length'] ?? 50 ?> м</small>
+        </div>
 
-            <div class="form-group">
-                <label class="form-label" for="length">Длина (м):</label>
-                <input name="length"
-                       id="length"
-                       type="number"
-                       class="form-control"
-                       min="<?= $validationRules['min_length'] ?? 0.1 ?>"
-                       max="<?= $validationRules['max_length'] ?? 50 ?>"
-                       step="0.01"
-                       value="1.0"
-                       placeholder="Введите длину в метрах"
-                       required>
-                <small class="text-muted">Минимум: <?= $validationRules['min_length'] ?? 0.1 ?> м, максимум: <?= $validationRules['max_length'] ?? 50 ?> м</small>
-            </div>
-
-            <div class="form-group">
-                <label class="form-label" for="width">Ширина (м):</label>
-                <input name="width"
-                       id="width"
-                       type="number"
-                       class="form-control"
-                       min="<?= $validationRules['min_width'] ?? 0.1 ?>"
-                       max="<?= $validationRules['max_width'] ?? 50 ?>"
-                       step="0.01"
-                       value="1.0"
-                       placeholder="Введите ширину в метрах"
-                       required>
-                <small class="text-muted">Минимум: <?= $validationRules['min_width'] ?? 0.1 ?> м, максимум: <?= $validationRules['max_width'] ?? 50 ?> м</small>
-            </div>
+        <div class="form-group">
+            <label class="form-label" for="width">Ширина (м):</label>
+            <input name="width"
+                   id="width"
+                   type="number"
+                   class="form-control"
+                   min="<?= $validationRules['min_width'] ?? 0.1 ?>"
+                   max="<?= $validationRules['max_width'] ?? 50 ?>"
+                   step="0.01"
+                   value="1.0"
+                   placeholder="Введите ширину в метрах"
+                   required>
+            <small class="text-muted">Минимум: <?= $validationRules['min_width'] ?? 0.1 ?> м, максимум: <?= $validationRules['max_width'] ?? 50 ?> м</small>
         </div>
 
         <!-- Тип баннера -->
-        <div class="form-section">
-            <h3 class="section-title">Тип материала</h3>
-
-            <div class="form-group">
-                <label class="form-label" for="bannerType">Тип баннера:</label>
-                <select name="bannerType" id="bannerType" class="form-control" required>
-                    <?php if (!empty($bannerTypes)): ?>
-                        <?php foreach ($bannerTypes as $name => $price): ?>
-                            <option value="<?= htmlspecialchars($name) ?>"><?= htmlspecialchars($name) ?> (<?= $price ?> руб/м²)</option>
-                        <?php endforeach; ?>
-                    <?php endif; ?>
-                </select>
-                <small class="text-muted">Выберите тип баннерной ткани</small>
-            </div>
+        <div class="form-group">
+            <label class="form-label" for="bannerType">Тип баннера:</label>
+            <select name="bannerType" id="bannerType" class="form-control" required>
+                <?php if (!empty($bannerTypes)): ?>
+                    <?php foreach ($bannerTypes as $name => $price): ?>
+                        <option value="<?= htmlspecialchars($name) ?>"><?= htmlspecialchars($name) ?> (<?= $price ?> руб/м²)</option>
+                    <?php endforeach; ?>
+                <?php endif; ?>
+            </select>
+            <small class="text-muted">Выберите тип баннерной ткани</small>
         </div>
 
         <!-- Дополнительные услуги -->
-        <div class="form-section">
-            <h3 class="section-title">Дополнительные услуги</h3>
+        <div class="form-group">
+            <label class="form-label">Дополнительные услуги:</label>
+            <div class="checkbox-group">
+                <label class="checkbox-label">
+                    <input type="checkbox" name="hemming" id="hemmingCheckbox"> Проклейка (90 руб/м периметра)
+                </label>
+                <label class="checkbox-label">
+                    <input type="checkbox" name="grommets" id="grommetsCheckbox"> Люверсы (30 руб/шт)
+                </label>
+            </div>
 
-            <div class="form-group">
-                <label class="form-label">Дополнительные услуги:</label>
-                <div class="checkbox-group">
-                    <label class="checkbox-label">
-                        <input type="checkbox" name="hemming" id="hemmingCheckbox"> Проклейка (90 руб/м периметра)
-                    </label>
-                    <label class="checkbox-label">
-                        <input type="checkbox" name="grommets" id="grommetsCheckbox"> Люверсы (30 руб/шт)
-                    </label>
-                </div>
-
-                <div id="grommetStepField" class="grommet-step-field" style="display: none;">
-                    <label class="form-label" for="grommetStep">Шаг люверсов (м):</label>
-                    <input name="grommetStep"
-                           id="grommetStep"
-                           type="number"
-                           class="form-control"
-                           min="<?= $validationRules['min_grommet_step'] ?? 0.1 ?>"
-                           max="<?= $validationRules['max_grommet_step'] ?? 10 ?>"
-                           step="0.01"
-                           value="0.5"
-                           placeholder="Расстояние между люверсами">
-                    <small class="text-muted">Чем меньше шаг, тем больше люверсов потребуется</small>
-                </div>
+            <div id="grommetStepField" style="display: none; margin-top: 15px;">
+                <label class="form-label" for="grommetStep">Шаг люверсов (м):</label>
+                <input name="grommetStep"
+                       id="grommetStep"
+                       type="number"
+                       class="form-control"
+                       min="<?= $validationRules['min_grommet_step'] ?? 0.1 ?>"
+                       max="<?= $validationRules['max_grommet_step'] ?? 10 ?>"
+                       step="0.01"
+                       value="0.5"
+                       placeholder="Расстояние между люверсами">
+                <small class="text-muted">Чем меньше шаг, тем больше люверсов потребуется</small>
             </div>
         </div>
 
@@ -138,76 +126,6 @@ $validationRules = $arResult['validation_rules'] ?? [];
 
     <?php include dirname(__DIR__) . '/_shared/order-modal.php'; ?>
 </div>
-
-<style>
-.form-section {
-    background: #ffffff;
-    border: 1px solid #dee2e6;
-    border-radius: 8px;
-    padding: 20px;
-    margin-bottom: 20px;
-}
-
-.section-title {
-    margin: 0 0 15px 0;
-    color: #495057;
-    font-size: 18px;
-    font-weight: 600;
-    padding-bottom: 8px;
-    border-bottom: none;
-}
-
-.grommet-step-field {
-    margin-top: 15px;
-    padding: 15px;
-    background: #ffffff;
-    border: 1px solid #e9ecef;
-    border-radius: 6px;
-}
-
-.banner-dimensions {
-    background: #ffffff;
-    border: 1px solid #dee2e6;
-    border-radius: 6px;
-    padding: 10px;
-    margin: 10px 0;
-    color: #495057;
-    font-size: 14px;
-}
-
-.detail-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 8px 0;
-    border-bottom: 1px solid #f0f0f0;
-}
-
-.detail-item:last-child {
-    border-bottom: none;
-}
-
-.detail-label {
-    font-weight: 500;
-    color: #495057;
-}
-
-.detail-value {
-    font-weight: 600;
-    color: #2e7d32;
-}
-
-@media (max-width: 768px) {
-    .form-section {
-        padding: 15px;
-        margin-bottom: 15px;
-    }
-
-    .section-title {
-        font-size: 16px;
-    }
-}
-</style>
 
 <script>
 // Конфигурация калькулятора

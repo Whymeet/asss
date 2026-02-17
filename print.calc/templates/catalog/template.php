@@ -38,153 +38,138 @@ $features = $arResult['FEATURES'] ?? [];
 
     <form id="<?= $calcType ?>CalcForm" class="calc-form">
 
-        <!-- Обложка -->
-        <div class="form-section">
-            <h3 class="section-title">Обложка</h3>
-
-            <!-- Плотность бумаги обложки -->
-            <div class="form-group">
-                <label class="form-label" for="coverPaper">Плотность бумаги обложки:</label>
-                <select name="coverPaper" id="coverPaper" class="form-control" required>
-                    <?php if (!empty($arResult['cover_paper_types'])): ?>
-                        <?php foreach ($arResult['cover_paper_types'] as $value => $name): ?>
-                            <option value="<?= $value ?>"><?= htmlspecialchars($name) ?></option>
-                        <?php endforeach; ?>
-                    <?php else: ?>
-                        <option value="130">130 г/м²</option>
-                        <option value="170">170 г/м²</option>
-                        <option value="300">300 г/м²</option>
-                    <?php endif; ?>
-                </select>
-            </div>
-
-            <!-- Печать обложки -->
-            <div class="form-group">
-                <label class="form-label" for="coverPrintType">Печать обложки:</label>
-                <select name="coverPrintType" id="coverPrintType" class="form-control" required>
-                    <?php if (!empty($arResult['cover_print_types'])): ?>
-                        <?php foreach ($arResult['cover_print_types'] as $key => $name): ?>
-                            <option value="<?= htmlspecialchars($key) ?>"><?= htmlspecialchars($name) ?></option>
-                        <?php endforeach; ?>
-                    <?php else: ?>
-                        <option value="4+0">4+0 (полноцвет с одной стороны)</option>
-                        <option value="4+4">4+4 (полноцвет с двух сторон)</option>
-                    <?php endif; ?>
-                </select>
-            </div>
+        <!-- Плотность бумаги обложки -->
+        <div class="form-group">
+            <label class="form-label" for="coverPaper">Плотность бумаги обложки:</label>
+            <select name="coverPaper" id="coverPaper" class="form-control" required>
+                <?php if (!empty($arResult['cover_paper_types'])): ?>
+                    <?php foreach ($arResult['cover_paper_types'] as $value => $name): ?>
+                        <option value="<?= $value ?>"><?= htmlspecialchars($name) ?></option>
+                    <?php endforeach; ?>
+                <?php else: ?>
+                    <option value="130">130 г/м²</option>
+                    <option value="170">170 г/м²</option>
+                    <option value="300">300 г/м²</option>
+                <?php endif; ?>
+            </select>
         </div>
 
-        <!-- Внутренние листы -->
-        <div class="form-section">
-            <h3 class="section-title">Внутренние листы</h3>
-
-            <!-- Плотность бумаги внутренних листов -->
-            <div class="form-group">
-                <label class="form-label" for="innerPaper">Плотность бумаги внутренних листов:</label>
-                <select name="innerPaper" id="innerPaper" class="form-control" required>
-                    <?php if (!empty($arResult['inner_paper_types'])): ?>
-                        <?php foreach ($arResult['inner_paper_types'] as $value => $name): ?>
-                            <option value="<?= $value ?>"><?= htmlspecialchars($name) ?></option>
-                        <?php endforeach; ?>
-                    <?php else: ?>
-                        <option value="130">130 г/м²</option>
-                        <option value="170">170 г/м²</option>
-                    <?php endif; ?>
-                </select>
-            </div>
-
-            <!-- Печать внутренних листов -->
-            <div class="form-group">
-                <label class="form-label" for="innerPrintType">Печать внутренних листов:</label>
-                <select name="innerPrintType" id="innerPrintType" class="form-control" required>
-                    <?php if (!empty($arResult['inner_print_types'])): ?>
-                        <?php foreach ($arResult['inner_print_types'] as $key => $name): ?>
-                            <option value="<?= htmlspecialchars($key) ?>"><?= htmlspecialchars($name) ?></option>
-                        <?php endforeach; ?>
-                    <?php else: ?>
-                        <option value="4+4">4+4 (полноцвет с двух сторон)</option>
-                    <?php endif; ?>
-                </select>
-            </div>
+        <!-- Печать обложки -->
+        <div class="form-group">
+            <label class="form-label" for="coverPrintType">Печать обложки:</label>
+            <select name="coverPrintType" id="coverPrintType" class="form-control" required>
+                <?php if (!empty($arResult['cover_print_types'])): ?>
+                    <?php foreach ($arResult['cover_print_types'] as $key => $name): ?>
+                        <option value="<?= htmlspecialchars($key) ?>"><?= htmlspecialchars($name) ?></option>
+                    <?php endforeach; ?>
+                <?php else: ?>
+                    <option value="4+0">4+0 (полноцвет с одной стороны)</option>
+                    <option value="4+4">4+4 (полноцвет с двух сторон)</option>
+                <?php endif; ?>
+            </select>
         </div>
 
-        <!-- Параметры каталога -->
-        <div class="form-section">
-            <h3 class="section-title">Параметры каталога</h3>
+        <!-- Плотность бумаги внутренних листов -->
+        <div class="form-group">
+            <label class="form-label" for="innerPaper">Плотность бумаги внутренних листов:</label>
+            <select name="innerPaper" id="innerPaper" class="form-control" required>
+                <?php if (!empty($arResult['inner_paper_types'])): ?>
+                    <?php foreach ($arResult['inner_paper_types'] as $value => $name): ?>
+                        <option value="<?= $value ?>"><?= htmlspecialchars($name) ?></option>
+                    <?php endforeach; ?>
+                <?php else: ?>
+                    <option value="130">130 г/м²</option>
+                    <option value="170">170 г/м²</option>
+                <?php endif; ?>
+            </select>
+        </div>
 
-            <!-- Формат -->
-            <div class="form-group">
-                <label class="form-label" for="size">Формат:</label>
-                <select name="size" id="size" class="form-control" required>
-                    <?php if (!empty($arResult['available_sizes'])): ?>
-                        <?php foreach ($arResult['available_sizes'] as $s): ?>
-                            <option value="<?= htmlspecialchars($s) ?>"><?= htmlspecialchars($s) ?></option>
-                        <?php endforeach; ?>
-                    <?php else: ?>
-                        <option value="A4">A4</option>
-                        <option value="A5">A5</option>
-                        <option value="A6">A6</option>
-                    <?php endif; ?>
-                </select>
-            </div>
+        <!-- Печать внутренних листов -->
+        <div class="form-group">
+            <label class="form-label" for="innerPrintType">Печать внутренних листов:</label>
+            <select name="innerPrintType" id="innerPrintType" class="form-control" required>
+                <?php if (!empty($arResult['inner_print_types'])): ?>
+                    <?php foreach ($arResult['inner_print_types'] as $key => $name): ?>
+                        <option value="<?= htmlspecialchars($key) ?>"><?= htmlspecialchars($name) ?></option>
+                    <?php endforeach; ?>
+                <?php else: ?>
+                    <option value="4+4">4+4 (полноцвет с двух сторон)</option>
+                <?php endif; ?>
+            </select>
+        </div>
 
-            <!-- Количество страниц -->
-            <div class="form-group">
-                <label class="form-label" for="pages">Количество страниц:</label>
-                <select name="pages" id="pages" class="form-control" required>
-                    <?php if (!empty($arResult['available_pages'])): ?>
-                        <?php foreach ($arResult['available_pages'] as $p): ?>
-                            <option value="<?= $p ?>"><?= $p ?> стр.</option>
-                        <?php endforeach; ?>
-                    <?php else: ?>
-                        <option value="8">8 стр.</option>
-                        <option value="12">12 стр.</option>
-                        <option value="16">16 стр.</option>
-                        <option value="20">20 стр.</option>
-                        <option value="24">24 стр.</option>
-                        <option value="28">28 стр.</option>
-                        <option value="32">32 стр.</option>
-                        <option value="36">36 стр.</option>
-                        <option value="40">40 стр.</option>
-                        <option value="44">44 стр.</option>
-                        <option value="48">48 стр.</option>
-                        <option value="52">52 стр.</option>
-                        <option value="56">56 стр.</option>
-                        <option value="60">60 стр.</option>
-                        <option value="64">64 стр.</option>
-                    <?php endif; ?>
-                </select>
-            </div>
+        <!-- Формат -->
+        <div class="form-group">
+            <label class="form-label" for="size">Формат:</label>
+            <select name="size" id="size" class="form-control" required>
+                <?php if (!empty($arResult['available_sizes'])): ?>
+                    <?php foreach ($arResult['available_sizes'] as $s): ?>
+                        <option value="<?= htmlspecialchars($s) ?>"><?= htmlspecialchars($s) ?></option>
+                    <?php endforeach; ?>
+                <?php else: ?>
+                    <option value="A4">A4</option>
+                    <option value="A5">A5</option>
+                    <option value="A6">A6</option>
+                <?php endif; ?>
+            </select>
+        </div>
 
-            <!-- Тираж -->
-            <div class="form-group">
-                <label class="form-label" for="quantity">Тираж:</label>
-                <input name="quantity"
-                       id="quantity"
-                       type="number"
-                       class="form-control"
-                       min="<?= $arResult['MIN_QUANTITY'] ?? 1 ?>"
-                       max="<?= $arResult['MAX_QUANTITY'] ?? '' ?>"
-                       value="<?= $arResult['DEFAULT_QUANTITY'] ?? 100 ?>"
-                       placeholder="Введите количество"
-                       required>
-            </div>
+        <!-- Количество страниц -->
+        <div class="form-group">
+            <label class="form-label" for="pages">Количество страниц:</label>
+            <select name="pages" id="pages" class="form-control" required>
+                <?php if (!empty($arResult['available_pages'])): ?>
+                    <?php foreach ($arResult['available_pages'] as $p): ?>
+                        <option value="<?= $p ?>"><?= $p ?> стр.</option>
+                    <?php endforeach; ?>
+                <?php else: ?>
+                    <option value="8">8 стр.</option>
+                    <option value="12">12 стр.</option>
+                    <option value="16">16 стр.</option>
+                    <option value="20">20 стр.</option>
+                    <option value="24">24 стр.</option>
+                    <option value="28">28 стр.</option>
+                    <option value="32">32 стр.</option>
+                    <option value="36">36 стр.</option>
+                    <option value="40">40 стр.</option>
+                    <option value="44">44 стр.</option>
+                    <option value="48">48 стр.</option>
+                    <option value="52">52 стр.</option>
+                    <option value="56">56 стр.</option>
+                    <option value="60">60 стр.</option>
+                    <option value="64">64 стр.</option>
+                <?php endif; ?>
+            </select>
+        </div>
 
-            <!-- Тип сборки -->
-            <div class="form-group">
-                <label class="form-label" for="bindingType">Тип сборки:</label>
-                <select name="bindingType" id="bindingType" class="form-control" required>
-                    <?php if (!empty($arResult['binding_types'])): ?>
-                        <?php foreach ($arResult['binding_types'] as $key => $name): ?>
-                            <option value="<?= htmlspecialchars($key) ?>"><?= htmlspecialchars($name) ?></option>
-                        <?php endforeach; ?>
-                    <?php else: ?>
-                        <option value="spiral">Пружина</option>
-                        <option value="staple">Скоба</option>
-                    <?php endif; ?>
-                </select>
-                <small class="text-muted"><?= $arResult['binding_info'] ?? 'Выберите тип сборки каталога' ?></small>
-            </div>
+        <!-- Тираж -->
+        <div class="form-group">
+            <label class="form-label" for="quantity">Тираж:</label>
+            <input name="quantity"
+                   id="quantity"
+                   type="number"
+                   class="form-control"
+                   min="<?= $arResult['MIN_QUANTITY'] ?? 1 ?>"
+                   max="<?= $arResult['MAX_QUANTITY'] ?? '' ?>"
+                   value="<?= $arResult['DEFAULT_QUANTITY'] ?? 100 ?>"
+                   placeholder="Введите количество"
+                   required>
+        </div>
+
+        <!-- Тип сборки -->
+        <div class="form-group">
+            <label class="form-label" for="bindingType">Тип сборки:</label>
+            <select name="bindingType" id="bindingType" class="form-control" required>
+                <?php if (!empty($arResult['binding_types'])): ?>
+                    <?php foreach ($arResult['binding_types'] as $key => $name): ?>
+                        <option value="<?= htmlspecialchars($key) ?>"><?= htmlspecialchars($name) ?></option>
+                    <?php endforeach; ?>
+                <?php else: ?>
+                    <option value="spiral">Пружина</option>
+                    <option value="staple">Скоба</option>
+                <?php endif; ?>
+            </select>
+            <small class="text-muted"><?= $arResult['binding_info'] ?? 'Выберите тип сборки каталога' ?></small>
         </div>
 
         <input type="hidden" name="calcType" value="<?= $calcType ?>">

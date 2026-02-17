@@ -205,39 +205,6 @@ $pocketTypes = $arResult['pocket_types'] ?? [];
     display: block;
 }
 
-.remove-lamination-btn {
-    background: #dc3545;
-    color: white;
-    border: none;
-    padding: 8px 16px;
-    border-radius: 4px;
-    font-size: 14px;
-    cursor: pointer;
-    margin-left: 10px;
-    transition: all 0.3s;
-}
-.remove-lamination-btn:hover {
-    background: #c82333;
-    transform: translateY(-1px);
-}
-.lamination-info-container {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    gap: 10px;
-}
-@media (max-width: 768px) {
-    .lamination-info-container {
-        flex-direction: column;
-        align-items: stretch;
-    }
-    .remove-lamination-btn {
-        margin-left: 0;
-        width: 100%;
-    }
-}
-
 @media (max-width: 768px) {
     .pockets-grid {
         grid-template-columns: 1fr;

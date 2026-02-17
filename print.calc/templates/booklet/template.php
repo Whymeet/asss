@@ -242,131 +242,47 @@ function displayBookletResult(result, resultDiv) {
 
 // Показ секции ламинации
 function showLaminationSection(result) {
-    var laminationSection = document.getElementById('laminationSection');
-    var controlsDiv = document.getElementById('laminationControls');
-
-    if (!laminationSection || !controlsDiv || !calcConfig.features.lamination) {
-        return;
-    }
-
-    var printingType = currentPrintingType || result.printingType;
-
-    var html = '<div class="lamination-content">';
-    html += '<p class="lamination-title">Добавить ламинацию к заказу:</p>';
-
-    if (printingType === 'Офсетная') {
-        html += '<div class="lamination-options">';
-        html += '<div class="radio-group">';
-        html += '<label class="radio-label"><input type="radio" name="laminationType" value="1+0"> Односторонняя (7 руб/лист)</label>';
-        html += '<label class="radio-label"><input type="radio" name="laminationType" value="1+1"> Двусторонняя (14 руб/лист)</label>';
-        html += '</div>';
-        html += '</div>';
-    } else {
-        html += '<div class="lamination-options">';
-        html += '<div class="form-group">';
-        html += '<label class="form-label">Толщина ламинации:';
-        html += '<select name="laminationThickness" class="form-control">';
-        html += '<option value="32">32 мкм</option>';
-        html += '<option value="75">75 мкм</option>';
-        html += '<option value="125">125 мкм</option>';
-        html += '<option value="250">250 мкм</option>';
-        html += '</select></label>';
-        html += '</div>';
-        html += '<div class="radio-group">';
-        html += '<label class="radio-label"><input type="radio" name="laminationType" value="1+0"> Односторонняя</label>';
-        html += '<label class="radio-label"><input type="radio" name="laminationType" value="1+1"> Двусторонняя</label>';
-        html += '</div>';
-        html += '</div>';
-    }
-
-    html += '<div class="lamination-button-container">';
-    html += '<button type="button" id="laminationBtn" class="calc-button calc-button-success">Пересчитать с ламинацией</button>';
-    html += '</div>';
-    html += '</div>';
-
-    controlsDiv.innerHTML = html;
-    laminationSection.style.display = 'block';
-
-    // Обработчик кнопки ламинации
-    var laminationBtn = document.getElementById('laminationBtn');
-    if (laminationBtn) {
-        laminationBtn.addEventListener('click', function() {
+    showStandardLaminationSection({
+        enabled: !!calcConfig.features.lamination,
+        result: result,
+        printingType: currentPrintingType || result.printingType,
+        onCalculate: function() {
             calculateLamination(result);
-        });
-    }
-
-    // Убираем ошибку при выборе радио
-    var radioButtons = controlsDiv.querySelectorAll('input[name="laminationType"]');
-    radioButtons.forEach(function(radio) {
-        radio.addEventListener('change', function() {
-            var laminationResult = document.getElementById('laminationResult');
-            if (laminationResult && laminationResult.innerHTML.indexOf('Выберите тип ламинации') !== -1) {
-                laminationResult.innerHTML = '';
-            }
-        });
+        }
     });
 }
 
 // Расчёт с ламинацией
 function calculateLamination(originalResult) {
-    var laminationType = document.querySelector('input[name="laminationType"]:checked');
-    var laminationThickness = document.querySelector('select[name="laminationThickness"]');
     var resultDiv = document.getElementById('calcResult');
-    var laminationResult = document.getElementById('laminationResult');
+    var form = document.getElementById(calcConfig.type + 'CalcForm');
+    var baseResult = originalResultWithoutLamination || originalResult;
+    var quantityInput = form ? form.querySelector('input[name="quantity"]') : null;
+    var quantity = quantityInput ? parseInt(quantityInput.value, 10) : 0;
 
-    if (!laminationType) {
-        laminationResult.innerHTML = '<div class="result-error">Выберите тип ламинации</div>';
+    var newResult = applyStandardLamination({
+        scope: form || document,
+        baseResult: baseResult,
+        printingType: currentPrintingType || baseResult.printingType,
+        quantity: quantity,
+        laminationResult: document.getElementById('laminationResult')
+    });
+
+    if (!newResult) {
         return;
     }
 
-    var form = document.getElementById(calcConfig.type + 'CalcForm');
-    var quantity = parseInt(form.querySelector('input[name="quantity"]').value);
-
-    var baseResult = originalResultWithoutLamination || originalResult;
-    var printingType = currentPrintingType || baseResult.printingType;
-
-    var laminationCost = 0;
-    var laminationDescription = '';
-
-    if (printingType === 'Офсетная') {
-        if (laminationType.value === '1+0') {
-            laminationCost = quantity * 7;
-            laminationDescription = 'Односторонняя (7 руб/лист)';
-        } else {
-            laminationCost = quantity * 14;
-            laminationDescription = 'Двусторонняя (14 руб/лист)';
-        }
-    } else {
-        var thickness = laminationThickness ? laminationThickness.value : '32';
-        var rates = {
-            '32': { '1+0': 40, '1+1': 80 },
-            '75': { '1+0': 60, '1+1': 120 },
-            '125': { '1+0': 80, '1+1': 160 },
-            '250': { '1+0': 90, '1+1': 180 }
-        };
-
-        laminationCost = quantity * rates[thickness][laminationType.value];
-        var laminationName = laminationType.value === '1+0' ? 'Односторонняя' : 'Двусторонняя';
-        laminationDescription = laminationName + ' ' + thickness + ' мкм (' + rates[thickness][laminationType.value] + ' руб/лист)';
-    }
-
-    var newResult = JSON.parse(JSON.stringify(baseResult));
-    newResult.totalPrice = baseResult.totalPrice + laminationCost;
-    newResult.laminationCost = laminationCost;
-    newResult.laminationDescription = laminationDescription;
-
     displayBookletResult(newResult, resultDiv);
-    laminationResult.innerHTML = '';
 }
 
 // Удаление ламинации
 function removeLamination() {
     var resultDiv = document.getElementById('calcResult');
+    var form = document.getElementById(calcConfig.type + 'CalcForm');
 
     if (originalResultWithoutLamination) {
         displayBookletResult(originalResultWithoutLamination, resultDiv);
-        var laminationRadios = document.querySelectorAll('input[name="laminationType"]');
-        laminationRadios.forEach(function(radio) { radio.checked = false; });
+        resetStandardLaminationSelection(form || document, 'laminationResult');
     }
 }
 

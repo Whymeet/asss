@@ -20,10 +20,8 @@ CJSCore::Init(['ajax', 'window']);
 
 $calcType = $arResult['CALC_TYPE'];
 $features = $arResult['FEATURES'] ?? [];
-$printTypes = $arResult['print_types'] ?? [];
 $digitalRange = $arResult['digital_range'] ?? [];
 $offsetRange = $arResult['offset_range'] ?? [];
-$sideTypes = $arResult['side_types'] ?? [];
 ?>
 
 <div class="calc-container">
@@ -115,6 +113,7 @@ $sideTypes = $arResult['side_types'] ?? [];
 // Конфигурация калькулятора
 var calcConfig = {
     type: '<?= $calcType ?>',
+    features: <?= json_encode($features) ?>,
     component: 'my:print.calc'
 };
 
@@ -166,40 +165,26 @@ function updateFormDisplay(printTypeSelect, digitalGroup, offsetGroup, digitalQu
     }
 }
 
-// Вспомогательная функция для форматирования чисел
-function number_format(number, decimals, dec_point, thousands_sep) {
-    number = (number + '').replace(/[^0-9+\-Ee.]/g, '');
-    var n = !isFinite(+number) ? 0 : +number,
-        prec = !isFinite(+decimals) ? 0 : Math.abs(decimals),
-        sep = (typeof thousands_sep === 'undefined') ? ',' : thousands_sep,
-        dec = (typeof dec_point === 'undefined') ? '.' : dec_point,
-        s = '',
-        toFixedFix = function(n, prec) {
-            var k = Math.pow(10, prec);
-            return '' + Math.round(n * k) / k;
-        };
-    s = (prec ? toFixedFix(n, prec) : '' + Math.round(n)).split('.');
-    if (s[0].length > 3) {
-        s[0] = s[0].replace(/\B(?=(?:\d{3})+(?!\d))/g, sep);
-    }
-    if ((s[1] || '').length < prec) {
-        s[1] = s[1] || '';
-        s[1] += new Array(prec - s[1].length + 1).join('0');
-    }
-    return s.join(dec);
+// Форматирование тиража
+function formatQuantity(quantity) {
+    return (parseInt(quantity, 10) || 0).toLocaleString('ru-RU');
 }
 
 // Отображение результата визиток
 function displayVizitResult(result, resultDiv) {
-    var totalPrice = Math.round((result.totalPrice || 0) * 10) / 10;
+    var totalPrice = formatPrice(result.totalPrice);
 
     var html = '<div class="result-success">';
     html += '<h3 class="result-title">Результат расчета визиток</h3>';
     html += '<div class="result-price">' + totalPrice + ' <small>₽</small></div>';
 
+    if (result.printingType) {
+        html += '<p><strong>Тип печати:</strong> ' + result.printingType + '</p>';
+    }
+
     // Количество
     if (result.quantity) {
-        html += '<p><strong>Количество:</strong> ' + number_format(result.quantity, 0, '', ' ') + ' шт</p>';
+        html += '<p><strong>Количество:</strong> ' + formatQuantity(result.quantity) + ' шт</p>';
     }
 
     // Добавляем кнопку заказа

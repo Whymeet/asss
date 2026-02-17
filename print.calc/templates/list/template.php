@@ -221,7 +221,7 @@ window.displayResult = function(data, resultDiv) {
         currentPrintingType = data.printingType;
     }
 
-    displayResult(data, resultDiv);
+    displayListResult(data, resultDiv);
 
     // Показываем секцию ламинации если доступна
     if (calcConfig.features.lamination && (data.laminationAvailable || data.printingType)) {
@@ -239,7 +239,7 @@ document.addEventListener('DOMContentLoaded', function() {
 // === УНИКАЛЬНАЯ ЛОГИКА ЛИСТОВОК ===
 
 // Отображение результата
-function displayResult(result, resultDiv) {
+function displayListResult(result, resultDiv) {
     // Округляем все цены до десятых
     var totalPrice = Math.round((result.totalPrice || 0) * 10) / 10;
     var hasLamination = result.laminationCost && result.laminationCost > 0;
@@ -384,7 +384,7 @@ function calculateLamination(originalResult) {
     newResult.laminationCost = laminationCost;
     newResult.laminationDescription = laminationDescription;
 
-    displayResult(newResult, resultDiv);
+    displayListResult(newResult, resultDiv);
 }
 
 // Функция удаления ламинации
@@ -392,7 +392,7 @@ function removeLamination() {
     var resultDiv = document.getElementById('calcResult');
 
     if (originalResultWithoutLamination) {
-        displayResult(originalResultWithoutLamination, resultDiv);
+        displayListResult(originalResultWithoutLamination, resultDiv);
         // Сбрасываем выбор ламинации
         var laminationRadios = document.querySelectorAll('input[name="laminationType"]');
         laminationRadios.forEach(function(radio) { radio.checked = false; });

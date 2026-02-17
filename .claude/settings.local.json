@@ -6,7 +6,13 @@
       "Bash(dir:*)",
       "Bash(for f in c:Usersmatvedevasssprint.calcconfig*.php)",
       "Bash(do wc -l \"$f\")",
-      "Bash(wc:*)"
+      "Bash(wc:*)",
+      "Bash(ls -la \"print.calc\\\\templates\\\\avtoviz\"\" | grep -E \".php)",
+      "Bash(.js \")",
+      "Bash(for:*)",
+      "Bash(do grep -c \"<style\" \"$file\")",
+      "Bash(echo:*)",
+      "Bash(done)"
     ]
   }
 }

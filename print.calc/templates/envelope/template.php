@@ -117,21 +117,6 @@ $features = $arResult['FEATURES'] ?? [];
     padding-top: 15px;
     border-top: 2px solid #4caf50;
 }
-
-@media (max-width: 768px) {
-    .pricing-preview {
-        padding: 15px;
-        margin: 15px 0;
-    }
-
-    .pricing-preview h4 {
-        font-size: 14px;
-    }
-
-    .price-ranges-list li {
-        font-size: 13px;
-    }
-}
 </style>
 
 <script>
@@ -158,17 +143,20 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Отображение результата конвертов
 function displayEnvelopeResult(result, resultDiv) {
-    var totalPrice = Math.round((result.totalPrice || 0) * 10) / 10;
-    var pricePerUnit = Math.round((result.pricePerUnit || 0) * 10) / 10;
+    var totalPrice = formatPrice(result.totalPrice);
+    var pricePerUnit = formatPrice(result.pricePerUnit);
+    var formatName = result.formatName || result.format || 'Не указан';
+    var quantity = parseInt(result.quantity, 10) || 0;
+    var priceRange = result.priceRange || '';
 
     var html = '<div class="result-success">';
     html += '<h3 class="result-title">Результат расчета конвертов</h3>';
-    html += '<div class="result-price">' + totalPrice.toLocaleString() + ' <small>₽</small></div>';
+    html += '<div class="result-price">' + totalPrice + ' <small>₽</small></div>';
 
     // Информация о формате
-    if (result.format) {
+    if (formatName) {
         html += '<div class="format-info">';
-        html += '<strong>Формат конверта:</strong> ' + result.format;
+        html += '<strong>Формат конверта:</strong> ' + formatName;
         html += '</div>';
     }
 
@@ -178,12 +166,12 @@ function displayEnvelopeResult(result, resultDiv) {
 
     html += '<div class="envelope-item">';
     html += '<span>Формат:</span>';
-    html += '<span>' + (result.format || 'Не указан') + '</span>';
+    html += '<span>' + formatName + '</span>';
     html += '</div>';
 
     html += '<div class="envelope-item">';
     html += '<span>Тираж:</span>';
-    html += '<span>' + (result.quantity || 0).toLocaleString() + ' шт</span>';
+    html += '<span>' + quantity.toLocaleString('ru-RU') + ' шт</span>';
     html += '</div>';
 
     html += '<div class="envelope-item">';
@@ -193,7 +181,7 @@ function displayEnvelopeResult(result, resultDiv) {
 
     html += '<div class="envelope-item">';
     html += '<span>Итого:</span>';
-    html += '<span>' + totalPrice.toLocaleString() + ' ₽</span>';
+    html += '<span>' + totalPrice + ' ₽</span>';
     html += '</div>';
 
     html += '</div>';
@@ -201,6 +189,11 @@ function displayEnvelopeResult(result, resultDiv) {
     html += '<details class="result-details">';
     html += '<summary class="result-summary">Информация о ценообразовании</summary>';
     html += '<div class="result-details-content">';
+
+    if (priceRange) {
+        html += '<p><strong>Текущий ценовой диапазон:</strong> ' + priceRange + '</p>';
+    }
+
     html += '<p>Цена за конверт зависит от выбранного формата и объема заказа. ';
     html += 'Чем больше тираж, тем ниже цена за единицу.</p>';
     html += '<ul>';
@@ -229,6 +222,8 @@ function openOrderModal() {
     // Собираем данные расчета
     var form = document.getElementById(calcConfig.type + 'CalcForm');
     var formData = collectFormData(form);
+    var formatSelect = form.querySelector('select[name="format"]');
+    var selectedFormatName = formatSelect ? formatSelect.options[formatSelect.selectedIndex].text : (formData.format || 'Не указан');
 
     // Получаем результат расчета
     var resultDiv = document.getElementById('calcResult');
@@ -238,10 +233,11 @@ function openOrderModal() {
     // Формируем данные заказа для конвертов
     var orderData = {
         product: 'Конверты',
-        format: formData.format || 'Не указан',
-        quantity: formData.quantity || 0,
-        totalPrice: totalPrice,
-        calcType: 'envelope'
+        format: selectedFormatName,
+        formatCode: formData.format || '',
+        quantity: parseInt(formData.quantity, 10) || 0,
+        totalPrice: parseFloat(String(totalPrice).replace(',', '.')) || 0,
+        calcType: calcConfig.type
     };
 
     orderDataInput.value = JSON.stringify(orderData);

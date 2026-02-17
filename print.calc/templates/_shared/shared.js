@@ -613,3 +613,224 @@ function validateOrderForm() {
 function formatPrice(price) {
     return Math.round((price || 0) * 10) / 10;
 }
+
+// === ОБЩИЙ МОДУЛЬ ЛАМИНАЦИИ ===
+
+var standardLaminationRates = {
+    offset: {
+        '1+0': 7,
+        '1+1': 14
+    },
+    digital: {
+        '32': { '1+0': 40, '1+1': 80 },
+        '75': { '1+0': 60, '1+1': 120 },
+        '125': { '1+0': 80, '1+1': 160 },
+        '250': { '1+0': 90, '1+1': 180 }
+    }
+};
+
+function buildStandardLaminationControlsHtml(printingType, options) {
+    options = options || {};
+
+    var titleText = options.titleText || 'Добавить ламинацию к заказу:';
+    var buttonText = options.buttonText || 'Пересчитать с ламинацией';
+    var thicknessLabelText = options.thicknessLabelText || 'Толщина ламинации:';
+
+    var html = '<div class="lamination-content">';
+    html += '<p class="lamination-title">' + titleText + '</p>';
+
+    if (printingType === 'Офсетная') {
+        html += '<div class="lamination-options">';
+        html += '<div class="radio-group">';
+        html += '<label class="radio-label"><input type="radio" name="laminationType" value="1+0"> Односторонняя (7 руб/лист)</label>';
+        html += '<label class="radio-label"><input type="radio" name="laminationType" value="1+1"> Двусторонняя (14 руб/лист)</label>';
+        html += '</div>';
+        html += '</div>';
+    } else {
+        html += '<div class="lamination-options">';
+        html += '<div class="form-group">';
+        html += '<label class="form-label">' + thicknessLabelText;
+        html += '<select name="laminationThickness" class="form-control">';
+        html += '<option value="32">32 мкм</option>';
+        html += '<option value="75">75 мкм</option>';
+        html += '<option value="125">125 мкм</option>';
+        html += '<option value="250">250 мкм</option>';
+        html += '</select></label>';
+        html += '</div>';
+        html += '<div class="radio-group">';
+        html += '<label class="radio-label"><input type="radio" name="laminationType" value="1+0"> Односторонняя</label>';
+        html += '<label class="radio-label"><input type="radio" name="laminationType" value="1+1"> Двусторонняя</label>';
+        html += '</div>';
+        html += '</div>';
+    }
+
+    html += '<div class="lamination-button-container">';
+    html += '<button type="button" id="laminationBtn" class="calc-button calc-button-success">' + buttonText + '</button>';
+    html += '</div>';
+    html += '</div>';
+
+    return html;
+}
+
+function showStandardLaminationSection(options) {
+    options = options || {};
+
+    var sectionId = options.sectionId || 'laminationSection';
+    var controlsId = options.controlsId || 'laminationControls';
+    var resultId = options.resultId || 'laminationResult';
+    var missingTypeMessage = options.missingTypeMessage || 'Выберите тип ламинации';
+
+    var laminationSection = document.getElementById(sectionId);
+    var controlsDiv = document.getElementById(controlsId);
+
+    if (!laminationSection || !controlsDiv || options.enabled === false) {
+        return false;
+    }
+
+    var printingType = options.printingType || 'Цифровая';
+    controlsDiv.innerHTML = buildStandardLaminationControlsHtml(printingType, options);
+    laminationSection.style.display = 'block';
+
+    var laminationBtn = controlsDiv.querySelector('#laminationBtn');
+    if (laminationBtn && typeof options.onCalculate === 'function') {
+        laminationBtn.addEventListener('click', function() {
+            options.onCalculate(options.result);
+        });
+    }
+
+    var radioButtons = controlsDiv.querySelectorAll('input[name="laminationType"]');
+    radioButtons.forEach(function(radio) {
+        radio.addEventListener('change', function() {
+            var laminationResult = document.getElementById(resultId);
+            if (laminationResult && laminationResult.innerHTML.indexOf(missingTypeMessage) !== -1) {
+                laminationResult.innerHTML = '';
+            }
+        });
+    });
+
+    return true;
+}
+
+function getSelectedLaminationValues(scope) {
+    scope = scope || document;
+
+    var laminationTypeInput = scope.querySelector('input[name="laminationType"]:checked');
+    var laminationThicknessInput = scope.querySelector('select[name="laminationThickness"]');
+
+    return {
+        type: laminationTypeInput ? laminationTypeInput.value : '',
+        thickness: laminationThicknessInput ? laminationThicknessInput.value : '32'
+    };
+}
+
+function calculateStandardLaminationCost(quantity, printingType, laminationType, laminationThickness) {
+    var parsedQuantity = parseInt(quantity, 10);
+    if (!parsedQuantity || parsedQuantity <= 0 || !laminationType) {
+        return null;
+    }
+
+    var cost = 0;
+    var description = '';
+
+    if (printingType === 'Офсетная') {
+        var offsetRate = standardLaminationRates.offset[laminationType];
+        if (!offsetRate) return null;
+
+        cost = parsedQuantity * offsetRate;
+        description = laminationType === '1+0'
+            ? 'Односторонняя (7 руб/лист)'
+            : 'Двусторонняя (14 руб/лист)';
+    } else {
+        var thickness = laminationThickness || '32';
+        var thicknessRates = standardLaminationRates.digital[thickness] || standardLaminationRates.digital['32'];
+        var digitalRate = thicknessRates[laminationType];
+        if (!digitalRate) return null;
+
+        cost = parsedQuantity * digitalRate;
+        var laminationName = laminationType === '1+0' ? 'Односторонняя' : 'Двусторонняя';
+        description = laminationName + ' ' + thickness + ' мкм (' + digitalRate + ' руб/лист)';
+    }
+
+    return {
+        cost: cost,
+        description: description
+    };
+}
+
+function applyStandardLamination(options) {
+    options = options || {};
+
+    var scope = options.scope || document;
+    var laminationResult = options.laminationResult || document.getElementById(options.resultId || 'laminationResult');
+    var missingTypeMessage = options.missingTypeMessage || 'Выберите тип ламинации';
+    var invalidDataMessage = options.invalidDataMessage || 'Некорректные данные для ламинации';
+
+    var selected = getSelectedLaminationValues(scope);
+    if (!selected.type) {
+        if (laminationResult) {
+            laminationResult.innerHTML = '<div class="result-error">' + missingTypeMessage + '</div>';
+        }
+        return null;
+    }
+
+    var quantity = options.quantity;
+    if (typeof options.getQuantity === 'function') {
+        quantity = options.getQuantity();
+    }
+
+    var laminationData = calculateStandardLaminationCost(
+        quantity,
+        options.printingType || '',
+        selected.type,
+        selected.thickness
+    );
+
+    if (!laminationData) {
+        if (laminationResult) {
+            laminationResult.innerHTML = '<div class="result-error">' + invalidDataMessage + '</div>';
+        }
+        return null;
+    }
+
+    var baseResult = options.baseResult || {};
+    var newResult = JSON.parse(JSON.stringify(baseResult));
+
+    var baseTotalPrice = parseFloat(baseResult.totalPrice);
+    if (!isNaN(baseTotalPrice)) {
+        newResult.totalPrice = baseTotalPrice + laminationData.cost;
+    }
+
+    var baseTotal = parseFloat(baseResult.total);
+    if (!isNaN(baseTotal) && (isNaN(baseTotalPrice) || typeof baseResult.total !== 'undefined')) {
+        newResult.total = baseTotal + laminationData.cost;
+    }
+
+    newResult.laminationCost = laminationData.cost;
+    newResult.laminationDescription = laminationData.description;
+    newResult.laminationType = selected.type;
+    newResult.laminationThickness = selected.thickness || '';
+
+    if (laminationResult) {
+        laminationResult.innerHTML = '';
+    }
+
+    if (typeof options.onApplied === 'function') {
+        options.onApplied(newResult, laminationData);
+    }
+
+    return newResult;
+}
+
+function resetStandardLaminationSelection(scope, resultId) {
+    scope = scope || document;
+
+    var laminationRadios = scope.querySelectorAll('input[name="laminationType"]');
+    laminationRadios.forEach(function(radio) {
+        radio.checked = false;
+    });
+
+    var laminationResult = document.getElementById(resultId || 'laminationResult');
+    if (laminationResult) {
+        laminationResult.innerHTML = '';
+    }
+}

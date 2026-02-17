@@ -118,23 +118,6 @@ $stickerTypes = $arResult['sticker_types'] ?? [];
     <?php include dirname(__DIR__) . '/_shared/order-modal.php'; ?>
 </div>
 
-<style>
-/* Специфичные стили для наклеек */
-.dimension-input {
-    position: relative;
-}
-
-.dimension-input::after {
-    content: 'м';
-    position: absolute;
-    right: 12px;
-    top: 50%;
-    transform: translateY(-50%);
-    color: #6c757d;
-    pointer-events: none;
-}
-</style>
-
 <script>
 // Конфигурация калькулятора
 var calcConfig = {
@@ -157,29 +140,53 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // === УНИКАЛЬНАЯ ЛОГИКА НАКЛЕЕК ===
 
+var stickerTypeNames = {
+    'simple_print': 'Просто печать СМУК',
+    'print_cut': 'Печать + контурная резка',
+    'print_white': 'Печать смук + белый',
+    'print_white_cut': 'Печать смук + белый + контурная резка',
+    'print_white_varnish': 'Печать смук + белый + лак',
+    'print_white_varnish_cut': 'Печать смук + белый + лак + контурная резка',
+    'print_varnish': 'Печать смук+лак',
+    'print_varnish_cut': 'Печать смук+лак+резка'
+};
+
+function formatDimension(value) {
+    return (parseFloat(value) || 0).toLocaleString('ru-RU', {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 3
+    });
+}
+
+function formatArea(value) {
+    return (parseFloat(value) || 0).toLocaleString('ru-RU', {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 4
+    });
+}
+
 // Отображение результата наклеек
 function displayStickerResult(result, resultDiv) {
-    var totalPrice = Math.round((result.totalPrice || 0) * 10) / 10;
+    var totalPrice = formatPrice(result.totalPrice);
+    var stickerTypeName = stickerTypeNames[result.stickerType] || result.stickerType || 'Не указан';
 
     var html = '<div class="result-success">';
     html += '<h3 class="result-title">Результат расчета наклеек</h3>';
     html += '<div class="result-price">' + totalPrice + ' <small>₽</small></div>';
 
-    // Информация о типе наклейки
-    if (result.stickerType) {
-        var stickerTypeNames = {
-            'simple_print': 'Просто печать СМУК',
-            'print_cut': 'Печать + контурная резка',
-            'print_white': 'Печать смук + белый',
-            'print_white_cut': 'Печать смук + белый + контурная резка',
-            'print_white_varnish': 'Печать смук + белый + лак',
-            'print_white_varnish_cut': 'Печать смук + белый + лак + контурная резка',
-            'print_varnish': 'Печать смук+лак',
-            'print_varnish_cut': 'Печать смук+лак+резка'
-        };
-
-        var typeName = stickerTypeNames[result.stickerType] || result.stickerType;
-    }
+    html += '<details class="result-details">';
+    html += '<summary class="result-summary">Подробности расчета</summary>';
+    html += '<div class="result-details-content">';
+    html += '<ul>';
+    html += '<li>Тип наклейки: <strong>' + stickerTypeName + '</strong></li>';
+    html += '<li>Размер: <strong>' + formatDimension(result.length) + ' × ' + formatDimension(result.width) + ' м</strong></li>';
+    html += '<li>Тираж: <strong>' + ((parseInt(result.quantity, 10) || 0).toLocaleString('ru-RU')) + ' шт</strong></li>';
+    html += '<li>Площадь одной: <strong>' + formatArea(result.areaPerSticker) + ' м²</strong></li>';
+    html += '<li>Общая площадь: <strong>' + formatArea(result.totalArea) + ' м²</strong></li>';
+    html += '<li>Цена за м²: <strong>' + formatPrice(result.pricePerM2) + ' ₽</strong></li>';
+    html += '</ul>';
+    html += '</div>';
+    html += '</details>';
 
     // Добавляем кнопку заказа
     html += '<button type="button" class="order-button" onclick="openOrderModal()">Заказать печать</button>';
@@ -210,8 +217,9 @@ function openOrderModal() {
         width: formData.width || 'Не указана',
         quantity: formData.quantity || 0,
         stickerType: formData.stickerType || 'simple_print',
-        totalPrice: totalPrice,
-        calcType: 'sticker'
+        stickerTypeName: stickerTypeNames[formData.stickerType] || formData.stickerType || 'Не указан',
+        totalPrice: parseFloat(String(totalPrice).replace(',', '.')) || 0,
+        calcType: calcConfig.type
     };
 
     orderDataInput.value = JSON.stringify(orderData);

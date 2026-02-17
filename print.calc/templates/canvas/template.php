@@ -39,57 +39,48 @@ $features = $arResult['FEATURES'] ?? [];
     <form id="<?= $calcType ?>CalcForm" class="calc-form">
 
         <!-- Размеры холста -->
-        <div class="form-section">
-            <h3 class="section-title">Размеры холста</h3>
-
-            <div class="form-group">
-                <label class="form-label" for="width">Ширина (см):</label>
-                <input name="width"
-                       id="width"
-                       type="number"
-                       class="form-control"
-                       min="1"
-                       step="1"
-                       value="30"
-                       placeholder="Например: 30"
-                       required>
-                <small class="text-muted">Размеры указываются в сантиметрах</small>
-            </div>
-
-            <div class="form-group">
-                <label class="form-label" for="height">Высота (см):</label>
-                <input name="height"
-                       id="height"
-                       type="number"
-                       class="form-control"
-                       min="1"
-                       step="1"
-                       value="30"
-                       placeholder="Например: 40"
-                       required>
-                <small class="text-muted">Размеры указываются в сантиметрах</small>
-            </div>
+        <div class="form-group">
+            <label class="form-label" for="width">Ширина (см):</label>
+            <input name="width"
+                   id="width"
+                   type="number"
+                   class="form-control"
+                   min="1"
+                   step="1"
+                   value="30"
+                   placeholder="Например: 30"
+                   required>
+            <small class="text-muted">Размеры указываются в сантиметрах</small>
         </div>
 
-        <!-- Опции -->
-        <div class="form-section">
-            <h3 class="section-title">Дополнительные опции</h3>
+        <div class="form-group">
+            <label class="form-label" for="height">Высота (см):</label>
+            <input name="height"
+                   id="height"
+                   type="number"
+                   class="form-control"
+                   min="1"
+                   step="1"
+                   value="30"
+                   placeholder="Например: 40"
+                   required>
+            <small class="text-muted">Размеры указываются в сантиметрах</small>
+        </div>
 
-            <div class="form-group">
-                <div class="checkbox-group">
-                    <label class="checkbox-label">
-                        <input type="checkbox" name="includePodramnik" id="includePodramnik">
-                        Включить подрамник
-                    </label>
-                </div>
-                <small class="text-muted"><?= $arResult['podramnik_info'] ?? 'Подрамник можно добавить к любому размеру холста' ?></small>
+        <!-- Подрамник -->
+        <div class="form-group">
+            <div class="checkbox-group">
+                <label class="checkbox-label">
+                    <input type="checkbox" name="includePodramnik" id="includePodramnik">
+                    Включить подрамник
+                </label>
             </div>
+            <small class="text-muted"><?= $arResult['podramnik_info'] ?? 'Подрамник можно добавить к любому размеру холста' ?></small>
         </div>
 
         <!-- Предварительная информация -->
         <div class="form-group">
             <div id="sizePreview" class="size-preview">
-                <strong>Предварительный расчет:</strong><br>
                 <span id="previewText">Размер: 30×30 см (стандартный)</span><br>
                 <span id="areaText" style="display: none;">Площадь: 0.09 м²</span>
             </div>
@@ -107,79 +98,6 @@ $features = $arResult['FEATURES'] ?? [];
 
     <?php include dirname(__DIR__) . '/_shared/order-modal.php'; ?>
 </div>
-
-<style>
-.form-section {
-    background: #f8f9fa;
-    border: 1px solid #dee2e6;
-    border-radius: 8px;
-    padding: 20px;
-    margin-bottom: 20px;
-}
-
-.section-title {
-    margin: 0 0 15px 0;
-    color: #495057;
-    font-size: 18px;
-    font-weight: 600;
-    padding-bottom: 8px;
-    border-bottom: 2px solid #007bff;
-}
-
-.size-preview {
-    background: #f8f9fa;
-    border: 1px solid #dee2e6;
-    border-radius: 6px;
-    padding: 15px;
-    margin-top: 10px;
-    font-size: 14px;
-    color: #495057;
-}
-
-.size-preview strong {
-    color: #007bff;
-}
-
-.canvas-info {
-    background: #e3f2fd;
-    border: 1px solid #2196f3;
-    border-radius: 6px;
-    padding: 15px;
-    margin: 15px 0;
-    color: #1565c0;
-}
-
-.rounded-info {
-    background: #fff3e0;
-    border: 1px solid #ff9800;
-    border-radius: 6px;
-    padding: 10px;
-    margin: 10px 0;
-    color: #ef6c00;
-    font-size: 14px;
-}
-
-.large-size-info {
-    background: #f3e5f5;
-    border: 1px solid #9c27b0;
-    border-radius: 6px;
-    padding: 10px;
-    margin: 10px 0;
-    color: #7b1fa2;
-    font-size: 14px;
-}
-
-@media (max-width: 768px) {
-    .form-section {
-        padding: 15px;
-        margin-bottom: 15px;
-    }
-
-    .section-title {
-        font-size: 16px;
-    }
-}
-</style>
 
 <script>
 // Конфигурация калькулятора

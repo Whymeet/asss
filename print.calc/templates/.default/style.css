@@ -218,7 +218,7 @@ select.form-control {
     position: relative;
 }
 
-.calc-result:empty {
+.calc-result:not(:has(*)) {
     display: none;
 }
 

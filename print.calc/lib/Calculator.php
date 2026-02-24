@@ -280,9 +280,9 @@ function calculateCanvasPrice($width, $height, $includePodramnik) {
         // Вычисляем площадь в квадратных метрах
         $area = ($width * $height) / 10000; // Переводим см² в м²
         // Стоимость холста для больших размеров
-        $canvasPrice = $area * 2700; // 2700 руб. за м²
+        $canvasPrice = $area * $priceConfig['canvas_large_per_m2'];
         // Если подрамник включен, рассчитываем его стоимость
-        $podramnikPrice = $includePodramnik ? $area * 1900 : 0; // 1900 руб. за м²
+        $podramnikPrice = $includePodramnik ? $area * $priceConfig['podramnik_large_per_m2'] : 0;
     } else {
         // Проверяем, существует ли цена для заданных округленных размеров
         if (!isset($priceConfig['canvas_prices'][$roundedHeight][$roundedWidth])) {

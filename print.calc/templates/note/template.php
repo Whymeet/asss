@@ -289,54 +289,9 @@ function showLaminationSection(result) {
         printingType: coverPrintingType,
         titleText: 'Добавить ламинацию к обложке:',
         onCalculate: function() {
-            calculateWithLamination();
+            calculateWithLaminationServer();
         }
     });
-}
-
-// Функция расчета с ламинацией (серверный пересчет)
-function calculateWithLamination() {
-    var laminationType = document.querySelector('input[name="laminationType"]:checked');
-    var laminationThickness = document.querySelector('select[name="laminationThickness"]');
-    var resultDiv = document.getElementById('calcResult');
-    var laminationResult = document.getElementById('laminationResult');
-
-    if (!laminationType) {
-        laminationResult.innerHTML = '<div class="result-error">Выберите тип ламинации</div>';
-        return;
-    }
-
-    var form = document.getElementById(calcConfig.type + 'CalcForm');
-    var data = collectFormData(form);
-    data.calcType = calcConfig.type;
-    data.lamination_type = laminationType.value;
-    if (laminationThickness) {
-        data.lamination_thickness = laminationThickness.value;
-    }
-
-    resultDiv.innerHTML = '<div class="loading">Пересчитываем с ламинацией...</div>';
-
-    if (typeof BX !== 'undefined' && BX.ajax) {
-        BX.ajax.runComponentAction(calcConfig.component, 'calc', {
-            mode: 'class',
-            data: data
-        }).then(function(response) {
-            handleResponse(response, resultDiv);
-        }).catch(function(error) {
-            resultDiv.innerHTML = '<div class="result-error">Ошибка соединения: ' + (error.message || 'Неизвестная ошибка') + '</div>';
-        });
-    } else {
-        fetch('/bitrix/services/main/ajax.php?c=' + calcConfig.component + '&action=calc&mode=class', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: new URLSearchParams(data)
-        })
-        .then(function(response) { return response.json(); })
-        .then(function(response) { handleResponse(response, resultDiv); })
-        .catch(function(error) {
-            resultDiv.innerHTML = '<div class="result-error">Ошибка соединения: ' + error.message + '</div>';
-        });
-    }
 }
 
 // Функция удаления ламинации

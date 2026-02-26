@@ -251,32 +251,9 @@ function showLaminationSection(result) {
         result: result,
         printingType: currentPrintingType || result.printingType,
         onCalculate: function() {
-            calculateLamination(result);
+            calculateWithLaminationServer();
         }
     });
-}
-
-// Функция расчета с ламинацией
-function calculateLamination(originalResult) {
-    var resultDiv = document.getElementById('calcResult');
-    var form = document.getElementById(calcConfig.type + 'CalcForm');
-    var baseResult = originalResultWithoutLamination || originalResult;
-    var quantityInput = form ? form.querySelector('input[name="quantity"]') : null;
-    var quantity = quantityInput ? parseInt(quantityInput.value, 10) : 0;
-
-    var newResult = applyStandardLamination({
-        scope: form || document,
-        baseResult: baseResult,
-        printingType: currentPrintingType || baseResult.printingType,
-        quantity: quantity,
-        laminationResult: document.getElementById('laminationResult')
-    });
-
-    if (!newResult) {
-        return;
-    }
-
-    displayAvtovizResult(newResult, resultDiv);
 }
 
 // Функция удаления ламинации

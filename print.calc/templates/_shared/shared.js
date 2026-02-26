@@ -616,19 +616,6 @@ function formatPrice(price) {
 
 // === ОБЩИЙ МОДУЛЬ ЛАМИНАЦИИ ===
 
-var standardLaminationRates = {
-    offset: {
-        '1+0': 8,
-        '1+1': 15
-    },
-    digital: {
-        '32': { '1+0': 45, '1+1': 90 },
-        '75': { '1+0': 65, '1+1': 130 },
-        '125': { '1+0': 90, '1+1': 180 },
-        '250': { '1+0': 100, '1+1': 200 }
-    }
-};
-
 function buildStandardLaminationControlsHtml(printingType, options) {
     options = options || {};
 
@@ -642,8 +629,8 @@ function buildStandardLaminationControlsHtml(printingType, options) {
     if (printingType === 'Офсетная') {
         html += '<div class="lamination-options">';
         html += '<div class="radio-group">';
-        html += '<label class="radio-label"><input type="radio" name="laminationType" value="1+0"> Односторонняя (8 руб/лист)</label>';
-        html += '<label class="radio-label"><input type="radio" name="laminationType" value="1+1"> Двусторонняя (15 руб/лист)</label>';
+        html += '<label class="radio-label"><input type="radio" name="laminationType" value="1+0"> Односторонняя</label>';
+        html += '<label class="radio-label"><input type="radio" name="laminationType" value="1+1"> Двусторонняя</label>';
         html += '</div>';
         html += '</div>';
     } else {
@@ -711,114 +698,54 @@ function showStandardLaminationSection(options) {
     return true;
 }
 
-function getSelectedLaminationValues(scope) {
-    scope = scope || document;
+/**
+ * Серверный пересчёт с ламинацией (универсальный).
+ * Собирает данные формы + параметры ламинации и отправляет на сервер.
+ */
+function calculateWithLaminationServer() {
+    var laminationType = document.querySelector('input[name="laminationType"]:checked');
+    var laminationThickness = document.querySelector('select[name="laminationThickness"]');
+    var resultDiv = document.getElementById('calcResult');
+    var laminationResult = document.getElementById('laminationResult');
 
-    var laminationTypeInput = scope.querySelector('input[name="laminationType"]:checked');
-    var laminationThicknessInput = scope.querySelector('select[name="laminationThickness"]');
-
-    return {
-        type: laminationTypeInput ? laminationTypeInput.value : '',
-        thickness: laminationThicknessInput ? laminationThicknessInput.value : '32'
-    };
-}
-
-function calculateStandardLaminationCost(quantity, printingType, laminationType, laminationThickness) {
-    var parsedQuantity = parseInt(quantity, 10);
-    if (!parsedQuantity || parsedQuantity <= 0 || !laminationType) {
-        return null;
+    if (!laminationType) {
+        if (laminationResult) {
+            laminationResult.innerHTML = '<div class="result-error">Выберите тип ламинации</div>';
+        }
+        return;
     }
 
-    var cost = 0;
-    var description = '';
+    var form = document.getElementById(calcConfig.type + 'CalcForm');
+    var data = collectFormData(form);
+    data.calcType = calcConfig.type;
+    data.lamination_type = laminationType.value;
+    if (laminationThickness) {
+        data.lamination_thickness = laminationThickness.value;
+    }
 
-    if (printingType === 'Офсетная') {
-        var offsetRate = standardLaminationRates.offset[laminationType];
-        if (!offsetRate) return null;
+    resultDiv.innerHTML = '<div class="loading">Пересчитываем с ламинацией...</div>';
 
-        cost = parsedQuantity * offsetRate;
-        description = laminationType === '1+0'
-            ? 'Односторонняя (8 руб/лист)'
-            : 'Двусторонняя (15 руб/лист)';
+    if (typeof BX !== 'undefined' && BX.ajax) {
+        BX.ajax.runComponentAction(calcConfig.component, 'calc', {
+            mode: 'class',
+            data: data
+        }).then(function(response) {
+            handleResponse(response, resultDiv);
+        }).catch(function(error) {
+            resultDiv.innerHTML = '<div class="result-error">Ошибка соединения: ' + (error.message || 'Неизвестная ошибка') + '</div>';
+        });
     } else {
-        var thickness = laminationThickness || '32';
-        var thicknessRates = standardLaminationRates.digital[thickness] || standardLaminationRates.digital['32'];
-        var digitalRate = thicknessRates[laminationType];
-        if (!digitalRate) return null;
-
-        cost = parsedQuantity * digitalRate;
-        var laminationName = laminationType === '1+0' ? 'Односторонняя' : 'Двусторонняя';
-        description = laminationName + ' ' + thickness + ' мкм (' + digitalRate + ' руб/лист)';
+        fetch('/bitrix/services/main/ajax.php?c=' + calcConfig.component + '&action=calc&mode=class', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams(data)
+        })
+        .then(function(response) { return response.json(); })
+        .then(function(response) { handleResponse(response, resultDiv); })
+        .catch(function(error) {
+            resultDiv.innerHTML = '<div class="result-error">Ошибка соединения: ' + error.message + '</div>';
+        });
     }
-
-    return {
-        cost: cost,
-        description: description
-    };
-}
-
-function applyStandardLamination(options) {
-    options = options || {};
-
-    var scope = options.scope || document;
-    var laminationResult = options.laminationResult || document.getElementById(options.resultId || 'laminationResult');
-    var missingTypeMessage = options.missingTypeMessage || 'Выберите тип ламинации';
-    var invalidDataMessage = options.invalidDataMessage || 'Некорректные данные для ламинации';
-
-    var selected = getSelectedLaminationValues(scope);
-    if (!selected.type) {
-        if (laminationResult) {
-            laminationResult.innerHTML = '<div class="result-error">' + missingTypeMessage + '</div>';
-        }
-        return null;
-    }
-
-    var quantity = options.quantity;
-    if (typeof options.getQuantity === 'function') {
-        quantity = options.getQuantity();
-    }
-
-    var laminationData = calculateStandardLaminationCost(
-        quantity,
-        options.printingType || '',
-        selected.type,
-        selected.thickness
-    );
-
-    if (!laminationData) {
-        if (laminationResult) {
-            laminationResult.innerHTML = '<div class="result-error">' + invalidDataMessage + '</div>';
-        }
-        return null;
-    }
-
-    var baseResult = options.baseResult || {};
-    var newResult = JSON.parse(JSON.stringify(baseResult));
-
-    var baseTotalPrice = parseFloat(baseResult.totalPrice);
-    if (!isNaN(baseTotalPrice)) {
-        newResult.totalPrice = baseTotalPrice + laminationData.cost;
-    }
-
-    var baseTotal = parseFloat(baseResult.total);
-    if (!isNaN(baseTotal) && (isNaN(baseTotalPrice) || typeof baseResult.total !== 'undefined')) {
-        newResult.total = baseTotal + laminationData.cost;
-    }
-
-    newResult.laminationCost = laminationData.cost;
-    newResult.laminationDescription = laminationData.description;
-    newResult.laminationType = selected.type;
-    newResult.laminationThickness = selected.thickness || '';
-
-    if (laminationResult) {
-        laminationResult.innerHTML = '';
-    }
-
-    if (typeof options.onApplied === 'function') {
-        options.onApplied(newResult, laminationData);
-    }
-
-    return newResult;
 }
 
 function resetStandardLaminationSelection(scope, resultId) {

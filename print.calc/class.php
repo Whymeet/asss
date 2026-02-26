@@ -405,7 +405,13 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
                     
                 case 'vizit':
                     $sideType = $_POST['sideType'] ?? 'single';
-                    return $this->calculateVizit($printType, $quantity, $sideType);
+                    $vizitPrintType = $_POST['printType'] ?? 'digital';
+                    if ($vizitPrintType === 'offset') {
+                        $vizitQuantity = (int)($_POST['offsetQuantity'] ?? 0);
+                    } else {
+                        $vizitQuantity = (int)($_POST['digitalQuantity'] ?? 0);
+                    }
+                    return $this->calculateVizit($vizitPrintType, $vizitQuantity, $sideType);
                     
                 case 'canvas':
                     $width = (float)($_POST['width'] ?? 0);

@@ -618,14 +618,14 @@ function formatPrice(price) {
 
 var standardLaminationRates = {
     offset: {
-        '1+0': 7,
-        '1+1': 14
+        '1+0': 8,
+        '1+1': 15
     },
     digital: {
-        '32': { '1+0': 40, '1+1': 80 },
-        '75': { '1+0': 60, '1+1': 120 },
-        '125': { '1+0': 80, '1+1': 160 },
-        '250': { '1+0': 90, '1+1': 180 }
+        '32': { '1+0': 45, '1+1': 90 },
+        '75': { '1+0': 65, '1+1': 130 },
+        '125': { '1+0': 90, '1+1': 180 },
+        '250': { '1+0': 100, '1+1': 200 }
     }
 };
 
@@ -642,8 +642,8 @@ function buildStandardLaminationControlsHtml(printingType, options) {
     if (printingType === 'Офсетная') {
         html += '<div class="lamination-options">';
         html += '<div class="radio-group">';
-        html += '<label class="radio-label"><input type="radio" name="laminationType" value="1+0"> Односторонняя (7 руб/лист)</label>';
-        html += '<label class="radio-label"><input type="radio" name="laminationType" value="1+1"> Двусторонняя (14 руб/лист)</label>';
+        html += '<label class="radio-label"><input type="radio" name="laminationType" value="1+0"> Односторонняя (8 руб/лист)</label>';
+        html += '<label class="radio-label"><input type="radio" name="laminationType" value="1+1"> Двусторонняя (15 руб/лист)</label>';
         html += '</div>';
         html += '</div>';
     } else {
@@ -738,8 +738,8 @@ function calculateStandardLaminationCost(quantity, printingType, laminationType,
 
         cost = parsedQuantity * offsetRate;
         description = laminationType === '1+0'
-            ? 'Односторонняя (7 руб/лист)'
-            : 'Двусторонняя (14 руб/лист)';
+            ? 'Односторонняя (8 руб/лист)'
+            : 'Двусторонняя (15 руб/лист)';
     } else {
         var thickness = laminationThickness || '32';
         var thicknessRates = standardLaminationRates.digital[thickness] || standardLaminationRates.digital['32'];

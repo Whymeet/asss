@@ -12,7 +12,9 @@
       "Bash(for:*)",
       "Bash(do grep -c \"<style\" \"$file\")",
       "Bash(echo:*)",
-      "Bash(done)"
+      "Bash(done)",
+      "Bash(git add print.calc/lib/prices.php print.calc/lib/Calculator.php)",
+      "Bash(git commit:*)"
     ]
   }
 }

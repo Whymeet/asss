@@ -160,6 +160,7 @@ select.form-control {
     display: inline-block;
     text-transform: uppercase;
     letter-spacing: 0.5px;
+    margin-top: 20px;
 }
 
 .calc-button:hover {
@@ -192,7 +193,7 @@ select.form-control {
 
 /* УЛУЧШЕННЫЙ БЛОК РЕЗУЛЬТАТОВ */
 .calc-result {
-    margin-top: 30px;
+    margin-top: 20px;
     position: relative;
 }
 
@@ -248,9 +249,9 @@ select.form-control {
 
 /* Успешный результат */
 .result-success {
-    padding: 30px;
+    padding: 20px;
     background: linear-gradient(135deg, #f0f9ff 0%, #e8f5e8 100%);
-    border-radius: 12px;
+    border-radius: 10px;
     border: 1px solid #4caf50;
     position: relative;
     overflow: hidden;
@@ -292,25 +293,25 @@ select.form-control {
 
 /* Заголовок результата */
 .result-title {
-    margin: 0 0 10px 0;
+    margin: 0 0 6px 0;
     color: #2e7d32;
-    font-size: 20px;
+    font-size: 16px;
     font-weight: 600;
 }
 
 /* Цена */
 .result-price {
-    font-size: 32px;
+    font-size: 28px;
     font-weight: 700;
     color: #1b5e20;
-    margin: 15px 0;
+    margin: 8px 0;
     display: flex;
     align-items: baseline;
-    gap: 8px;
+    gap: 6px;
 }
 
 .result-price small {
-    font-size: 18px;
+    font-size: 16px;
     font-weight: 400;
     color: #388e3c;
 }
@@ -438,12 +439,18 @@ select.form-control {
 .lamination-section {
     display: none;
     margin-top: 20px;
+    margin-bottom: 20px;
     padding: 16px 20px;
     border: 1px solid #dee2e6;
     border-left: 3px solid #28a745;
     border-radius: 6px;
     background: #f8f9fa;
     animation: laminationFadeIn 0.3s ease-out;
+}
+
+/* Убираем лишний margin-top у кнопки внутри ламинации */
+.lamination-section .calc-button {
+    margin-top: 12px;
 }
 
 @keyframes laminationFadeIn {
@@ -603,20 +610,20 @@ select.form-control {
     }
     
     .result-price {
-        font-size: 28px;
+        font-size: 24px;
     }
-    
+
     .radio-group {
         flex-direction: column;
         gap: 12px;
     }
-    
+
     .calc-container h2 {
         font-size: 24px;
     }
-    
+
     .result-success {
-        padding: 20px;
+        padding: 15px;
     }
 }
 
@@ -650,6 +657,11 @@ select.form-control {
 /* Отступ между результатом и ламинацией */
 .calc-spacer {
     height: 20px;
+}
+
+/* Скрывать спейсер, если результат пуст */
+.calc-result:not(:has(*)) + .calc-spacer {
+    display: none;
 }
 
 /* Отступы в секции ламинации */
@@ -893,12 +905,12 @@ input[type="time"]:invalid {
     background: linear-gradient(45deg, #28a745, #20c997);
     color: white;
     border: none;
-    padding: 15px 30px;
+    padding: 12px 24px;
     border-radius: 8px;
-    font-size: 16px;
+    font-size: 15px;
     font-weight: 600;
     cursor: pointer;
-    margin-top: 15px;
+    margin-top: 10px;
     width: 100%;
     transition: all 0.3s;
     box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);

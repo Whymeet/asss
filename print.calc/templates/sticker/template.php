@@ -29,8 +29,6 @@ $stickerTypes = $arResult['sticker_types'] ?? [];
         <p>
             Данные, полученные при расчете на калькуляторе – являются ориентировочными в связи с регулярным изменением стоимости материалов.<br>
             Конечную стоимость заказа уточняйте у менеджера: <a href="tel:+78462060068">+7 (846) 206-00-68</a><br>
-            <strong>Наклейки:</strong> <?= $arResult['dimension_info'] ?? '' ?><br>
-            <?= $arResult['area_info'] ?? '' ?><br>
             Спасибо за понимание!
         </p>
     </div>
@@ -51,7 +49,6 @@ $stickerTypes = $arResult['sticker_types'] ?? [];
                    value="0.1"
                    placeholder="Например: 0.1 (= 10 см)"
                    required>
-            <small class="text-muted">Указывайте размеры в метрах (0.1 м = 10 см)</small>
         </div>
 
         <div class="form-group">
@@ -65,7 +62,6 @@ $stickerTypes = $arResult['sticker_types'] ?? [];
                    value="0.1"
                    placeholder="Например: 0.1 (= 10 см)"
                    required>
-            <small class="text-muted">Указывайте размеры в метрах (0.1 м = 10 см)</small>
         </div>
 
         <!-- Тираж -->
@@ -80,27 +76,15 @@ $stickerTypes = $arResult['sticker_types'] ?? [];
                    value="<?= $arResult['DEFAULT_QUANTITY'] ?? 100 ?>"
                    placeholder="Введите количество"
                    required>
-            <small class="text-muted">Цена зависит от общей площади всех наклеек</small>
         </div>
 
         <!-- Тип наклейки -->
         <div class="form-group">
             <label class="form-label" for="stickerType">Тип наклейки:</label>
             <select name="stickerType" id="stickerType" class="form-control" required>
-                <?php if (!empty($stickerTypes)): ?>
-                    <?php foreach ($stickerTypes as $key => $name): ?>
-                        <option value="<?= htmlspecialchars($key) ?>"><?= htmlspecialchars($name) ?></option>
-                    <?php endforeach; ?>
-                <?php else: ?>
-                    <option value="simple_print">Просто печать СМУК</option>
-                    <option value="print_cut">Печать + контурная резка</option>
-                    <option value="print_white">Печать смук + белый</option>
-                    <option value="print_white_cut">Печать смук + белый + контурная резка</option>
-                    <option value="print_white_varnish">Печать смук + белый + лак</option>
-                    <option value="print_white_varnish_cut">Печать смук + белый + лак + контурная резка</option>
-                    <option value="print_varnish">Печать смук+лак</option>
-                    <option value="print_varnish_cut">Печать смук+лак+резка</option>
-                <?php endif; ?>
+                <?php foreach ($stickerTypes as $key => $name): ?>
+                    <option value="<?= htmlspecialchars($key) ?>"><?= htmlspecialchars($name) ?></option>
+                <?php endforeach; ?>
             </select>
         </div>
 
@@ -110,8 +94,6 @@ $stickerTypes = $arResult['sticker_types'] ?? [];
         <button id="calcBtn" type="button" class="calc-button">Рассчитать стоимость</button>
 
         <div id="calcResult" class="calc-result"></div>
-
-        <!-- Отступ между результатом и ламинацией -->
         <div class="calc-spacer"></div>
     </form>
 
@@ -140,57 +122,16 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // === УНИКАЛЬНАЯ ЛОГИКА НАКЛЕЕК ===
 
-var stickerTypeNames = {
-    'simple_print': 'Просто печать СМУК',
-    'print_cut': 'Печать + контурная резка',
-    'print_white': 'Печать смук + белый',
-    'print_white_cut': 'Печать смук + белый + контурная резка',
-    'print_white_varnish': 'Печать смук + белый + лак',
-    'print_white_varnish_cut': 'Печать смук + белый + лак + контурная резка',
-    'print_varnish': 'Печать смук+лак',
-    'print_varnish_cut': 'Печать смук+лак+резка'
-};
-
-function formatDimension(value) {
-    return (parseFloat(value) || 0).toLocaleString('ru-RU', {
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 3
-    });
-}
-
-function formatArea(value) {
-    return (parseFloat(value) || 0).toLocaleString('ru-RU', {
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 4
-    });
-}
-
-// Отображение результата наклеек
+// Отображение результата
 function displayStickerResult(result, resultDiv) {
     var totalPrice = formatPrice(result.totalPrice);
-    var stickerTypeName = stickerTypeNames[result.stickerType] || result.stickerType || 'Не указан';
 
     var html = '<div class="result-success">';
-    html += '<h3 class="result-title">Результат расчета наклеек</h3>';
+    html += '<h3 class="result-title">Результат расчета</h3>';
     html += '<div class="result-price">' + totalPrice + ' <small>₽</small></div>';
 
-    html += '<details class="result-details">';
-    html += '<summary class="result-summary">Подробности расчета</summary>';
-    html += '<div class="result-details-content">';
-    html += '<ul>';
-    html += '<li>Тип наклейки: <strong>' + stickerTypeName + '</strong></li>';
-    html += '<li>Размер: <strong>' + formatDimension(result.length) + ' × ' + formatDimension(result.width) + ' м</strong></li>';
-    html += '<li>Тираж: <strong>' + ((parseInt(result.quantity, 10) || 0).toLocaleString('ru-RU')) + ' шт</strong></li>';
-    html += '<li>Площадь одной: <strong>' + formatArea(result.areaPerSticker) + ' м²</strong></li>';
-    html += '<li>Общая площадь: <strong>' + formatArea(result.totalArea) + ' м²</strong></li>';
-    html += '<li>Цена за м²: <strong>' + formatPrice(result.pricePerM2) + ' ₽</strong></li>';
-    html += '</ul>';
-    html += '</div>';
-    html += '</details>';
-
-    // Добавляем кнопку заказа
-    html += '<button type="button" class="order-button" onclick="openOrderModal()">Заказать печать</button>';
-
+    // Кнопка заказа
+    html += '<button type="button" class="order-button" onclick="openOrderModal()">Заказать наклейки</button>';
     html += '</div>';
 
     resultDiv.innerHTML = html;
@@ -201,25 +142,25 @@ function openOrderModal() {
     var modal = document.getElementById('orderModal');
     var orderDataInput = document.getElementById('orderData');
 
-    // Собираем данные расчета
     var form = document.getElementById(calcConfig.type + 'CalcForm');
     var formData = collectFormData(form);
 
-    // Получаем результат расчета
     var resultDiv = document.getElementById('calcResult');
     var priceElement = resultDiv.querySelector('.result-price');
     var totalPrice = priceElement ? priceElement.textContent.replace(/[^\d.,]/g, '') : '0';
 
-    // Формируем данные заказа для наклеек
+    var stickerSelect = document.getElementById('stickerType');
+    var stickerTypeName = stickerSelect ? stickerSelect.options[stickerSelect.selectedIndex].text : '';
+
+    // Данные заказа наклеек
     var orderData = {
+        calcType: 'sticker',
         product: 'Наклейки',
-        length: formData.length || 'Не указана',
-        width: formData.width || 'Не указана',
         quantity: formData.quantity || 0,
-        stickerType: formData.stickerType || 'simple_print',
-        stickerTypeName: stickerTypeNames[formData.stickerType] || formData.stickerType || 'Не указан',
-        totalPrice: parseFloat(String(totalPrice).replace(',', '.')) || 0,
-        calcType: calcConfig.type
+        length: formData.length || 0,
+        width: formData.width || 0,
+        stickerType: stickerTypeName,
+        totalPrice: totalPrice
     };
 
     orderDataInput.value = JSON.stringify(orderData);

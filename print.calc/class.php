@@ -1693,11 +1693,13 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
             return ['error' => 'Имя должно содержать минимум 2 символа'];
         }
 
-        // Валидация телефона
-        $cleanPhone = preg_replace('/[^\d+]/', '', $phone);
-        if (strlen($cleanPhone) < 10) {
-            return ['error' => 'Некорректный номер телефона'];
+        // Валидация телефона: строго + и 11 цифр (например +79128120111)
+        $digitsPhone = preg_replace('/\D/', '', $phone);
+        $normalizedPhone = '+' . $digitsPhone;
+        if (!preg_match('/^\+\d{11}$/', $normalizedPhone)) {
+            return ['error' => 'Телефон должен быть в формате +79128120111'];
         }
+        $phone = $normalizedPhone;
 
         // Валидация email (если указан)
         if (!empty($email) && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
@@ -1757,11 +1759,13 @@ class PrintCalcComponent extends CBitrixComponent implements Controllerable
             return ['error' => 'Имя должно содержать минимум 2 символа'];
         }
 
-        // Валидация телефона
-        $cleanPhone = preg_replace('/[^\d+]/', '', $clientPhone);
-        if (strlen($cleanPhone) < 10) {
-            return ['error' => 'Некорректный номер телефона'];
+        // Валидация телефона: строго + и 11 цифр (например +79128120111)
+        $digitsPhone = preg_replace('/\D/', '', $clientPhone);
+        $normalizedPhone = '+' . $digitsPhone;
+        if (!preg_match('/^\+\d{11}$/', $normalizedPhone)) {
+            return ['error' => 'Телефон должен быть в формате +79128120111'];
         }
+        $clientPhone = $normalizedPhone;
 
         // Валидация email (если указан)
         if (!empty($clientEmail) && !filter_var($clientEmail, FILTER_VALIDATE_EMAIL)) {

@@ -1,8 +1,8 @@
 <?php
-// print.calc/config/sticker.php - Конфигурация для калькулятора наклеек
+// config/sticker.php - Конфигурация для калькулятора наклеек
 return [
-    'sizes' => [], // Размеры задаются пользователем
-    'papers' => [], // Материал не выбирается отдельно
+    'sizes' => [],
+    'papers' => [],
     'description' => 'Калькулятор печати наклеек',
     'default_quantity' => 100,
     'min_quantity' => 1,
@@ -13,9 +13,7 @@ return [
         'drill' => false,
         'numbering' => false,
         'corner_radius' => false,
-        'lamination' => false,
-        'custom_dimensions' => true, // Особенность наклеек
-        'sticker_types' => true // Специальная особенность наклеек
+        'lamination' => false
     ],
     'additional' => [
         'sticker_types' => [
@@ -69,8 +67,6 @@ return [
                 [5, 10, 1100],
                 [10, PHP_INT_MAX, 1050]
             ]
-        ],
-        'dimension_info' => 'Размеры указываются в метрах (например: 0.1 м = 10 см)',
-        'area_info' => 'Цена зависит от общей площади всех наклеек'
+        ]
     ]
 ];

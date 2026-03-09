@@ -28,8 +28,6 @@ $features = $arResult['FEATURES'] ?? [];
         <p>
             Данные, полученные при расчете на калькуляторе – являются ориентировочными в связи с регулярным изменением стоимости материалов.<br>
             Конечную стоимость заказа уточняйте у менеджера: <a href="tel:+78462060068">+7 (846) 206-00-68</a><br>
-            <strong>Автовизитки:</strong> <?= $arResult['format_info'] ?? '' ?><br>
-            <?= $arResult['paper_info'] ?? '' ?><br>
             Спасибо за понимание!
         </p>
     </div>
@@ -50,14 +48,17 @@ $features = $arResult['FEATURES'] ?? [];
         </div>
         <?php endif; ?>
 
-        <!-- Фиксированный формат Евро (скрытый) -->
+        <?php if (!empty($arResult['FORMATS'])): ?>
+        <!-- Формат -->
         <div class="form-group">
             <label class="form-label" for="size">Формат:</label>
             <select name="size" id="size" class="form-control" required>
-                <option value="Евро" selected>Евро (99×210 мм)</option>
+                <?php foreach ($arResult['FORMATS'] as $format): ?>
+                    <option value="<?= htmlspecialchars($format['ID']) ?>"><?= htmlspecialchars($format['NAME']) ?></option>
+                <?php endforeach; ?>
             </select>
-            <small class="text-muted">Фиксированный формат для автовизиток</small>
         </div>
+        <?php endif; ?>
 
         <!-- Тираж -->
         <div class="form-group">
@@ -66,9 +67,9 @@ $features = $arResult['FEATURES'] ?? [];
                    id="quantity"
                    type="number"
                    class="form-control"
-                   min="<?= $arResult['min_quantity'] ?? 1 ?>"
-                   max="<?= $arResult['max_quantity'] ?? 50000 ?>"
-                   value="<?= $arResult['default_quantity'] ?? 500 ?>"
+                   min="<?= $arResult['MIN_QUANTITY'] ?? 1 ?>"
+                   max="<?= $arResult['MAX_QUANTITY'] ?? '' ?>"
+                   value="<?= $arResult['DEFAULT_QUANTITY'] ?? 500 ?>"
                    placeholder="Введите количество"
                    required>
         </div>
@@ -141,15 +142,6 @@ $features = $arResult['FEATURES'] ?? [];
         <input type="hidden" name="calcType" value="<?= $calcType ?>">
         <input type="hidden" name="sessid" value="<?= bitrix_sessid() ?>">
 
-        <?php if (!empty($features['lamination'])): ?>
-        <!-- Секция ламинации -->
-        <div id="laminationSection" class="lamination-section" style="display: none; margin-top: 20px; margin-bottom: 20px;">
-            <h3>Дополнительная ламинация</h3>
-            <div id="laminationControls"></div>
-            <div id="laminationResult" class="lamination-result"></div>
-        </div>
-        <?php endif; ?>
-
         <button id="calcBtn" type="button" class="calc-button">Рассчитать стоимость</button>
 
         <div id="calcResult" class="calc-result"></div>
@@ -159,7 +151,6 @@ $features = $arResult['FEATURES'] ?? [];
     <?php include dirname(__DIR__) . '/_shared/order-modal.php'; ?>
 </div>
 
-
 <script>
 // Конфигурация калькулятора
 var calcConfig = {
@@ -168,103 +159,33 @@ var calcConfig = {
     component: 'my:print.calc'
 };
 
-// Сохраняем исходный результат без ламинации
-var originalResultWithoutLamination = null;
-var currentPrintingType = null;
-
 // Hook для отображения результата (вызывается из shared.js)
 window.displayResult = function(data, resultDiv) {
-    // Сохраняем исходный результат без ламинации
-    if (!data.laminationCost) {
-        originalResultWithoutLamination = JSON.parse(JSON.stringify(data));
-        currentPrintingType = data.printingType;
-    }
-
     displayAvtovizResult(data, resultDiv);
-
-    // Показываем секцию ламинации если доступна
-    if (calcConfig.features.lamination && (data.laminationAvailable || data.printingType)) {
-        showLaminationSection(data);
-    }
 };
 
 // Инициализация
 document.addEventListener('DOMContentLoaded', function() {
-    initCalculator('Выполняется расчет...');
+    initCalculator('Выполняется расчет автовизиток...');
     initOrderModal();
     initializeDateTimeValidation();
 });
 
 // === УНИКАЛЬНАЯ ЛОГИКА АВТОВИЗИТОК ===
 
-// Отображение результата автовизиток
+// Отображение результата
 function displayAvtovizResult(result, resultDiv) {
-    // Округляем все цены до десятых
-    var totalPrice = Math.round((result.totalPrice || 0) * 10) / 10;
-    var hasLamination = result.laminationCost && result.laminationCost > 0;
+    var totalPrice = formatPrice(result.totalPrice);
 
     var html = '<div class="result-success">';
     html += '<h3 class="result-title">Результат расчета</h3>';
     html += '<div class="result-price">' + totalPrice + ' <small>₽</small></div>';
 
-    // Стандартное отображение для автовизиток
-    if (result.printingType) {
-        html += '<p><strong>Тип печати:</strong> ' + result.printingType + '</p>';
-    }
-
-    // Информация о ламинации с кнопкой удаления
-    if (hasLamination) {
-        html += '<div class="lamination-info-container">';
-        html += '<p class="lamination-info" style="margin: 0;"><strong>Ламинация включена:</strong> ' + Math.round(result.laminationCost * 10) / 10 + ' ₽</p>';
-        html += '<button type="button" class="remove-lamination-btn" onclick="removeLamination()">Убрать ламинацию</button>';
-        html += '</div>';
-    }
-
-    html += '<details class="result-details">';
-    html += '<summary class="result-summary">Подробности расчета</summary>';
-    html += '<div class="result-details-content">';
-    html += '<ul>';
-
-    if (result.baseA3Sheets) html += '<li>Листов A3: ' + result.baseA3Sheets + '</li>';
-    if (result.printingCost) html += '<li>Стоимость печати: ' + Math.round(result.printingCost * 10) / 10 + ' ₽</li>';
-    if (result.paperCost) html += '<li>Стоимость бумаги: ' + Math.round(result.paperCost * 10) / 10 + ' ₽</li>';
-    if (result.plateCost && result.plateCost > 0) html += '<li>Стоимость пластин: ' + Math.round(result.plateCost * 10) / 10 + ' ₽</li>';
-    if (result.additionalCosts && result.additionalCosts > 0) html += '<li>Дополнительные услуги: ' + Math.round(result.additionalCosts * 10) / 10 + ' ₽</li>';
-    if (hasLamination) html += '<li class="lamination-info">Ламинация: ' + Math.round(result.laminationCost * 10) / 10 + ' ₽</li>';
-
-    html += '</ul>';
-    html += '</div>';
-    html += '</details>';
-
-    // Добавляем кнопку заказа
+    // Кнопка заказа
     html += '<button type="button" class="order-button" onclick="openOrderModal()">Заказать автовизитки</button>';
-
     html += '</div>';
 
     resultDiv.innerHTML = html;
-}
-
-// Функция показа секции ламинации
-function showLaminationSection(result) {
-    showStandardLaminationSection({
-        enabled: !!calcConfig.features.lamination,
-        result: result,
-        printingType: currentPrintingType || result.printingType,
-        onCalculate: function() {
-            calculateWithLaminationServer();
-        }
-    });
-}
-
-// Функция удаления ламинации
-function removeLamination() {
-    var resultDiv = document.getElementById('calcResult');
-    var form = document.getElementById(calcConfig.type + 'CalcForm');
-
-    if (originalResultWithoutLamination) {
-        displayAvtovizResult(originalResultWithoutLamination, resultDiv);
-        resetStandardLaminationSelection(form || document, 'laminationResult');
-    }
 }
 
 // Открытие модалки с данными заказа автовизиток
@@ -272,43 +193,37 @@ function openOrderModal() {
     var modal = document.getElementById('orderModal');
     var orderDataInput = document.getElementById('orderData');
 
-    // Собираем данные расчета
     var form = document.getElementById(calcConfig.type + 'CalcForm');
     var formData = collectFormData(form);
 
-    // Получаем результат расчета
     var resultDiv = document.getElementById('calcResult');
     var priceElement = resultDiv.querySelector('.result-price');
     var totalPrice = priceElement ? priceElement.textContent.replace(/[^\d.,]/g, '') : '0';
 
-    // Формируем данные заказа для автовизиток
+    // Данные заказа автовизиток
     var orderData = {
         calcType: 'avtoviz',
         product: 'Автовизитки',
-        size: 'Евро (99×210 мм)',
-        printType: formData.printType === 'single' ? 'Односторонняя' : 'Двусторонняя',
         quantity: formData.quantity || 0,
-        totalPrice: parseFloat(String(totalPrice).replace(',', '.')) || 0,
-        paperType: formData.paperType || 'Не указан'
+        size: formData.size || 'Евро',
+        paperType: formData.paperType || 'Не указан',
+        printType: formData.printType === 'single' ? 'Односторонняя' : 'Двусторонняя',
+        totalPrice: totalPrice
     };
 
-    // Добавляем дополнительные услуги
+    // Дополнительные услуги
     var additionalServices = [];
     if (formData.bigovka) additionalServices.push('Биговка');
     if (formData.perforation) additionalServices.push('Перфорация');
     if (formData.drill) additionalServices.push('Сверление');
     if (formData.numbering) additionalServices.push('Нумерация');
-    if (formData.cornerRadius && formData.cornerRadius > 0) additionalServices.push('Скругление ' + formData.cornerRadius + ' углов');
     if (additionalServices.length > 0) {
         orderData.additionalServices = additionalServices.join(', ');
     }
 
-    // Добавляем информацию о ламинации если выбрана
-    if (formData.laminationType) {
-        orderData.laminationType = formData.laminationType;
-        if (formData.laminationThickness) {
-            orderData.laminationThickness = formData.laminationThickness;
-        }
+    // Скругление углов
+    if (formData.cornerRadius && parseInt(formData.cornerRadius) > 0) {
+        orderData.cornerRadius = formData.cornerRadius;
     }
 
     orderDataInput.value = JSON.stringify(orderData);

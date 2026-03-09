@@ -16,7 +16,7 @@ if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED !== true) die();
 
             <div class="form-group">
                 <label class="form-label" for="clientPhone">Телефон <span class="required">*</span>:</label>
-                <input type="tel" id="clientPhone" name="clientPhone" class="form-control" required>
+                <input type="tel" id="clientPhone" name="clientPhone" class="form-control" required maxlength="12" inputmode="numeric" placeholder="+79128120111" pattern="\+[0-9]{11}">
             </div>
 
             <div class="form-group">

@@ -20,7 +20,6 @@ CJSCore::Init(['ajax', 'window']);
 
 $calcType = $arResult['CALC_TYPE'];
 $features = $arResult['FEATURES'] ?? [];
-$printTypes = $arResult['print_types'] ?? [];
 ?>
 
 <div class="calc-container">
@@ -29,8 +28,6 @@ $printTypes = $arResult['print_types'] ?? [];
         <p>
             Данные, полученные при расчете на калькуляторе – являются ориентировочными в связи с регулярным изменением стоимости материалов.<br>
             Конечную стоимость заказа уточняйте у менеджера: <a href="tel:+78462060068">+7 (846) 206-00-68</a><br>
-            <strong>Открытки:</strong> <?= $arResult['format_info'] ?? '' ?><br>
-            <?= $arResult['paper_info'] ?? '' ?><br>
             Спасибо за понимание!
         </p>
     </div>
@@ -39,18 +36,17 @@ $printTypes = $arResult['print_types'] ?? [];
 
     <form id="<?= $calcType ?>CalcForm" class="calc-form">
 
+        <?php if (!empty($arResult['FORMATS'])): ?>
         <!-- Формат открытки -->
         <div class="form-group">
-            <label class="form-label" for="size">Формат открытки:</label>
+            <label class="form-label" for="size">Формат:</label>
             <select name="size" id="size" class="form-control" required>
-                <?php if (!empty($arResult['available_sizes'])): ?>
-                    <?php foreach ($arResult['available_sizes'] as $s): ?>
-                        <option value="<?= htmlspecialchars($s) ?>"><?= htmlspecialchars($s) ?></option>
-                    <?php endforeach; ?>
-                <?php endif; ?>
+                <?php foreach ($arResult['FORMATS'] as $format): ?>
+                    <option value="<?= htmlspecialchars($format['ID']) ?>"><?= htmlspecialchars($format['NAME']) ?></option>
+                <?php endforeach; ?>
             </select>
-            <small class="text-muted">Выберите формат открытки</small>
         </div>
+        <?php endif; ?>
 
         <!-- Тираж -->
         <div class="form-group">
@@ -59,12 +55,11 @@ $printTypes = $arResult['print_types'] ?? [];
                    id="quantity"
                    type="number"
                    class="form-control"
-                   min="<?= $arResult['min_quantity'] ?? 1 ?>"
-                   max="<?= $arResult['max_quantity'] ?? 50000 ?>"
-                   value="<?= $arResult['default_quantity'] ?? 100 ?>"
-                   placeholder="Введите количество экземпляров"
+                   min="<?= $arResult['MIN_QUANTITY'] ?? 1 ?>"
+                   max="<?= $arResult['MAX_QUANTITY'] ?? '' ?>"
+                   value="<?= $arResult['DEFAULT_QUANTITY'] ?? 100 ?>"
+                   placeholder="Введите количество"
                    required>
-            <small class="text-muted">Минимальный тираж: <?= $arResult['min_quantity'] ?? 1 ?> шт.</small>
         </div>
 
         <!-- Тип печати -->
@@ -73,63 +68,62 @@ $printTypes = $arResult['print_types'] ?? [];
             <div class="radio-group">
                 <label class="radio-label">
                     <input type="radio" name="printType" value="single" checked>
-                    Односторонняя печать
+                    Односторонняя
                 </label>
                 <label class="radio-label">
                     <input type="radio" name="printType" value="double">
-                    Двусторонняя печать
+                    Двусторонняя
                 </label>
             </div>
         </div>
 
+        <?php
+        // Показываем дополнительные услуги только если они поддерживаются
+        $showAdditionalServices = false;
+        $supportedServices = [];
+
+        if (!empty($features['bigovka'])) {
+            $supportedServices[] = ['name' => 'bigovka', 'label' => 'Биговка'];
+            $showAdditionalServices = true;
+        }
+        if (!empty($features['perforation'])) {
+            $supportedServices[] = ['name' => 'perforation', 'label' => 'Перфорация'];
+            $showAdditionalServices = true;
+        }
+        if (!empty($features['drill'])) {
+            $supportedServices[] = ['name' => 'drill', 'label' => 'Сверление Ø5мм'];
+            $showAdditionalServices = true;
+        }
+        if (!empty($features['numbering'])) {
+            $supportedServices[] = ['name' => 'numbering', 'label' => 'Нумерация'];
+            $showAdditionalServices = true;
+        }
+
+        if ($showAdditionalServices): ?>
         <!-- Дополнительные услуги -->
         <div class="form-group">
             <label class="form-label">Дополнительные услуги:</label>
             <div class="checkbox-group">
-
-                <?php if ($features['bigovka'] ?? false): ?>
+                <?php foreach ($supportedServices as $service): ?>
                 <label class="checkbox-label">
-                    <input type="checkbox" name="bigovka">
-                    Биговка
+                    <input type="checkbox" name="<?= $service['name'] ?>"> <?= $service['label'] ?>
                 </label>
-                <?php endif; ?>
-
-                <?php if ($features['perforation'] ?? false): ?>
-                <label class="checkbox-label">
-                    <input type="checkbox" name="perforation">
-                    Перфорация
-                </label>
-                <?php endif; ?>
-
-                <?php if ($features['drill'] ?? false): ?>
-                <label class="checkbox-label">
-                    <input type="checkbox" name="drill">
-                    Сверление диаметром 5мм
-                </label>
-                <?php endif; ?>
-
-                <?php if ($features['numbering'] ?? false): ?>
-                <label class="checkbox-label">
-                    <input type="checkbox" name="numbering">
-                    Нумерация
-                </label>
-                <?php endif; ?>
+                <?php endforeach; ?>
             </div>
         </div>
+        <?php endif; ?>
 
-        <?php if ($features['corner_radius'] ?? false): ?>
+        <?php if (!empty($features['corner_radius'])): ?>
         <!-- Скругление углов -->
         <div class="form-group">
-            <label class="form-label" for="cornerRadius">Количество скругленных углов:</label>
-            <input name="cornerRadius"
-                   id="cornerRadius"
-                   type="number"
-                   class="form-control"
-                   min="0"
-                   max="<?= $arResult['corner_radius_max'] ?? 4 ?>"
-                   value="0"
-                   placeholder="0">
-            <small class="text-muted">Максимум <?= $arResult['corner_radius_max'] ?? 4 ?> угла</small>
+            <label class="form-label" for="cornerRadius">Количество углов для скругления:</label>
+            <select name="cornerRadius" id="cornerRadius" class="form-control">
+                <option value="0">Без скругления</option>
+                <option value="1">1 угол</option>
+                <option value="2">2 угла</option>
+                <option value="3">3 угла</option>
+                <option value="4">4 угла</option>
+            </select>
         </div>
         <?php endif; ?>
 
@@ -141,7 +135,6 @@ $printTypes = $arResult['print_types'] ?? [];
         <button id="calcBtn" type="button" class="calc-button">Рассчитать стоимость</button>
 
         <div id="calcResult" class="calc-result"></div>
-
         <div class="calc-spacer"></div>
     </form>
 
@@ -152,6 +145,7 @@ $printTypes = $arResult['print_types'] ?? [];
 // Конфигурация калькулятора
 var calcConfig = {
     type: '<?= $calcType ?>',
+    features: <?= json_encode($features) ?>,
     component: 'my:print.calc'
 };
 
@@ -169,59 +163,16 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // === УНИКАЛЬНАЯ ЛОГИКА ОТКРЫТОК ===
 
-// Отображение результата расчета открыток
+// Отображение результата
 function displayCardResult(result, resultDiv) {
-    var totalPrice = Math.round((result.totalPrice || 0) * 10) / 10;
+    var totalPrice = formatPrice(result.totalPrice);
 
     var html = '<div class="result-success">';
-    html += '<h3 class="result-title">Результат расчета открыток</h3>';
-    html += '<div class="result-price">' + formatPrice(totalPrice) + ' <small>₽</small></div>';
+    html += '<h3 class="result-title">Результат расчета</h3>';
+    html += '<div class="result-price">' + totalPrice + ' <small>₽</small></div>';
 
-    // Детали расчета
-    html += '<details class="result-details">';
-    html += '<summary class="result-summary">Подробности расчета</summary>';
-    html += '<div class="result-details-content">';
-    html += '<ul>';
-
-    if (result.printingType) {
-        html += '<li>Тип печати: <strong>' + result.printingType + '</strong></li>';
-    }
-
-    if (result.baseA3Sheets) {
-        html += '<li>Базовые листы A3: <strong>' + result.baseA3Sheets + '</strong></li>';
-    }
-
-    if (result.adjustment) {
-        html += '<li>Приладочные листы: <strong>' + result.adjustment + '</strong></li>';
-    }
-
-    if (result.totalA3Sheets) {
-        html += '<li>Всего листов A3: <strong>' + result.totalA3Sheets + '</strong></li>';
-    }
-
-    if (result.printingCost) {
-        html += '<li>Стоимость печати: <strong>' + formatPrice(result.printingCost) + ' ₽</strong></li>';
-    }
-
-    if (result.plateCost) {
-        html += '<li>Стоимость пластины: <strong>' + formatPrice(result.plateCost) + ' ₽</strong></li>';
-    }
-
-    if (result.paperCost) {
-        html += '<li>Стоимость бумаги: <strong>' + formatPrice(result.paperCost) + ' ₽</strong></li>';
-    }
-
-    if (result.additionalCosts) {
-        html += '<li>Дополнительные услуги: <strong>' + formatPrice(result.additionalCosts) + ' ₽</strong></li>';
-    }
-
-    html += '</ul>';
-    html += '</div>';
-    html += '</details>';
-
-    // Добавляем кнопку заказа
-    html += '<button type="button" class="order-button" onclick="openOrderModal()">Заказать печать</button>';
-
+    // Кнопка заказа
+    html += '<button type="button" class="order-button" onclick="openOrderModal()">Заказать открытки</button>';
     html += '</div>';
 
     resultDiv.innerHTML = html;
@@ -232,34 +183,38 @@ function openOrderModal() {
     var modal = document.getElementById('orderModal');
     var orderDataInput = document.getElementById('orderData');
 
-    // Собираем данные расчета
     var form = document.getElementById(calcConfig.type + 'CalcForm');
     var formData = collectFormData(form);
 
-    // Получаем результат расчета
     var resultDiv = document.getElementById('calcResult');
     var priceElement = resultDiv.querySelector('.result-price');
     var totalPrice = priceElement ? priceElement.textContent.replace(/[^\d.,]/g, '') : '0';
 
-    // Тип печати
-    var printTypeRadio = form.querySelector('input[name="printType"]:checked');
-    var printType = printTypeRadio ? printTypeRadio.value : 'single';
-
-    // Формируем данные заказа для открыток
+    // Данные заказа открыток
     var orderData = {
-        calcType: calcConfig.type,
+        calcType: 'card',
         product: 'Открытки',
-        size: formData.size || 'Не указан',
         quantity: formData.quantity || 0,
-        printType: printType === 'single' ? 'Односторонняя печать' : 'Двусторонняя печать',
+        size: formData.size || 'Не указан',
         paperType: '300 г/м²',
-        bigovka: formData.bigovka || false,
-        perforation: formData.perforation || false,
-        drill: formData.drill || false,
-        numbering: formData.numbering || false,
-        cornerRadius: formData.cornerRadius || 0,
-        totalPrice: parseFloat(String(totalPrice).replace(',', '.')) || 0
+        printType: formData.printType === 'single' ? 'Односторонняя' : 'Двусторонняя',
+        totalPrice: totalPrice
     };
+
+    // Дополнительные услуги
+    var additionalServices = [];
+    if (formData.bigovka) additionalServices.push('Биговка');
+    if (formData.perforation) additionalServices.push('Перфорация');
+    if (formData.drill) additionalServices.push('Сверление');
+    if (formData.numbering) additionalServices.push('Нумерация');
+    if (additionalServices.length > 0) {
+        orderData.additionalServices = additionalServices.join(', ');
+    }
+
+    // Скругление углов
+    if (formData.cornerRadius && parseInt(formData.cornerRadius) > 0) {
+        orderData.cornerRadius = formData.cornerRadius;
+    }
 
     orderDataInput.value = JSON.stringify(orderData);
     modal.style.display = 'block';

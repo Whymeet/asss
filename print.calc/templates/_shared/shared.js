@@ -226,6 +226,17 @@ function initOrderModal() {
         });
     });
 
+    // Нормализуем телефон к формату +79128120111 и ограничиваем длину.
+    var phoneField = document.getElementById('clientPhone');
+    if (phoneField) {
+        phoneField.addEventListener('input', function() {
+            this.value = normalizePhoneInput(this.value);
+        });
+        phoneField.addEventListener('blur', function() {
+            this.value = normalizePhoneInput(this.value);
+        });
+    }
+
     // Обработчик отправки формы
     form.addEventListener('submit', function(e) {
         e.preventDefault();
@@ -496,6 +507,11 @@ function clearAllFieldErrors() {
     });
 }
 
+function normalizePhoneInput(value) {
+    var digits = String(value || '').replace(/\D/g, '').slice(0, 11);
+    return digits ? ('+' + digits) : '';
+}
+
 /**
  * Валидация формы заказа
  */
@@ -530,10 +546,13 @@ function validateOrderForm() {
         showFieldError(phoneField, 'Введите ваш телефон');
         hasErrors = true;
     } else {
-        var phoneRegex = /^[\+]?[0-9\(\)\-\s]+$/;
-        if (!phoneRegex.test(phone) || phone.length < 10) {
-            showFieldError(phoneField, 'Введите корректный номер телефона');
+        var normalizedPhone = normalizePhoneInput(phone);
+        var phoneRegex = /^\+\d{11}$/;
+        if (!phoneRegex.test(normalizedPhone)) {
+            showFieldError(phoneField, 'Введите телефон в формате +79128120111');
             hasErrors = true;
+        } else {
+            phoneField.value = normalizedPhone;
         }
     }
 

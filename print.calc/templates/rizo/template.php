@@ -28,27 +28,23 @@ $features = $arResult['FEATURES'] ?? [];
         <p>
             Данные, полученные при расчете на калькуляторе – являются ориентировочными в связи с регулярным изменением стоимости материалов.<br>
             Конечную стоимость заказа уточняйте у менеджера: <a href="tel:+78462060068">+7 (846) 206-00-68</a><br>
-            <strong>Ризография:</strong> экономичная черно-белая печать больших тиражей. При тираже более 499 листов A3 автоматически переключается на офсетную печать.<br>
             Спасибо за понимание!
         </p>
     </div>
 
     <h2><?= $arResult['DESCRIPTION'] ?? 'Калькулятор ризографической печати' ?></h2>
 
-
-
     <form id="<?= $calcType ?>CalcForm" class="calc-form">
 
         <?php if (!empty($arResult['PAPER_TYPES'])): ?>
         <!-- Тип бумаги -->
         <div class="form-group">
-            <label class="form-label" for="paperType">Плотность бумаги:</label>
+            <label class="form-label" for="paperType">Тип бумаги:</label>
             <select name="paperType" id="paperType" class="form-control" required>
                 <?php foreach ($arResult['PAPER_TYPES'] as $paper): ?>
                     <option value="<?= htmlspecialchars($paper['ID']) ?>"><?= htmlspecialchars($paper['NAME']) ?></option>
                 <?php endforeach; ?>
             </select>
-            <small class="text-muted">Для ризографии доступны только 80 и 120 г/м²</small>
         </div>
         <?php endif; ?>
 
@@ -76,7 +72,6 @@ $features = $arResult['FEATURES'] ?? [];
                    value="<?= $arResult['DEFAULT_QUANTITY'] ?? 500 ?>"
                    placeholder="Введите количество"
                    required>
-            <small class="text-muted">При тираже более 499 листов A3 будет использована офсетная печать</small>
         </div>
 
         <!-- Тип печати -->
@@ -85,14 +80,13 @@ $features = $arResult['FEATURES'] ?? [];
             <div class="radio-group">
                 <label class="radio-label">
                     <input type="radio" name="printType" value="single" checked>
-                    1+0 (черно-белая с одной стороны)
+                    Односторонняя
                 </label>
                 <label class="radio-label">
                     <input type="radio" name="printType" value="double">
-                    1+1 (черно-белая с двух сторон)
+                    Двусторонняя
                 </label>
             </div>
-            <small class="text-muted">Ризография поддерживает только черно-белую печать</small>
         </div>
 
         <?php
@@ -149,21 +143,13 @@ $features = $arResult['FEATURES'] ?? [];
         <input type="hidden" name="sessid" value="<?= bitrix_sessid() ?>">
 
         <button id="calcBtn" type="button" class="calc-button">Рассчитать стоимость</button>
-        <?php if (!empty($features['lamination'])): ?>
-        <!-- Секция ламинации -->
-        <div id="laminationSection" class="lamination-section" style="margin-top: 32px;">
-            <h3>Дополнительная ламинация</h3>
-            <div id="laminationControls"></div>
-            <div id="laminationResult" class="lamination-result"></div>
-        </div>
-        <?php endif; ?>
+
         <div id="calcResult" class="calc-result"></div>
         <div class="calc-spacer"></div>
     </form>
 
     <?php include dirname(__DIR__) . '/_shared/order-modal.php'; ?>
 </div>
-
 
 <script>
 // Конфигурация калькулятора
@@ -187,95 +173,19 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // === УНИКАЛЬНАЯ ЛОГИКА РИЗОГРАФИИ ===
 
-// Отображение результата ризографии
+// Отображение результата
 function displayRizoResult(result, resultDiv) {
-    var totalPrice = Math.round((result.totalPrice || 0) * 10) / 10;
+    var totalPrice = formatPrice(result.totalPrice);
 
     var html = '<div class="result-success">';
-    html += '<h3 class="result-title">Результат расчета ризографии</h3>';
+    html += '<h3 class="result-title">Результат расчета</h3>';
     html += '<div class="result-price">' + totalPrice + ' <small>₽</small></div>';
 
-    // Специальное отображение типа печати для ризографии
-    if (result.printingType) {
-        var isRizo = result.printingType === 'Ризографическая';
-        var color = isRizo ? '#28a745' : '#007bff';
-        var bgColor = isRizo ? '#f8fff8' : '#f8f9ff';
-
-        html += '<div style="color: ' + color + '; background: ' + bgColor + '; padding: 10px; border-radius: 6px; border-left: 4px solid ' + color + '; margin-bottom: 15px;">';
-        html += '<strong>Тип печати:</strong> ' + result.printingType;
-        if (isRizo) {
-            html += '<br><small>Экономичная черно-белая печать</small>';
-        } else {
-            html += '<br><small>Высокое качество для больших тиражей</small>';
-        }
-        html += '</div>';
-    }
-
-    html += '<details class="result-details">';
-    html += '<summary class="result-summary">Подробности расчета</summary>';
-    html += '<div class="result-details-content">';
-    html += '<ul>';
-
-    if (result.baseA3Sheets) html += '<li>Листов A3: ' + result.baseA3Sheets + '</li>';
-    if (result.printingCost) html += '<li>Стоимость печати: ' + Math.round(result.printingCost * 10) / 10 + ' ₽</li>';
-    if (result.paperCost) html += '<li>Стоимость бумаги: ' + Math.round(result.paperCost * 10) / 10 + ' ₽</li>';
-    if (result.plateCost && result.plateCost > 0) html += '<li>Стоимость пластин: ' + Math.round(result.plateCost * 10) / 10 + ' ₽</li>';
-    if (result.adjustment && result.adjustment > 0) html += '<li>Приладочные листы: ' + result.adjustment + '</li>';
-    if (result.additionalCosts && result.additionalCosts > 0) html += '<li>Дополнительные услуги: ' + Math.round(result.additionalCosts * 10) / 10 + ' ₽</li>';
-
-    html += '</ul>';
-    html += '</div>';
-    html += '</details>';
-
-    if (result.laminationCost && result.laminationCost > 0) {
-        html += '<div class="lamination-info-container">';
-        html += '<p class="lamination-info" style="margin: 0;"><strong>Ламинация включена:</strong> ' + Math.round(result.laminationCost * 10) / 10 + ' ₽</p>';
-        html += '<button type="button" class="remove-lamination-btn" onclick="removeLamination()">Убрать ламинацию</button>';
-        html += '</div>';
-    }
-
-    // Добавляем кнопку заказа
+    // Кнопка заказа
     html += '<button type="button" class="order-button" onclick="openOrderModal()">Заказать ризографию</button>';
-
     html += '</div>';
 
     resultDiv.innerHTML = html;
-}
-
-// Удаление ламинации и пересчет
-function removeLamination() {
-    var laminationSection = document.getElementById('laminationSection');
-    var laminationControls = document.getElementById('laminationControls');
-    var laminationResult = document.getElementById('laminationResult');
-
-    if (laminationSection) {
-        laminationSection.remove();
-    }
-    if (laminationControls) {
-        laminationControls.remove();
-    }
-    if (laminationResult) {
-        laminationResult.remove();
-    }
-
-    // Пересчитываем стоимость без ламинации
-    var form = document.getElementById(calcConfig.type + 'CalcForm');
-    var data = collectFormData(form);
-    data.calcType = calcConfig.type;
-    data.lamination = '0';
-
-    var resultDiv = document.getElementById('calcResult');
-    resultDiv.innerHTML = '<div class="loading">Выполняется расчет ризографии без ламинации...</div>';
-
-    BX.ajax.runComponentAction(calcConfig.component, 'calc', {
-        mode: 'class',
-        data: data
-    }).then(function(response) {
-        handleResponse(response, resultDiv);
-    }).catch(function(error) {
-        resultDiv.innerHTML = '<div class="result-error">Ошибка соединения: ' +
-            (error.message || 'Неизвестная ошибка') + '</div>';
-    });
 }
 
 // Открытие модалки с данными заказа ризографии
@@ -283,41 +193,37 @@ function openOrderModal() {
     var modal = document.getElementById('orderModal');
     var orderDataInput = document.getElementById('orderData');
 
-    // Собираем данные расчета
     var form = document.getElementById(calcConfig.type + 'CalcForm');
     var formData = collectFormData(form);
 
-    // Получаем результат расчета
     var resultDiv = document.getElementById('calcResult');
     var priceElement = resultDiv.querySelector('.result-price');
     var totalPrice = priceElement ? priceElement.textContent.replace(/[^\d.,]/g, '') : '0';
 
-    // Формируем данные заказа для ризографии
+    // Данные заказа ризографии
     var orderData = {
+        calcType: 'rizo',
         product: 'Ризография',
-        paperType: formData.paperType || 'Не указана',
-        size: formData.size || 'Не указан',
         quantity: formData.quantity || 0,
-        printType: formData.printType || 'single',
-        totalPrice: totalPrice,
-        calcType: 'rizo'
+        size: formData.size || 'Не указан',
+        paperType: formData.paperType || 'Не указан',
+        printType: formData.printType === 'single' ? 'Односторонняя' : 'Двусторонняя',
+        totalPrice: totalPrice
     };
 
-    // Добавляем дополнительные услуги если выбраны
-    if (formData.bigovka) orderData.bigovka = true;
-    if (formData.perforation) orderData.perforation = true;
-    if (formData.drill) orderData.drill = true;
-    if (formData.numbering) orderData.numbering = true;
-    if (formData.cornerRadius && formData.cornerRadius !== '0') {
-        orderData.cornerRadius = formData.cornerRadius;
+    // Дополнительные услуги
+    var additionalServices = [];
+    if (formData.bigovka) additionalServices.push('Биговка');
+    if (formData.perforation) additionalServices.push('Перфорация');
+    if (formData.drill) additionalServices.push('Сверление');
+    if (formData.numbering) additionalServices.push('Нумерация');
+    if (additionalServices.length > 0) {
+        orderData.additionalServices = additionalServices.join(', ');
     }
 
-    // Добавляем информацию о ламинации если выбрана
-    if (formData.laminationType) {
-        orderData.laminationType = formData.laminationType;
-        if (formData.laminationThickness) {
-            orderData.laminationThickness = formData.laminationThickness;
-        }
+    // Скругление углов
+    if (formData.cornerRadius && parseInt(formData.cornerRadius) > 0) {
+        orderData.cornerRadius = formData.cornerRadius;
     }
 
     orderDataInput.value = JSON.stringify(orderData);

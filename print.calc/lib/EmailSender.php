@@ -11,22 +11,34 @@ class EmailSender
      * Маппинг calcType → название продукта для темы письма
      */
     private static $productTypes = [
-        'list' => 'листовки',
-        'stend' => 'ПВХ стенд',
-        'vizit' => 'визитки',
-        'booklet' => 'буклеты',
-        'note' => 'блокноты',
-        'kubaric' => 'кубарики',
-        'sticker' => 'наклейки',
-        'canvas' => 'печать на холсте',
-        'calendar' => 'календари',
+        'avtoviz' => 'автовизитки',
         'banner' => 'баннеры',
+        'booklet' => 'буклеты',
+        'calendar' => 'календари',
+        'canvas' => 'печать на холсте',
+        'card' => 'открытки',
+        'catalog' => 'каталоги',
+        'doorhanger' => 'дорхендеры',
+        'envelope' => 'конверты',
+        'kubaric' => 'кубарики',
+        'list' => 'листовки',
+        'note' => 'блокноты',
+        'placement' => 'размещение',
+        'rizo' => 'ризография',
+        'stend' => 'ПВХ стенд',
+        'sticker' => 'наклейки',
+        'vizit' => 'визитки',
     ];
 
     /**
-     * Типы калькуляторов, которые отправляются напрямую (не через событие Bitrix)
+     * Все актуальные типы калькуляторов отправляются напрямую на рабочую почту.
+     * В Bitrix-событие уходим только для неизвестных/новых типов.
      */
-    private static $directSendTypes = ['list', 'booklet', 'vizit', 'stend', 'note', 'kubaric', 'sticker', 'canvas', 'calendar', 'banner'];
+    private static $directSendTypes = [
+        'avtoviz', 'banner', 'booklet', 'calendar', 'canvas', 'card', 'catalog',
+        'doorhanger', 'envelope', 'kubaric', 'list', 'note', 'placement', 'rizo',
+        'stend', 'sticker', 'vizit'
+    ];
 
     /**
      * Главный метод отправки — заменяет sendEmailNotification из class.php
@@ -59,7 +71,7 @@ class EmailSender
         $calcType = $orderInfo['calcType'] ?? '';
 
         // Для поддерживаемых типов отправляем напрямую
-        if (in_array($calcType, self::$directSendTypes)) {
+        if (in_array($calcType, self::$directSendTypes, true)) {
             $debug("Отправляем письмо для типа: " . $calcType);
 
             // Стенды — текстовый формат

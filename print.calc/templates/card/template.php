@@ -2,12 +2,12 @@
 /** Шаблон калькулятора открыток */
 if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED !== true) die();
 
-// Подключаем общие стили
+// Подключаем общие стили и скрипты
 $this->addExternalCss($templateFolder.'/../.default/style.css');
-// Подключаем специфичные стили для открыток (если есть)
 if (file_exists($templateFolder.'/style.css')) {
     $this->addExternalCss($templateFolder.'/style.css');
 }
+$this->addExternalJs($templateFolder.'/../_shared/shared.js');
 
 // Проверяем, что конфигурация загружена
 if (!$arResult['CONFIG_LOADED']) {
@@ -20,7 +20,6 @@ CJSCore::Init(['ajax', 'window']);
 
 $calcType = $arResult['CALC_TYPE'];
 $features = $arResult['FEATURES'] ?? [];
-$printTypes = $arResult['print_types'] ?? [];
 ?>
 
 <div class="calc-container">
@@ -29,42 +28,38 @@ $printTypes = $arResult['print_types'] ?? [];
         <p>
             Данные, полученные при расчете на калькуляторе – являются ориентировочными в связи с регулярным изменением стоимости материалов.<br>
             Конечную стоимость заказа уточняйте у менеджера: <a href="tel:+78462060068">+7 (846) 206-00-68</a><br>
-            <strong>Открытки:</strong> <?= $arResult['format_info'] ?? '' ?><br>
-            <?= $arResult['paper_info'] ?? '' ?><br>
             Спасибо за понимание!
         </p>
     </div>
-    
+
     <h2><?= $arResult['DESCRIPTION'] ?? 'Калькулятор печати открыток' ?></h2>
-    
+
     <form id="<?= $calcType ?>CalcForm" class="calc-form">
-        
+
+        <?php if (!empty($arResult['FORMATS'])): ?>
         <!-- Формат открытки -->
         <div class="form-group">
-            <label class="form-label" for="size">Формат открытки:</label>
+            <label class="form-label" for="size">Формат:</label>
             <select name="size" id="size" class="form-control" required>
-                <?php if (!empty($arResult['available_sizes'])): ?>
-                    <?php foreach ($arResult['available_sizes'] as $s): ?>
-                        <option value="<?= htmlspecialchars($s) ?>"><?= htmlspecialchars($s) ?></option>
-                    <?php endforeach; ?>
-                <?php endif; ?>
+                <?php foreach ($arResult['FORMATS'] as $format): ?>
+                    <option value="<?= htmlspecialchars($format['ID']) ?>"><?= htmlspecialchars($format['NAME']) ?></option>
+                <?php endforeach; ?>
             </select>
-            <small class="text-muted">Выберите формат открытки</small>
         </div>
+        <?php endif; ?>
 
         <!-- Тираж -->
         <div class="form-group">
             <label class="form-label" for="quantity">Тираж:</label>
-            <input name="quantity" 
-                   id="quantity" 
-                   type="number" 
-                   class="form-control" 
-                   min="<?= $arResult['min_quantity'] ?? 1 ?>" 
-                   max="<?= $arResult['max_quantity'] ?? 50000 ?>" 
-                   value="<?= $arResult['default_quantity'] ?? 100 ?>" 
-                   placeholder="Введите количество экземпляров"
+            <input name="quantity"
+                   id="quantity"
+                   type="number"
+                   class="form-control"
+                   min="<?= $arResult['MIN_QUANTITY'] ?? 1 ?>"
+                   max="<?= $arResult['MAX_QUANTITY'] ?? '' ?>"
+                   value="<?= $arResult['DEFAULT_QUANTITY'] ?? 100 ?>"
+                   placeholder="Введите количество"
                    required>
-            <small class="text-muted">Минимальный тираж: <?= $arResult['min_quantity'] ?? 1 ?> шт.</small>
         </div>
 
         <!-- Тип печати -->
@@ -73,63 +68,62 @@ $printTypes = $arResult['print_types'] ?? [];
             <div class="radio-group">
                 <label class="radio-label">
                     <input type="radio" name="printType" value="single" checked>
-                    Односторонняя печать
+                    Односторонняя
                 </label>
                 <label class="radio-label">
                     <input type="radio" name="printType" value="double">
-                    Двусторонняя печать
+                    Двусторонняя
                 </label>
             </div>
         </div>
 
+        <?php
+        // Показываем дополнительные услуги только если они поддерживаются
+        $showAdditionalServices = false;
+        $supportedServices = [];
+
+        if (!empty($features['bigovka'])) {
+            $supportedServices[] = ['name' => 'bigovka', 'label' => 'Биговка'];
+            $showAdditionalServices = true;
+        }
+        if (!empty($features['perforation'])) {
+            $supportedServices[] = ['name' => 'perforation', 'label' => 'Перфорация'];
+            $showAdditionalServices = true;
+        }
+        if (!empty($features['drill'])) {
+            $supportedServices[] = ['name' => 'drill', 'label' => 'Сверление Ø5мм'];
+            $showAdditionalServices = true;
+        }
+        if (!empty($features['numbering'])) {
+            $supportedServices[] = ['name' => 'numbering', 'label' => 'Нумерация'];
+            $showAdditionalServices = true;
+        }
+
+        if ($showAdditionalServices): ?>
         <!-- Дополнительные услуги -->
         <div class="form-group">
             <label class="form-label">Дополнительные услуги:</label>
             <div class="checkbox-group">
-                
-                <?php if ($features['bigovka'] ?? false): ?>
+                <?php foreach ($supportedServices as $service): ?>
                 <label class="checkbox-label">
-                    <input type="checkbox" name="bigovka">
-                    Биговка
+                    <input type="checkbox" name="<?= $service['name'] ?>"> <?= $service['label'] ?>
                 </label>
-                <?php endif; ?>
-
-                <?php if ($features['perforation'] ?? false): ?>
-                <label class="checkbox-label">
-                    <input type="checkbox" name="perforation">
-                    Перфорация
-                </label>
-                <?php endif; ?>
-
-                <?php if ($features['drill'] ?? false): ?>
-                <label class="checkbox-label">
-                    <input type="checkbox" name="drill">
-                    Сверление диаметром 5мм
-                </label>
-                <?php endif; ?>
-
-                <?php if ($features['numbering'] ?? false): ?>
-                <label class="checkbox-label">
-                    <input type="checkbox" name="numbering">
-                    Нумерация
-                </label>
-                <?php endif; ?>
+                <?php endforeach; ?>
             </div>
         </div>
+        <?php endif; ?>
 
-        <?php if ($features['corner_radius'] ?? false): ?>
+        <?php if (!empty($features['corner_radius'])): ?>
         <!-- Скругление углов -->
         <div class="form-group">
-            <label class="form-label" for="cornerRadius">Количество скругленных углов:</label>
-            <input name="cornerRadius" 
-                   id="cornerRadius" 
-                   type="number" 
-                   class="form-control" 
-                   min="0" 
-                   max="<?= $arResult['corner_radius_max'] ?? 4 ?>" 
-                   value="0"
-                   placeholder="0">
-            <small class="text-muted">Максимум <?= $arResult['corner_radius_max'] ?? 4 ?> угла</small>
+            <label class="form-label" for="cornerRadius">Количество углов для скругления:</label>
+            <select name="cornerRadius" id="cornerRadius" class="form-control">
+                <option value="0">Без скругления</option>
+                <option value="1">1 угол</option>
+                <option value="2">2 угла</option>
+                <option value="3">3 угла</option>
+                <option value="4">4 угла</option>
+            </select>
         </div>
         <?php endif; ?>
 
@@ -139,223 +133,91 @@ $printTypes = $arResult['print_types'] ?? [];
         <input type="hidden" name="sessid" value="<?= bitrix_sessid() ?>">
 
         <button id="calcBtn" type="button" class="calc-button">Рассчитать стоимость</button>
-        
+
         <div id="calcResult" class="calc-result"></div>
-        
         <div class="calc-spacer"></div>
     </form>
 
-    <div class="calc-thanks">
-        <p>Спасибо, что Вы с нами!</p>
-    </div>
+    <?php include dirname(__DIR__) . '/_shared/order-modal.php'; ?>
 </div>
 
 <script>
-// Конфигурация для JavaScript
-const calcConfig = {
+// Конфигурация калькулятора
+var calcConfig = {
     type: '<?= $calcType ?>',
+    features: <?= json_encode($features) ?>,
     component: 'my:print.calc'
 };
 
-// Универсальная функция ожидания BX
-function waitForBX(successCallback, fallbackCallback, timeout = 3000) {
-    let attempts = 0;
-    const maxAttempts = timeout / 100;
-    
-    function checkBX() {
-        attempts++;
-        
-        if (typeof BX !== 'undefined' && BX.ajax && BX.ajax.runComponentAction) {
-            console.log('BX доступен, используем стандартный метод');
-            successCallback();
-        } else if (attempts >= maxAttempts) {
-            console.log('Превышено время ожидания BX, используем запасной вариант');
-            fallbackCallback();
-        } else {
-            setTimeout(checkBX, 100);
-        }
-    }
-    
-    checkBX();
-}
+// Hook для отображения результата (вызывается из shared.js)
+window.displayResult = function(data, resultDiv) {
+    displayCardResult(data, resultDiv);
+};
 
-// Основная инициализация с BX
-function initWithBX() {
-    const form = document.getElementById(calcConfig.type + 'CalcForm');
-    const resultDiv = document.getElementById('calcResult');
-    const calcBtn = document.getElementById('calcBtn');
-    
-    if (!form || !resultDiv || !calcBtn) {
-        console.error('Элементы формы не найдены');
-        return;
-    }
+// Инициализация
+document.addEventListener('DOMContentLoaded', function() {
+    initCalculator('Выполняется расчет открыток...');
+    initOrderModal();
+    var __m = document.getElementById("orderModal"); if (__m && __m.parentElement !== document.body) document.body.appendChild(__m);
+    initializeDateTimeValidation();
+});
 
-    calcBtn.addEventListener('click', function() {
-        const data = collectFormData(form);
-        data.calcType = calcConfig.type;
-        
-        resultDiv.innerHTML = '<div class="loading">Выполняется расчет открыток...</div>';
+// === УНИКАЛЬНАЯ ЛОГИКА ОТКРЫТОК ===
 
-        BX.ajax.runComponentAction(calcConfig.component, 'calc', {
-            mode: 'class',
-            data: data
-        }).then(function(response) {
-            handleResponse(response, resultDiv);
-        }).catch(function(error) {
-            console.error('Ошибка BX:', error);
-            resultDiv.innerHTML = '<div class="result-error">Ошибка соединения: ' + 
-                (error.message || 'Неизвестная ошибка') + '</div>';
-        });
-    });
-}
+// Отображение результата
+function displayCardResult(result, resultDiv) {
+    var totalPrice = formatPrice(result.totalPrice);
 
-// Запасной вариант без BX
-function initWithoutBX() {
-    const form = document.getElementById(calcConfig.type + 'CalcForm');
-    const resultDiv = document.getElementById('calcResult');
-    const calcBtn = document.getElementById('calcBtn');
-    
-    if (!form || !resultDiv || !calcBtn) {
-        console.error('Элементы формы не найдены');
-        return;
-    }
+    var html = '<div class="result-success">';
+    html += '<h3 class="result-title">Результат расчета</h3>';
+    html += '<div class="result-price">' + totalPrice + ' <small>₽</small></div>';
 
-    calcBtn.addEventListener('click', function() {
-        const data = collectFormData(form);
-        data.calcType = calcConfig.type;
-        
-        resultDiv.innerHTML = '<div class="loading">Выполняется расчет открыток...</div>';
-
-        fetch('/bitrix/services/main/ajax.php?c=' + calcConfig.component + '&action=calc&mode=class', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-            },
-            body: new URLSearchParams(data)
-        })
-        .then(response => response.json())
-        .then(response => {
-            handleResponse(response, resultDiv);
-        })
-        .catch(error => {
-            resultDiv.innerHTML = '<div class="result-error">Ошибка соединения: ' + error.message + '</div>';
-        });
-    });
-}
-
-// Сбор данных формы
-function collectFormData(form) {
-    const formData = new FormData(form);
-    const data = {};
-    
-    // Собираем все обычные поля
-    for (let [key, value] of formData.entries()) {
-        data[key] = value;
-    }
-    
-    // Добавляем чекбоксы с правильным состоянием
-    const checkboxes = ['bigovka', 'perforation', 'drill', 'numbering'];
-    checkboxes.forEach(name => {
-        const checkbox = form.querySelector(`input[name="${name}"]`);
-        if (checkbox) {
-            data[name] = checkbox.checked;
-        }
-    });
-    
-    // Устанавливаем фиксированную плотность бумаги
-    data.paperType = '300.0';
-    
-    console.log('Собранные данные формы:', data);
-    return data;
-}
-
-// Обработка ответа сервера
-function handleResponse(response, resultDiv) {
-    if (response && response.data) {
-        if (response.data.error) {
-            resultDiv.innerHTML = '<div class="result-error">Ошибка: ' + response.data.error + '</div>';
-        } else {
-            displayResult(response.data, resultDiv);
-        }
-    } else {
-        resultDiv.innerHTML = '<div class="result-error">Некорректный ответ сервера</div>';
-    }
-    
-    // Добавляем анимацию появления результата
-    setTimeout(() => {
-        resultDiv.classList.add('calc-result-enter');
-    }, 50);
-}
-
-// Отображение результата расчета
-function displayResult(result, resultDiv) {
-    const totalPrice = Math.round((result.totalPrice || 0) * 10) / 10;
-    
-    let html = '<div class="result-success">';
-    html += '<h3 class="result-title">Результат расчета открыток</h3>';
-    html += '<div class="result-price">' + formatPrice(totalPrice) + ' ₽';
-    html += '<small>итоговая стоимость</small></div>';
-    
-    // Детали расчета
-    html += '<details class="result-details">';
-    html += '<summary class="result-summary">Подробности расчета</summary>';
-    html += '<div class="result-details-content">';
-    html += '<ul>';
-    
-    if (result.printingType) {
-        html += '<li>Тип печати: <strong>' + result.printingType + '</strong></li>';
-    }
-    
-    if (result.baseA3Sheets) {
-        html += '<li>Базовые листы A3: <strong>' + result.baseA3Sheets + '</strong></li>';
-    }
-    
-    if (result.adjustment) {
-        html += '<li>Приладочные листы: <strong>' + result.adjustment + '</strong></li>';
-    }
-    
-    if (result.totalA3Sheets) {
-        html += '<li>Всего листов A3: <strong>' + result.totalA3Sheets + '</strong></li>';
-    }
-    
-    if (result.printingCost) {
-        html += '<li>Стоимость печати: <strong>' + formatPrice(result.printingCost) + ' ₽</strong></li>';
-    }
-    
-    if (result.plateCost) {
-        html += '<li>Стоимость пластины: <strong>' + formatPrice(result.plateCost) + ' ₽</strong></li>';
-    }
-    
-    if (result.paperCost) {
-        html += '<li>Стоимость бумаги: <strong>' + formatPrice(result.paperCost) + ' ₽</strong></li>';
-    }
-    
-    if (result.additionalCosts) {
-        html += '<li>Дополнительные услуги: <strong>' + formatPrice(result.additionalCosts) + ' ₽</strong></li>';
-    }
-    
-    html += '</ul>';
+    // Кнопка заказа
+    html += '<button type="button" class="order-button" onclick="openOrderModal()">Заказать открытки</button>';
     html += '</div>';
-    html += '</details>';
-    
-    html += '</div>';
-    
+
     resultDiv.innerHTML = html;
 }
 
-// Форматирование цены
-function formatPrice(price) {
-    return Number(price).toLocaleString('ru-RU', {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2
-    });
-}
+// Открытие модалки с данными заказа открыток
+function openOrderModal() {
+    var modal = document.getElementById('orderModal');
+    var orderDataInput = document.getElementById('orderData');
 
-// Инициализация калькулятора
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('DOM загружен, ждем BX...');
-    console.log('Калькулятор:', calcConfig.type);
-    console.log('Время запуска:', new Date().toLocaleTimeString());
-    waitForBX(initWithBX, initWithoutBX, 3000);
-});
-</script>ё
+    var form = document.getElementById(calcConfig.type + 'CalcForm');
+    var formData = collectFormData(form);
+
+    var resultDiv = document.getElementById('calcResult');
+    var priceElement = resultDiv.querySelector('.result-price');
+    var totalPrice = priceElement ? priceElement.textContent.replace(/[^\d.,]/g, '') : '0';
+
+    // Данные заказа открыток
+    var orderData = {
+        calcType: 'card',
+        product: 'Открытки',
+        quantity: formData.quantity || 0,
+        size: formData.size || 'Не указан',
+        paperType: '300 г/м²',
+        printType: formData.printType === 'single' ? 'Односторонняя' : 'Двусторонняя',
+        totalPrice: totalPrice
+    };
+
+    // Дополнительные услуги
+    var additionalServices = [];
+    if (formData.bigovka) additionalServices.push('Биговка');
+    if (formData.perforation) additionalServices.push('Перфорация');
+    if (formData.drill) additionalServices.push('Сверление');
+    if (formData.numbering) additionalServices.push('Нумерация');
+    if (additionalServices.length > 0) {
+        orderData.additionalServices = additionalServices.join(', ');
+    }
+
+    // Скругление углов
+    if (formData.cornerRadius && parseInt(formData.cornerRadius) > 0) {
+        orderData.cornerRadius = formData.cornerRadius;
+    }
+
+    orderDataInput.value = JSON.stringify(orderData);
+    modal.style.display = 'block';
+}
+</script>

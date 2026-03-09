@@ -1,0 +1,30 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mount)",
+      "Bash(net use)",
+      "Bash(ssh -o ConnectTimeout=5 -o StrictHostKeyChecking=no -o BatchMode=yes bitrix@192.168.1.36 \"echo OK\")",
+      "Bash(ssh -i /c/Users/matve/.ssh/bitrix_server -o StrictHostKeyChecking=no -o BatchMode=yes bitrix@192.168.1.36 \"echo OK\")",
+      "Bash(ssh -i /c/Users/matve/.ssh/bitrix_server bitrix@192.168.1.36 \"ls /home/bitrix/www/nashi-uslugi/poligrafiya/avtovizitki/\")",
+      "Bash(ssh -i /c/Users/matve/.ssh/bitrix_server bitrix@192.168.1.36 \"find /home/bitrix/www/ -maxdepth 1 -type d | head -20\")",
+      "Bash(ssh -i /c/Users/matve/.ssh/bitrix_server bitrix@192.168.1.36 \"ls /home/bitrix/www/nashi-uslugi/poligrafiya/\")",
+      "Bash(ssh -i /c/Users/matve/.ssh/bitrix_server bitrix@192.168.1.36 \"find /home/bitrix/www/nashi-uslugi/ -type d | head -30\")",
+      "Bash(ssh -i /c/Users/matve/.ssh/bitrix_server bitrix@192.168.1.36 \"grep -r ''Цены на печать'' /home/bitrix/www/local/ /home/bitrix/www/nashi-uslugi/ 2>/dev/null | head -10\")",
+      "Bash(ssh -i /c/Users/matve/.ssh/bitrix_server bitrix@192.168.1.36 \"grep -r ''urlrewrite'' /home/bitrix/www/.htaccess 2>/dev/null; head -50 /home/bitrix/www/urlrewrite.php 2>/dev/null\")",
+      "Bash(ssh -i /c/Users/matve/.ssh/bitrix_server bitrix@192.168.1.36 \"cat /home/bitrix/www/nashi-uslugi/index.php\")",
+      "Bash(ssh -i /c/Users/matve/.ssh/bitrix_server bitrix@192.168.1.36 \"php /tmp/find_sections.php\")",
+      "Bash(ssh -i /c/Users/matve/.ssh/bitrix_server bitrix@192.168.1.36 \"cd /home/bitrix/www && php /tmp/find_sections.php\")",
+      "Bash(ssh -i:*)",
+      "Bash(scp -i /c/Users/matve/.ssh/bitrix_server \"c:/Users/matve/dev/asss/print.calc/templates/_shared/shared.js\" bitrix@192.168.1.36:/home/bitrix/www/local/components/my/print.calc/templates/_shared/shared.js)",
+      "Bash(scp -i /c/Users/matve/.ssh/bitrix_server \"c:/Users/matve/dev/asss/print.calc/templates/_shared/shared.js\" bitrix@192.168.1.36:/tmp/shared.js)",
+      "Bash(ssh -o StrictHostKeyChecking=no root@192.168.1.36 \"whoami\" 2)",
+      "Bash(1:*)",
+      "Bash(scp -i /c/Users/matve/.ssh/bitrix_server \"c:/Users/matve/dev/asss/print.calc/templates/_shared/order-modal.php\" bitrix@192.168.1.36:/tmp/order-modal.php)",
+      "Bash(for dir in vizit note catalog card banner calendar avtoviz booklet canvas envelope kubaric list rizo sticker doorhanger stend placement)",
+      "Bash(do scp -i /c/Users/matve/.ssh/bitrix_server \"$dir/template.php\" bitrix@192.168.1.36:/home/bitrix/www/local/components/my/print.calc/templates/$dir/template.php)",
+      "Bash(echo \"Deployed $dir\")",
+      "Bash(echo \"FAILED $dir\")",
+      "Bash(done)"
+    ]
+  }
+}

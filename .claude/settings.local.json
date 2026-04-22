@@ -24,7 +24,9 @@
       "Bash(do scp -i /c/Users/matve/.ssh/bitrix_server \"$dir/template.php\" bitrix@192.168.1.36:/home/bitrix/www/local/components/my/print.calc/templates/$dir/template.php)",
       "Bash(echo \"Deployed $dir\")",
       "Bash(echo \"FAILED $dir\")",
-      "Bash(done)"
+      "Bash(done)",
+      "Bash(scp -i /c/Users/matve/.ssh/bitrix_server \"c:/Users/matve/dev/asss/print.calc/templates/.default/style.css\" bitrix@192.168.1.36:/home/bitrix/www/local/components/my/print.calc/templates/.default/style.css)",
+      "Bash(scp -i /c/Users/matve/.ssh/bitrix_server \"c:/Users/matve/dev/asss/print.calc/templates/avtoviz/template.php\" bitrix@192.168.1.36:/home/bitrix/www/local/components/my/print.calc/templates/avtoviz/template.php)"
     ]
   }
 }

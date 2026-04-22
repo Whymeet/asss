@@ -208,13 +208,7 @@ function initOrderModal() {
         document.body.appendChild(modal);
     }
 
-    // Дополнительная защита от внешних CSS-переопределений.
-    modal.style.position = 'fixed';
-    modal.style.left = '0';
-    modal.style.top = '0';
-    modal.style.width = '100vw';
-    modal.style.height = '100vh';
-    modal.style.zIndex = '1000';
+    // CSS с !important обеспечивает полноэкранный оверлей
 
     var closeBtn = modal.querySelector('.order-modal-close');
     var form = document.getElementById('orderForm');

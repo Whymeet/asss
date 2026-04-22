@@ -21,8 +21,8 @@ return [
         'standard_sizes' => [30, 40, 50, 60, 70, 80, 90, 100],
         'max_standard_size' => 100, // см
         'large_size_price_per_m2' => [
-            'canvas' => 2700, // руб за м²
-            'podramnik' => 1900 // руб за м²
+            'canvas' => 2970, // руб за м²
+            'podramnik' => 2090 // руб за м²
         ],
         'dimension_info' => 'Размеры указываются в сантиметрах',
         'rounding_info' => 'Размеры до 100 см округляются до стандартных значений',

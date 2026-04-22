@@ -148,8 +148,9 @@ $features = $arResult['FEATURES'] ?? [];
         <div class="calc-spacer"></div>
     </form>
 
-    <?php include dirname(__DIR__) . '/_shared/order-modal.php'; ?>
 </div>
+
+<?php include dirname(__DIR__) . '/_shared/order-modal.php'; ?>
 
 <script>
 // Конфигурация калькулятора
@@ -166,9 +167,15 @@ window.displayResult = function(data, resultDiv) {
 
 // Инициализация
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('[AVTOVIZ] DOMContentLoaded fired');
     initCalculator('Выполняется расчет автовизиток...');
+    console.log('[AVTOVIZ] initCalculator done');
     initOrderModal();
-    var __m = document.getElementById("orderModal"); if (__m && __m.parentElement !== document.body) document.body.appendChild(__m);
+    console.log('[AVTOVIZ] initOrderModal done');
+    var __m = document.getElementById("orderModal");
+    console.log('[AVTOVIZ] modal parent:', __m ? __m.parentElement.tagName + '.' + __m.parentElement.className : 'NOT FOUND');
+    if (__m && __m.parentElement !== document.body) document.body.appendChild(__m);
+    console.log('[AVTOVIZ] modal parent after move:', __m ? __m.parentElement.tagName + '.' + __m.parentElement.className : 'NOT FOUND');
     initializeDateTimeValidation();
 });
 
@@ -192,6 +199,9 @@ function displayAvtovizResult(result, resultDiv) {
 // Открытие модалки с данными заказа автовизиток
 function openOrderModal() {
     var modal = document.getElementById('orderModal');
+    if (modal && modal.parentElement !== document.body) {
+        document.body.appendChild(modal);
+    }
     var orderDataInput = document.getElementById('orderData');
 
     var form = document.getElementById(calcConfig.type + 'CalcForm');
